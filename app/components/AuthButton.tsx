@@ -46,7 +46,7 @@ export default function AuthButton() {
   }, [open]);
 
   if (status === "loading") {
-    return <div className="h-9 w-28 rounded-lg bg-gray-100 animate-pulse" />;
+    return <div className="h-9 w-28 rounded-lg bg-white/10 animate-pulse" />;
   }
 
   if (!session) {
@@ -54,13 +54,13 @@ export default function AuthButton() {
       <div className="flex items-center gap-1.5 sm:gap-2">
         <Link
           href="/login"
-          className="rounded-lg border border-gray-200 px-2.5 sm:px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+          className="rounded-lg border border-white/20 px-2.5 sm:px-3 py-2 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition-colors"
         >
           Log in
         </Link>
         <Link
           href="/login?mode=signup"
-          className="rounded-lg bg-blue-600 px-3 sm:px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm"
+          className="rounded-lg bg-cardboard px-3 sm:px-4 py-2 text-sm font-semibold text-ink hover:bg-cardboard-dark transition-colors"
         >
           Sign up
         </Link>
@@ -81,17 +81,17 @@ export default function AuthButton() {
         aria-expanded={open}
         aria-label="Account menu"
         className={`flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors ${
-          open ? "bg-gray-100" : "hover:bg-gray-100"
+          open ? "bg-white/10" : "hover:bg-white/10"
         }`}
       >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-blue-600 to-purple-600 text-xs font-semibold text-white">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cardboard text-xs font-semibold text-ink">
           {initials(name)}
         </span>
-        <span className="hidden sm:block max-w-[120px] truncate text-sm font-medium text-gray-700">
+        <span className="hidden sm:block max-w-[120px] truncate text-sm font-medium text-white/80">
           {name}
         </span>
         <svg
-          className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${
+          className={`h-4 w-4 shrink-0 text-white/50 transition-transform ${
             open ? "rotate-180" : ""
           }`}
           fill="none"

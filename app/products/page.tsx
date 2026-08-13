@@ -7,7 +7,7 @@ import type { Product } from "@/app/product-data";
 
 export const metadata: Metadata = {
   title: "Products",
-  description: "Browse the full StyleShop catalog and add your favorites to the cart.",
+  description: "Browse outlet sneaker finds from nolidz — unboxed, photographed, and ready to wear.",
 };
 
 /**

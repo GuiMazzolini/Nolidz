@@ -4,7 +4,7 @@ import LoginForm from "./LoginForm";
 
 export const metadata: Metadata = {
   title: "Log in",
-  description: "Log in or create a StyleShop account to save your cart and checkout.",
+  description: "Log in or create a nolidz account to save your cart and checkout.",
 };
 
 export default function LoginPage() {

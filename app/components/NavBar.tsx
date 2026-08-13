@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AuthButton from "./AuthButton";
@@ -23,8 +24,8 @@ function NavLink({
       href={href}
       className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
         active
-          ? "text-blue-600 bg-blue-50"
-          : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          ? "text-cardboard bg-white/10"
+          : "text-white/70 hover:text-white hover:bg-white/10"
       }`}
     >
       {label}
@@ -38,14 +39,19 @@ export default function NavBar() {
     pathname === "/products" || pathname.startsWith("/products/");
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2 group shrink-0">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-blue-600 to-purple-600 text-white font-bold text-lg shadow-sm">
-            S
-          </span>
-          <span className="text-xl font-bold text-gray-900 tracking-tight">
-            Style<span className="text-blue-600">Shop</span>
+    <nav className="sticky top-0 z-50 bg-ink/90 backdrop-blur-md border-b border-white/10">
+      <div className="container mx-auto px-4 h-[4.5rem] flex items-center justify-between gap-3 sm:gap-4">
+        <Link href="/" className="flex items-center gap-3 group shrink-0">
+          <Image
+            src="/nolidz.jpeg"
+            alt="nolidz"
+            width={48}
+            height={48}
+            className="h-12 w-12 rounded-md object-cover"
+            priority
+          />
+          <span className="hidden sm:inline font-display italic font-extrabold text-2xl tracking-tight text-white lowercase">
+            nolidz
           </span>
         </Link>
 
