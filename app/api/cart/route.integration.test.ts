@@ -12,13 +12,13 @@ import type { CartDoc, CartItemDoc } from "@/app/lib/db-collections";
 import { BUYER, catalog } from "@/app/test/fixtures";
 import { jsonRequest, readResponse } from "@/app/test/http";
 import {
-  isMongoAvailable,
+  getIntegrationMongo,
   useTestDatabase,
   type TestDatabase,
 } from "@/app/test/mongo-integration";
 import { setMockSession } from "@/app/test/session";
 
-const available = await isMongoAvailable();
+const mongoUri = await getIntegrationMongo();
 let test: TestDatabase;
 
 type CartLine = { id: string; quantity: number; variantSku?: string };
@@ -38,9 +38,9 @@ async function seedCart(items: CartItemDoc[]) {
  * The same cart scenarios as route.test.ts, run against a real server. If the
  * in-memory double's matching semantics were wrong, these are what catch it.
  */
-describe.skipIf(!available)("cart API against a real MongoDB", () => {
+describe.skipIf(!mongoUri)("cart API against a real MongoDB", () => {
   beforeAll(async () => {
-    test = await useTestDatabase("cart");
+    test = await useTestDatabase("cart", mongoUri!);
   });
 
   afterEach(async () => {
@@ -48,7 +48,7 @@ describe.skipIf(!available)("cart API against a real MongoDB", () => {
   });
 
   afterAll(async () => {
-    await test?.drop();
+    await test?.teardown();
   });
 
   beforeAll(async () => {
