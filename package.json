@@ -11,6 +11,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
+    "test:integration": "vitest run integration",
+    "mongo:start": "node scripts/test-mongo.mjs start",
+    "mongo:stop": "node scripts/test-mongo.mjs stop",
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
