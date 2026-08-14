@@ -24,6 +24,14 @@ export const ALLOWED_IMAGE_HOSTS = ["res.cloudinary.com"];
 export function normalizeProductImageUrl(imageUrl: string): string {
   const trimmed = imageUrl.trim();
 
+  // A same-origin path is the seeded photography in `public/`. It cannot point
+  // off-site, so there is nothing for the host allowlist to protect against —
+  // and rejecting it would make every seeded product uneditable in the admin.
+  // `//evil.example.com` is protocol-relative, not same-origin, so it is out.
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
+    return trimmed;
+  }
+
   let url: URL;
   try {
     url = new URL(trimmed);

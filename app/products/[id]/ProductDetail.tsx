@@ -7,7 +7,10 @@ import { getImageSrc } from "@/app/lib/images";
 import { useCartStore } from "@/app/lib/store/cartStore";
 import { useCheckout } from "@/app/lib/use-checkout";
 import {
+  formatSize,
   hasVariants,
+  imageForColor,
+  isNumericSize,
   listColors,
   variantsForColor,
   type ProductVariant,
@@ -16,9 +19,14 @@ import type { Product } from "@/app/product-data";
 
 type ProductDetailProps = {
   product: Product;
+  /** Colourway chosen on the catalog card, via `?color=`. */
+  initialColor?: string | null;
 };
 
-export default function ProductDetail({ product }: ProductDetailProps) {
+export default function ProductDetail({
+  product,
+  initialColor = null,
+}: ProductDetailProps) {
   const [buyingNow, setBuyingNow] = useState(false);
 
   const cartProducts = useCartStore((s) => s.cartProducts);
@@ -34,20 +42,30 @@ export default function ProductDetail({ product }: ProductDetailProps) {
 
   // Opens on the first colourway that has something to sell, so the common
   // case needs one click (a size) rather than two.
-  const [color, setColor] = useState<string>(
-    () =>
+  const [color, setColor] = useState<string>(() => {
+    const requested = colors.find(
+      (c) => c.trim().toLowerCase() === initialColor?.trim().toLowerCase()
+    );
+    return (
+      requested ??
       colors.find((c) =>
         variantsForColor(variants, c).some((v) => v.stock > 0)
       ) ??
       colors[0] ??
       ""
-  );
+    );
+  });
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
 
   const sizesForColor = useMemo(
     () => (color ? variantsForColor(variants, color) : []),
     [variants, color]
   );
+
+  // Accessories are sold "One size", where an "EU size" heading is wrong.
+  const sizeHeading = variants.some((v) => isNumericSize(v.size))
+    ? "EU size"
+    : "Size";
 
   const selected: ProductVariant | null = useMemo(
     () => sizesForColor.find((v) => v.sku === selectedSku) ?? null,
@@ -113,15 +131,20 @@ export default function ProductDetail({ product }: ProductDetailProps) {
       if (outOfStock) return "Out of stock in every size";
       if (!selected) return "Select a size to see availability";
       if (selected.stock < 1) return "This size is sold out";
+      const label = formatSize(selected.size);
       return selected.stock <= 5
-        ? `Only ${selected.stock} left in EU ${selected.size}`
-        : `${selected.stock} in stock in EU ${selected.size}`;
+        ? `Only ${selected.stock} left in ${label}`
+        : `${selected.stock} in stock in ${label}`;
     }
     if (outOfStock) return "Out of stock";
     return product.stock <= 5
       ? `Only ${product.stock} left`
       : `${product.stock} in stock`;
   }
+
+  // The hero follows the chosen colourway, matching the catalog swatch that
+  // brought the shopper here.
+  const heroImage = imageForColor(product, color);
 
   const stockToneClass =
     outOfStock || (isVariantProduct && selected && selected.stock < 1)
@@ -139,8 +162,9 @@ export default function ProductDetail({ product }: ProductDetailProps) {
             <div className="lg:w-1/2 p-8 bg-gray-100 flex items-center justify-center">
               <div className="relative w-full aspect-square max-w-md">
                 <Image
-                  src={getImageSrc(product.imageUrl)}
-                  alt={product.name}
+                  key={heroImage}
+                  src={getImageSrc(heroImage)}
+                  alt={color ? `${product.name} in ${color}` : product.name}
                   fill
                   className="object-cover rounded-xl"
                   unoptimized
@@ -153,6 +177,9 @@ export default function ProductDetail({ product }: ProductDetailProps) {
               <div className="mb-6">
                 <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
                   {product.name}
+                  {color && (
+                    <span className="font-normal text-gray-500"> – {color}</span>
+                  )}
                 </h1>
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-bold text-blue-600">
@@ -210,7 +237,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
 
                   <div>
                     <p className="mb-2 text-sm font-semibold text-gray-900">
-                      EU size
+                      {sizeHeading}
                     </p>
                     <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                       {sizesForColor.map((variant) => {

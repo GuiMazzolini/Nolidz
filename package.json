@@ -12,9 +12,9 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "test:integration": "vitest run integration",
-    "mongo:start": "node scripts/test-mongo.mjs start",
-    "mongo:stop": "node scripts/test-mongo.mjs stop",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "db:start": "node scripts/dev-mongo.mjs start",
+    "db:stop": "node scripts/dev-mongo.mjs stop"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -46,6 +46,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "jsdom": "^26.1.0",
+    "mongodb-memory-server": "^11.2.0",
     "tailwindcss": "^4",
     "tsx": "^4.20.3",
     "typescript": "^5",

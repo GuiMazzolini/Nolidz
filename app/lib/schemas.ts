@@ -152,6 +152,16 @@ export function resolveVariants(
   });
 }
 
+/** One photo per colourway. Colour names are matched against the variants. */
+export const colorImagesSchema = z
+  .array(
+    z.object({
+      color: z.string().trim().min(1).max(40),
+      imageUrl: z.url().max(2000),
+    })
+  )
+  .max(MAX_PRODUCT_VARIANTS);
+
 export const adminProductCreateSchema = z
   .object({
     id: productIdSchema.optional(),
@@ -162,6 +172,7 @@ export const adminProductCreateSchema = z
     // Optional because a product with variants derives its total from them.
     stock: z.number().int().nonnegative().max(1_000_000).optional(),
     variants: productVariantsSchema.optional(),
+    colorImages: colorImagesSchema.optional(),
   })
   .refine((v) => v.variants?.length || v.stock !== undefined, {
     message: "Provide a stock count or at least one size/colour variant",
@@ -178,6 +189,8 @@ export const adminProductUpdateSchema = z
     stock: z.number().int().nonnegative().max(1_000_000),
     // An empty array clears the variants and returns the product to a single SKU.
     variants: productVariantsSchema,
+    // Likewise, an empty array clears the per-colourway photos.
+    colorImages: colorImagesSchema,
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, {

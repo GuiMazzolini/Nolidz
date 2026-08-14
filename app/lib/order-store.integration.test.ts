@@ -19,12 +19,12 @@ import { fulfillCheckoutSession } from "@/app/lib/orders";
 import type { ProductDoc } from "@/app/lib/db-collections";
 import { BUYER, catalog } from "@/app/test/fixtures";
 import {
-  isMongoAvailable,
+  getIntegrationMongo,
   useTestDatabase,
   type TestDatabase,
 } from "@/app/test/mongo-integration";
 
-const available = await isMongoAvailable();
+const mongoUri = await getIntegrationMongo();
 let test: TestDatabase;
 
 async function product(id: string): Promise<ProductDoc> {
@@ -68,9 +68,9 @@ function paidSession(metadata: Record<string, string>) {
  * vouch for: it turns on `$elemMatch` picking the right array element and the
  * positional `$inc` landing on it. Run it for real.
  */
-describe.skipIf(!available)("fulfillment against a real MongoDB", () => {
+describe.skipIf(!mongoUri)("fulfillment against a real MongoDB", () => {
   beforeAll(async () => {
-    test = await useTestDatabase("orders");
+    test = await useTestDatabase("orders", mongoUri!);
   });
 
   afterEach(async () => {
@@ -79,7 +79,7 @@ describe.skipIf(!available)("fulfillment against a real MongoDB", () => {
   });
 
   afterAll(async () => {
-    await test?.drop();
+    await test?.teardown();
   });
 
   async function seedCatalog() {

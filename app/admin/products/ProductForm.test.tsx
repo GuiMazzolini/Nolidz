@@ -23,6 +23,7 @@ type Payload = {
   price: number;
   stock?: number;
   variants?: { sku?: string; size: string; color: string; stock: number }[];
+  colorImages?: { color: string; imageUrl: string }[];
 };
 
 function lastPayload(): Payload {
@@ -238,6 +239,47 @@ describe("the size run builder", () => {
     expect(payload.stock).toBeUndefined();
   });
 
+  it("sends a photo per colourway and drops colours with none", async () => {
+    const user = userEvent.setup();
+    render(<ProductForm mode="create" />);
+
+    await fillBaseFields(user);
+    await enableVariants(user);
+    await user.type(screen.getByLabelText("Colour"), "Black");
+    await user.click(sizeChip("42"));
+
+    await user.type(
+      screen.getByLabelText("Photo URL for Black"),
+      "https://res.cloudinary.com/demo/image/upload/black.png"
+    );
+    await user.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(lastPayload().colorImages).toEqual([
+      {
+        color: "Black",
+        imageUrl: "https://res.cloudinary.com/demo/image/upload/black.png",
+      },
+    ]);
+  });
+
+  it("offers one photo row per colourway, not per size", async () => {
+    const user = userEvent.setup();
+    render(<ProductForm mode="create" />);
+
+    await enableVariants(user);
+    const colour = screen.getByLabelText("Colour");
+    await user.type(colour, "Black");
+    await user.click(sizeChip("42"));
+    await user.click(sizeChip("43"));
+    await user.clear(colour);
+    await user.type(colour, "White");
+    await user.click(sizeChip("42"));
+
+    expect(screen.getByLabelText("Photo URL for Black")).toBeVisible();
+    expect(screen.getByLabelText("Photo URL for White")).toBeVisible();
+    expect(screen.queryByLabelText("Photo URL for ")).toBeNull();
+  });
+
   it("refuses to submit with variants on and no rows", async () => {
     const user = userEvent.setup();
     render(<ProductForm mode="create" />);
@@ -313,6 +355,12 @@ describe("editing an existing variant product", () => {
       { sku: "runner-eu42-black", size: "42", color: "Black", stock: 3 },
       { sku: "runner-eu43-black", size: "43", color: "Black", stock: 2 },
     ],
+    colorImages: [
+      {
+        color: "Black",
+        imageUrl: "https://res.cloudinary.com/demo/image/upload/black.png",
+      },
+    ],
   };
 
   it("opens with the existing rows and the derived total", () => {
@@ -340,6 +388,13 @@ describe("editing an existing variant product", () => {
     ]);
   });
 
+  it("opens with the saved colour photo", () => {
+    render(<ProductForm mode="edit" initial={initial} />);
+    expect(screen.getByLabelText("Photo URL for Black")).toHaveValue(
+      "https://res.cloudinary.com/demo/image/upload/black.png"
+    );
+  });
+
   it("sends an empty array when variants are switched off", async () => {
     const user = userEvent.setup();
     render(<ProductForm mode="edit" initial={initial} />);
@@ -353,6 +408,8 @@ describe("editing an existing variant product", () => {
 
     const payload = lastPayload();
     expect(payload.variants).toEqual([]);
+    // Colour photos belong to the variants; clearing one clears the other.
+    expect(payload.colorImages).toEqual([]);
     expect(payload.stock).toBe(6);
   });
 

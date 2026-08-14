@@ -4,7 +4,11 @@ import { connectToDB } from "@/app/api/db";
 import { getImageSrc } from "@/app/lib/images";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products } from "@/app/lib/db-collections";
-import { serializeVariants, type ProductVariant } from "@/app/lib/variants";
+import {
+  serializeVariants,
+  type ColorImage,
+  type ProductVariant,
+} from "@/app/lib/variants";
 import ProductDetail from "./ProductDetail";
 
 type Params = { id: string };
@@ -20,6 +24,7 @@ type DBProduct = {
   imageUrl: string;
   stock: number;
   variants?: ProductVariant[];
+  colorImages?: ColorImage[];
 };
 
 async function getProduct(id: string): Promise<DBProduct | null> {
@@ -35,6 +40,7 @@ async function getProduct(id: string): Promise<DBProduct | null> {
     imageUrl: product.imageUrl,
     stock: getAvailableStock(product.stock),
     variants: serializeVariants(product.variants),
+    colorImages: product.colorImages,
   };
 }
 
@@ -62,15 +68,21 @@ export async function generateMetadata({
 
 export default async function ProductDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<Params>;
+  // `?color=` arrives from a catalog swatch, so the page opens on the
+  // colourway the shopper was already looking at.
+  searchParams: Promise<{ color?: string | string[] }>;
 }) {
-  const { id } = await params;
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const product = await getProduct(id);
 
   if (!product) {
     notFound();
   }
 
-  return <ProductDetail product={product} />;
+  const requested = Array.isArray(query.color) ? query.color[0] : query.color;
+
+  return <ProductDetail product={product} initialColor={requested ?? null} />;
 }

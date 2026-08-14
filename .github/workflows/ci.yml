@@ -11,8 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      # The integration tests skip themselves without a server, so this is what
-      # keeps them actually running rather than quietly passing as skipped.
+      # Locally the integration tests start a MongoDB of their own. Here they
+      # use this one instead (see TEST_MONGODB_URI below), which skips the
+      # binary download on every run.
       mongo:
         image: mongo:7
         ports:
@@ -44,6 +45,8 @@ jobs:
 
       - name: Test
         run: npm test
+        env:
+          TEST_MONGODB_URI: mongodb://127.0.0.1:27017
 
       - name: Build
         run: npm run build

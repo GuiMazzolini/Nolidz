@@ -4,12 +4,12 @@ import { POST } from "@/app/api/auth/register/route";
 import { checkRateLimit } from "@/app/lib/rate-limit";
 import { jsonRequest } from "@/app/test/http";
 import {
-  isMongoAvailable,
+  getIntegrationMongo,
   useTestDatabase,
   type TestDatabase,
 } from "@/app/test/mongo-integration";
 
-const available = await isMongoAvailable();
+const mongoUri = await getIntegrationMongo();
 let test: TestDatabase;
 
 const credentials = {
@@ -23,9 +23,9 @@ const credentials = {
  * users.email is the thing that actually enforces one account per address, and
  * only a real server can prove it fires.
  */
-describe.skipIf(!available)("registration against a real MongoDB", () => {
+describe.skipIf(!mongoUri)("registration against a real MongoDB", () => {
   beforeAll(async () => {
-    test = await useTestDatabase("register");
+    test = await useTestDatabase("register", mongoUri!);
   });
 
   afterEach(async () => {
@@ -33,7 +33,7 @@ describe.skipIf(!available)("registration against a real MongoDB", () => {
   });
 
   afterAll(async () => {
-    await test?.drop();
+    await test?.teardown();
   });
 
   it("creates the unique index the race relies on", async () => {

@@ -30,6 +30,7 @@ type AdminProduct = {
   name: string;
   stock: number;
   variants: ProductVariant[];
+  colorImages: { color: string; imageUrl: string }[];
 };
 
 const IMAGE = "https://res.cloudinary.com/demo/image/upload/new.png";
@@ -114,6 +115,52 @@ describe("POST /api/admin/products", () => {
       "new-shoe-eu42-5-black",
       "new-shoe-eu42-bone-white",
     ]);
+  });
+
+  it("stores a photo per colourway", async () => {
+    const { body } = await readResponse<AdminProduct>(
+      await POST(
+        jsonRequest("POST", {
+          ...validBody,
+          variants: [
+            { size: "42", color: "Black", stock: 3 },
+            { size: "42", color: "White", stock: 1 },
+          ],
+          colorImages: [
+            { color: "Black", imageUrl: IMAGE },
+            {
+              color: "White",
+              imageUrl: "https://res.cloudinary.com/demo/image/upload/white.png",
+            },
+          ],
+        })
+      )
+    );
+
+    expect(body.colorImages).toEqual([
+      { color: "Black", imageUrl: IMAGE },
+      {
+        color: "White",
+        imageUrl: "https://res.cloudinary.com/demo/image/upload/white.png",
+      },
+    ]);
+  });
+
+  it("holds colour photos to the same host allowlist as the main image", async () => {
+    const { status, body } = await readResponse<{ error: string }>(
+      await POST(
+        jsonRequest("POST", {
+          ...validBody,
+          variants: [{ size: "42", color: "Black", stock: 1 }],
+          colorImages: [
+            { color: "Black", imageUrl: "https://evil.example.com/x.png" },
+          ],
+        })
+      )
+    );
+
+    expect(status).toBe(400);
+    expect(body.error).toContain("res.cloudinary.com");
   });
 
   it("ignores a stock count sent alongside variants", async () => {
@@ -212,6 +259,33 @@ describe("PATCH /api/admin/products/[id]", () => {
     // The existing SKU is preserved, so carts holding it stay valid.
     expect(body.variants[0].sku).toBe("runner-eu42-black");
     expect(body.variants[1].sku).toBe("runner-eu44-black");
+  });
+
+  it("replaces the colour photos", async () => {
+    const { body } = await readResponse<AdminProduct>(
+      await PATCH(
+        jsonRequest("PATCH", {
+          colorImages: [{ color: "Black", imageUrl: IMAGE }],
+        }),
+        params("runner")
+      )
+    );
+
+    expect(body.colorImages).toEqual([{ color: "Black", imageUrl: IMAGE }]);
+  });
+
+  it("clears the colour photos with an empty array", async () => {
+    await PATCH(
+      jsonRequest("PATCH", { colorImages: [{ color: "Black", imageUrl: IMAGE }] }),
+      params("runner")
+    );
+
+    const { body } = await readResponse<AdminProduct>(
+      await PATCH(jsonRequest("PATCH", { colorImages: [] }), params("runner"))
+    );
+
+    expect(body.colorImages).toEqual([]);
+    expect(stored("runner")).not.toHaveProperty("colorImages");
   });
 
   it("refuses a direct stock edit on a variant product", async () => {

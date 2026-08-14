@@ -9,6 +9,7 @@ import {
   hasVariants,
   serializeVariants,
   totalVariantStock,
+  type ColorImage,
   type ProductVariant,
 } from "@/app/lib/variants";
 import { getServerSession } from "next-auth";
@@ -33,6 +34,7 @@ function serializeProduct(doc: Record<string, unknown>) {
     imageUrl: doc.imageUrl,
     stock: getAvailableStock(doc.stock),
     variants: serializeVariants(doc.variants as ProductVariant[] | undefined) ?? [],
+    colorImages: (doc.colorImages as ColorImage[] | undefined) ?? [],
   };
 }
 
@@ -72,7 +74,8 @@ export async function PATCH(
     updatedAt: new Date(),
   };
 
-  const { name, description, imageUrl, price, stock, variants } = parsed.data;
+  const { name, description, imageUrl, price, stock, variants, colorImages } =
+    parsed.data;
   if (name !== undefined) updates.name = name;
   if (description !== undefined) updates.description = description;
   if (price !== undefined) updates.price = price;
@@ -83,6 +86,18 @@ export async function PATCH(
       return badRequest(err instanceof Error ? err.message : "Invalid image URL");
     }
   }
+
+  if (colorImages?.length) {
+    try {
+      updates.colorImages = colorImages.map((entry) => ({
+        color: entry.color,
+        imageUrl: normalizeProductImageUrl(entry.imageUrl),
+      })) satisfies ColorImage[];
+    } catch (err) {
+      return badRequest(err instanceof Error ? err.message : "Invalid image URL");
+    }
+  }
+  const clearColorImages = colorImages !== undefined && colorImages.length === 0;
 
   const { db } = await connectToDB();
   const current = await products(db).findOne({ id });
@@ -114,7 +129,14 @@ export async function PATCH(
     { id },
     {
       $set: updates,
-      ...(clearVariants ? { $unset: { variants: "" } } : {}),
+      ...(clearVariants || clearColorImages
+        ? {
+            $unset: {
+              ...(clearVariants ? { variants: "" } : {}),
+              ...(clearColorImages ? { colorImages: "" } : {}),
+            },
+          }
+        : {}),
     },
     { returnDocument: "after" }
   );

@@ -128,15 +128,108 @@ export function serializeVariants(
   }));
 }
 
+/**
+ * A size as shown to a customer.
+ *
+ * The "EU" prefix belongs to numeric sizing only. Accessories are sized
+ * "One size", and "EU One size" reads like a mistake.
+ */
+export function formatSize(size: string): string {
+  return isNumericSize(size) ? `EU ${size}` : size;
+}
+
+export function isNumericSize(size: string): boolean {
+  return !Number.isNaN(Number.parseFloat(size));
+}
+
 /** Human-readable variant label, e.g. "EU 42.5 · Off White". */
 export function variantLabel(
   size: string | null | undefined,
   color: string | null | undefined
 ): string {
   const parts: string[] = [];
-  if (size) parts.push(`EU ${size}`);
+  if (size) parts.push(formatSize(size));
   if (color) parts.push(color);
   return parts.join(" · ");
+}
+
+/** One photo per colourway, so hovering a swatch can swap the main image. */
+export type ColorImage = { color: string; imageUrl: string };
+
+/**
+ * The photo for a colourway, falling back to the product's main image when
+ * that colour has none of its own.
+ */
+export function imageForColor(
+  product: { imageUrl: string; colorImages?: ColorImage[] | null },
+  color: string | null | undefined
+): string {
+  if (!color || !product.colorImages) return product.imageUrl;
+  const target = color.trim().toLowerCase();
+  const match = product.colorImages.find(
+    (entry) => entry.color.trim().toLowerCase() === target
+  );
+  return match?.imageUrl || product.imageUrl;
+}
+
+/**
+ * The sizes line above the colour swatches on a catalog card.
+ *
+ * Few enough sizes and the numbers themselves are the useful thing; past that
+ * they stop being scannable at a glance and the count is what matters.
+ */
+export function sizesAvailableLabel(
+  variants: ProductVariant[],
+  maxListed = 3
+): string | null {
+  const sizes = sizesInStock(variants);
+  if (sizes.length === 0) return null;
+  if (sizes.length > maxListed) return "Available in several sizes";
+
+  const numeric = sizes.every(isNumericSize);
+  return numeric ? `EU ${sizes.join(", ")}` : sizes.map(formatSize).join(", ");
+}
+
+/** Distinct sizes with stock somewhere in the run, smallest first. */
+export function sizesInStock(variants: ProductVariant[]): string[] {
+  const sizes = [...new Set(variants.filter((v) => v.stock > 0).map((v) => v.size))];
+  return sizes.sort((a, b) => {
+    const left = Number.parseFloat(a);
+    const right = Number.parseFloat(b);
+    if (Number.isNaN(left) || Number.isNaN(right)) return a.localeCompare(b);
+    return left - right;
+  });
+}
+
+/**
+ * Which sizes a shopper can still buy, for a catalog card: "EU 40, 42, 45".
+ *
+ * The sizes are listed rather than collapsed to a range, because a range hides
+ * exactly what an outlet shopper is scanning for — "EU 40–45" reads as six
+ * sizes when only two are left. Returns null when there is nothing useful to
+ * say: everything sold out, or a product that only comes in one size, where
+ * the label is noise next to the stock count already on the card.
+ */
+export function sizesLeftLabel(
+  variants: ProductVariant[],
+  // A full shoe run is eight or nine sizes; listing it whole is the point on a
+  // catalog card, so the cutoff sits above that rather than at a tidy number.
+  maxListed = 9
+): string | null {
+  const sizes = sizesInStock(variants);
+  if (sizes.length === 0) return null;
+  if (sizes.length === 1 && !isNumericSize(sizes[0])) return null;
+
+  const shown = sizes.slice(0, maxListed);
+  const overflow = sizes.length - shown.length;
+
+  const numeric = shown.every(isNumericSize);
+  const list = numeric
+    ? `EU ${shown.join(", ")}`
+    : shown.map(formatSize).join(", ");
+
+  const noun = sizes.length === 1 ? "Size" : "Sizes";
+  return `${noun} left: ${list}${overflow > 0 ? ` +${overflow}` : ""}`;
 }
 
 /** Product name as it should appear on a Stripe line item and order row. */

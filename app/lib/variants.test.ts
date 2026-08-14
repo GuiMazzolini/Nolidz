@@ -13,9 +13,11 @@ import { adminProductCreateSchema, resolveVariants } from "@/app/lib/schemas";
 import {
   buildVariantSku,
   cartLineKey,
+  formatSize,
   listColors,
   lineItemName,
   resolveLineStock,
+  sizesLeftLabel,
   totalVariantStock,
   variantsForColor,
   type ProductVariant,
@@ -56,6 +58,96 @@ describe("variant identity", () => {
   it("labels line items with size and colour", () => {
     expect(lineItemName("Runner", "42", "Black")).toBe("Runner — EU 42 · Black");
     expect(lineItemName("Mug")).toBe("Mug");
+  });
+
+  it("prefixes EU only for numeric sizes", () => {
+    // "EU One size" reads like a bug, so accessories keep their own wording.
+    expect(formatSize("42")).toBe("EU 42");
+    expect(formatSize("42.5")).toBe("EU 42.5");
+    expect(formatSize("One size")).toBe("One size");
+    expect(lineItemName("Mug", "One size", "Cream")).toBe(
+      "Mug — One size · Cream"
+    );
+  });
+});
+
+describe("sizes left, for a catalog card", () => {
+  it("lists the sizes a shopper can still buy", () => {
+    expect(
+      sizesLeftLabel([
+        { sku: "a", size: "40", color: "Black", stock: 1 },
+        { sku: "b", size: "42", color: "Black", stock: 2 },
+      ])
+    ).toBe("Sizes left: EU 40, 42");
+  });
+
+  it("leaves out sold-out sizes rather than implying a full run", () => {
+    // A range would read "EU 40-45" here and send someone to a dead end.
+    expect(
+      sizesLeftLabel([
+        { sku: "a", size: "40", color: "Black", stock: 0 },
+        { sku: "b", size: "42", color: "Black", stock: 3 },
+        { sku: "c", size: "45", color: "Black", stock: 0 },
+      ])
+    ).toBe("Size left: EU 42");
+  });
+
+  it("counts a size once when several colourways stock it", () => {
+    expect(
+      sizesLeftLabel([
+        { sku: "a", size: "42", color: "Black", stock: 1 },
+        { sku: "b", size: "42", color: "White", stock: 2 },
+        { sku: "c", size: "43", color: "White", stock: 1 },
+      ])
+    ).toBe("Sizes left: EU 42, 43");
+  });
+
+  it("orders sizes numerically, half sizes in place", () => {
+    expect(
+      sizesLeftLabel([
+        { sku: "a", size: "44", color: "Black", stock: 1 },
+        { sku: "b", size: "41.5", color: "Black", stock: 1 },
+        { sku: "c", size: "40", color: "Black", stock: 1 },
+      ])
+    ).toBe("Sizes left: EU 40, 41.5, 44");
+  });
+
+  it("shows a full shoe run without truncating it", () => {
+    const variants = ["40", "41", "42", "42.5", "43", "44", "45", "46"].map(
+      (size) => ({ sku: `s-${size}`, size, color: "Black", stock: 1 })
+    );
+    expect(sizesLeftLabel(variants)).toBe(
+      "Sizes left: EU 40, 41, 42, 42.5, 43, 44, 45, 46"
+    );
+  });
+
+  it("summarises a run past the cutoff", () => {
+    const variants = ["36", "37", "38", "39", "40", "41", "42", "43"].map(
+      (size) => ({ sku: `s-${size}`, size, color: "Black", stock: 1 })
+    );
+    expect(sizesLeftLabel(variants, 6)).toBe(
+      "Sizes left: EU 36, 37, 38, 39, 40, 41 +2"
+    );
+  });
+
+  it("says nothing for a product that only comes in one size", () => {
+    // "One size" next to the stock count on the card is noise.
+    expect(
+      sizesLeftLabel([
+        { sku: "a", size: "One size", color: "Cream", stock: 1 },
+        { sku: "b", size: "One size", color: "Black", stock: 4 },
+      ])
+    ).toBeNull();
+  });
+
+  it("says nothing when every size is sold out", () => {
+    expect(
+      sizesLeftLabel([
+        { sku: "a", size: "40", color: "Black", stock: 0 },
+        { sku: "b", size: "42", color: "Black", stock: 0 },
+      ])
+    ).toBeNull();
+    expect(sizesLeftLabel([])).toBeNull();
   });
 });
 

@@ -1,17 +1,19 @@
 #!/usr/bin/env node
 /**
- * Start or stop a local MongoDB for the integration tests.
+ * Start or stop a local MongoDB for *running the app* — an alternative to
+ * pointing MONGODB_URI at a cloud database while developing.
  *
- * If something already answers on the port — a dev server, an existing
- * container — it is reused rather than fought with, since the tests confine
- * themselves to `nolidz_test_*` databases and never touch anything else.
+ * The tests do not need this: they start a throwaway server of their own.
+ *
+ * If something already answers on the port, it is reused rather than fought
+ * with, so this is safe to run when a database is already up.
  */
 import { execFileSync } from "node:child_process";
 import net from "node:net";
 
-const CONTAINER = "nolidz-test-mongo";
+const CONTAINER = "nolidz-mongo";
 const IMAGE = "mongo:7";
-const PORT = Number(process.env.TEST_MONGODB_PORT || 27017);
+const PORT = Number(process.env.MONGODB_PORT || 27017);
 
 function portInUse(port) {
   return new Promise((resolve) => {
@@ -51,10 +53,7 @@ function containerExists() {
 
 async function start() {
   if (await portInUse(PORT)) {
-    console.log(
-      `MongoDB already listening on ${PORT} — reusing it. ` +
-        `Tests use nolidz_test_* databases only.`
-    );
+    console.log(`MongoDB already listening on ${PORT} — nothing to do.`);
     return;
   }
 
@@ -67,7 +66,10 @@ async function start() {
   // The server needs a moment before it accepts connections.
   for (let attempt = 0; attempt < 30; attempt++) {
     if (await portInUse(PORT)) {
-      console.log(`MongoDB ready on ${PORT}.`);
+      console.log(
+        `MongoDB ready on ${PORT}. ` +
+          `Set MONGODB_URI=mongodb://127.0.0.1:${PORT} in .env.local.`
+      );
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 500));

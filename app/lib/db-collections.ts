@@ -1,6 +1,6 @@
 import type { Db } from "mongodb";
 import type { Order } from "@/app/lib/orders";
-import type { ProductVariant } from "@/app/lib/variants";
+import type { ColorImage, ProductVariant } from "@/app/lib/variants";
 
 /**
  * Typed accessors for every collection in the database.
@@ -21,6 +21,8 @@ export type ProductDoc = {
   stock: number;
   /** Absent on single-SKU products, which sell straight off `stock`. */
   variants?: ProductVariant[];
+  /** Optional per-colourway photos; the main `imageUrl` is the fallback. */
+  colorImages?: ColorImage[];
   createdAt?: Date;
   updatedAt?: Date;
 };
