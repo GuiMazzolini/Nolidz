@@ -5,7 +5,9 @@ import { FormEvent, useMemo, useState } from "react";
 import {
   EU_SIZES,
   MAX_PRODUCT_VARIANTS,
+  listColors,
   variantComboKey,
+  type ColorImage,
   type ProductVariant,
 } from "@/app/lib/variants";
 
@@ -17,6 +19,7 @@ export type ProductFormValues = {
   price: number;
   stock: number;
   variants?: ProductVariant[];
+  colorImages?: ColorImage[];
 };
 
 type FieldErrors = {
@@ -86,6 +89,32 @@ export default function ProductForm({
   // Size-run builder: pick a colour and a default count, then tap sizes.
   const [runColor, setRunColor] = useState("");
   const [runStock, setRunStock] = useState("3");
+
+  /**
+   * One photo per colourway, keyed by colour name so a row rename does not
+   * strand the picture. Colours with no entry fall back to the main image.
+   */
+  const [colorPhotos, setColorPhotos] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      (initial?.colorImages ?? []).map((entry) => [entry.color, entry.imageUrl])
+    )
+  );
+
+  /** Colours currently present in the variant rows, in entry order. */
+  const variantColors = useMemo(
+    () =>
+      listColors(
+        variantRows
+          .filter((row) => row.color.trim())
+          .map((row) => ({
+            sku: "",
+            size: row.size,
+            color: row.color.trim(),
+            stock: 0,
+          }))
+      ),
+    [variantRows]
+  );
 
   const variantStockTotal = useMemo(
     () =>
@@ -186,7 +215,10 @@ export default function ProductForm({
     return undefined;
   }
 
-  async function uploadToCloudinary(file: File) {
+  async function uploadToCloudinary(
+    file: File,
+    onUploaded: (url: string) => void = setImageUrl
+  ) {
     setError(null);
     setFieldErrors((prev) => ({ ...prev, imageUrl: undefined }));
     setUploading(true);
@@ -230,7 +262,7 @@ export default function ProductForm({
         return;
       }
 
-      setImageUrl(uploadData.secure_url);
+      onUploaded(uploadData.secure_url);
     } catch {
       setFieldErrors((prev) => ({
         ...prev,
@@ -261,6 +293,11 @@ export default function ProductForm({
       price: Number(price),
       ...(useVariants
         ? {
+            // Only colours that still have a variant row, so removing a
+            // colourway takes its photo with it.
+            colorImages: variantColors
+              .filter((color) => colorPhotos[color]?.trim())
+              .map((color) => ({ color, imageUrl: colorPhotos[color].trim() })),
             // The server derives the product-level stock from these rows.
             variants: variantRows.map((row) => ({
               ...(row.sku ? { sku: row.sku } : {}),
@@ -273,7 +310,7 @@ export default function ProductForm({
             stock: Number(stock),
             // An empty array clears variants when editing a product that had
             // them; harmless on create.
-            ...(mode === "edit" ? { variants: [] } : {}),
+            ...(mode === "edit" ? { variants: [], colorImages: [] } : {}),
           }),
       ...(mode === "create" && id.trim() ? { id: id.trim() } : {}),
     };
@@ -652,6 +689,69 @@ export default function ProductForm({
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {variantColors.length > 0 && (
+              <div className="rounded-lg border border-gray-200 p-3">
+                <p className="text-sm font-medium text-gray-700">Colour photos</p>
+                <p className="mt-0.5 mb-3 text-xs text-gray-500">
+                  Shown when a shopper hovers that colour on the catalog. Leave
+                  one blank to fall back to the main product image.
+                </p>
+
+                <div className="space-y-2">
+                  {variantColors.map((color) => (
+                    <div key={color} className="flex items-center gap-3">
+                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+                        {(colorPhotos[color] || imageUrl).startsWith("http") && (
+                          /* eslint-disable-next-line @next/next/no-img-element -- admin preview of arbitrary remote URLs */
+                          <img
+                            src={colorPhotos[color] || imageUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        )}
+                      </div>
+
+                      <span className="w-32 shrink-0 truncate text-sm text-gray-700">
+                        {color}
+                      </span>
+
+                      <input
+                        value={colorPhotos[color] ?? ""}
+                        onChange={(e) =>
+                          setColorPhotos((prev) => ({
+                            ...prev,
+                            [color]: e.target.value,
+                          }))
+                        }
+                        placeholder="https://res.cloudinary.com/… (optional)"
+                        aria-label={`Photo URL for ${color}`}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                      />
+
+                      <label className="shrink-0 cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                        Upload
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploading}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              void uploadToCloudinary(file, (url) =>
+                                setColorPhotos((prev) => ({ ...prev, [color]: url }))
+                              );
+                            }
+                            e.currentTarget.value = "";
+                          }}
+                        />
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

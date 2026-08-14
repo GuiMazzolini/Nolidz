@@ -153,6 +153,43 @@ export function variantLabel(
   return parts.join(" · ");
 }
 
+/** One photo per colourway, so hovering a swatch can swap the main image. */
+export type ColorImage = { color: string; imageUrl: string };
+
+/**
+ * The photo for a colourway, falling back to the product's main image when
+ * that colour has none of its own.
+ */
+export function imageForColor(
+  product: { imageUrl: string; colorImages?: ColorImage[] | null },
+  color: string | null | undefined
+): string {
+  if (!color || !product.colorImages) return product.imageUrl;
+  const target = color.trim().toLowerCase();
+  const match = product.colorImages.find(
+    (entry) => entry.color.trim().toLowerCase() === target
+  );
+  return match?.imageUrl || product.imageUrl;
+}
+
+/**
+ * The sizes line above the colour swatches on a catalog card.
+ *
+ * Few enough sizes and the numbers themselves are the useful thing; past that
+ * they stop being scannable at a glance and the count is what matters.
+ */
+export function sizesAvailableLabel(
+  variants: ProductVariant[],
+  maxListed = 3
+): string | null {
+  const sizes = sizesInStock(variants);
+  if (sizes.length === 0) return null;
+  if (sizes.length > maxListed) return "Available in several sizes";
+
+  const numeric = sizes.every(isNumericSize);
+  return numeric ? `EU ${sizes.join(", ")}` : sizes.map(formatSize).join(", ");
+}
+
 /** Distinct sizes with stock somewhere in the run, smallest first. */
 export function sizesInStock(variants: ProductVariant[]): string[] {
   const sizes = [...new Set(variants.filter((v) => v.stock > 0).map((v) => v.size))];

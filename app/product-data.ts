@@ -1,4 +1,4 @@
-import type { ProductVariant } from "./lib/variants";
+import type { ColorImage, ProductVariant } from "./lib/variants";
 
 export interface Product {
   id: string;
@@ -13,6 +13,8 @@ export interface Product {
   stock: number;
   /** Sellable size/colour combinations. Absent on single-SKU products. */
   variants?: ProductVariant[];
+  /** Per-colourway photography, keyed by colour name. */
+  colorImages?: ColorImage[];
   /** Cart line quantity (not stored on the product catalog doc). */
   quantity?: number;
   /** Cart line variant, denormalized so the cart renders without a lookup. */

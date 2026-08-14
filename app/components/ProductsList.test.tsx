@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import ProductsList from "@/app/components/ProductsList";
 import { useCartStore } from "@/app/lib/store/cartStore";
 import type { Product } from "@/app/product-data";
+
+/** Card behaviour lives in ProductCard.test.tsx; this covers the grid itself. */
 
 const runner: Product = {
   id: "runner",
@@ -16,7 +18,6 @@ const runner: Product = {
   stock: 5,
   variants: [
     { sku: "runner-eu42-black", size: "42", color: "Black", stock: 3 },
-    { sku: "runner-eu43-black", size: "43", color: "Black", stock: 0 },
     { sku: "runner-eu42-white", size: "42", color: "White", stock: 2 },
   ],
 };
@@ -39,9 +40,13 @@ const soldOut: Product = {
   stock: 0,
 };
 
-/** The card is the region containing the product's heading. */
-function card(name: string) {
-  return screen.getByRole("heading", { name }).closest(".group") as HTMLElement;
+const catalog = [runner, mug, soldOut];
+
+function headings() {
+  return screen
+    .getAllByRole("heading", { level: 2 })
+    // A variant card appends " – Colour" to the name.
+    .map((node) => node.textContent!.split("–")[0].trim());
 }
 
 beforeEach(() => {
@@ -54,179 +59,60 @@ beforeEach(() => {
   });
 });
 
-describe("catalog cards for variant products", () => {
-  it("links to the product page instead of adding inline", () => {
-    render(<ProductsList products={[runner]} />);
+describe("the catalog grid", () => {
+  it("renders one card per product, alphabetically by default", () => {
+    render(<ProductsList products={catalog} />);
 
-    const choose = within(card("Runner")).getByRole("link", {
-      name: /Choose Size/i,
-    });
-    expect(choose).toHaveAttribute("href", "/products/runner");
-    expect(
-      within(card("Runner")).queryByRole("button", { name: /Add to Cart/i })
-    ).toBeNull();
+    expect(headings()).toEqual(["Mug", "Pins", "Runner"]);
+    expect(screen.getByText("3 of 3 products")).toBeVisible();
   });
 
-  it("names the sizes still in stock, and the colourways", () => {
-    // EU 43 is sold out, so only 42 is offered.
-    render(<ProductsList products={[runner]} />);
-
-    const region = card("Runner");
-    expect(within(region).getByText("Size left: EU 42")).toBeVisible();
-    expect(within(region).getByText("Black")).toBeVisible();
-    expect(within(region).getByText("White")).toBeVisible();
-  });
-
-  it("lists each buyable size rather than a range that hides the gaps", () => {
-    render(
-      <ProductsList
-        products={[
-          {
-            ...runner,
-            variants: [
-              { sku: "a", size: "40", color: "Black", stock: 2 },
-              { sku: "b", size: "42", color: "Black", stock: 0 },
-              { sku: "c", size: "45", color: "Black", stock: 3 },
-            ],
-          },
-        ]}
-      />
-    );
-
-    expect(within(card("Runner")).getByText("Sizes left: EU 40, 45")).toBeVisible();
-  });
-
-  it("omits the size line for a product that only comes in one size", () => {
-    render(
-      <ProductsList
-        products={[
-          {
-            ...mug,
-            variants: [
-              { sku: "a", size: "One size", color: "Matte Black", stock: 4 },
-              { sku: "b", size: "One size", color: "Cream", stock: 2 },
-            ],
-          },
-        ]}
-      />
-    );
-
-    const region = card("Mug");
-    expect(within(region).queryByText(/One size/)).toBeNull();
-    expect(within(region).queryByText(/left: /)).toBeNull();
-    // The colourways still show.
-    expect(within(region).getByText("Matte Black")).toBeVisible();
-  });
-
-  it("summarises the overflow past three colourways", () => {
-    render(
-      <ProductsList
-        products={[
-          {
-            ...runner,
-            variants: ["Black", "White", "Sand", "Olive", "Red"].map(
-              (color, i) => ({
-                sku: `sku-${i}`,
-                size: "42",
-                color,
-                stock: 2,
-              })
-            ),
-          },
-        ]}
-      />
-    );
-
-    expect(within(card("Runner")).getByText("+2")).toBeVisible();
-  });
-
-  it("shows how many units of the product are already in the cart", () => {
-    useCartStore.setState({
-      cartProducts: [
-        { ...runner, quantity: 1, variantSku: "runner-eu42-black" },
-        { ...runner, quantity: 2, variantSku: "runner-eu42-white" },
-      ],
-    });
-
-    render(<ProductsList products={[runner]} />);
-    expect(
-      within(card("Runner")).getByRole("link", { name: /In cart \(3\)/ })
-    ).toBeVisible();
-  });
-
-  it("marks a fully sold-out variant product", () => {
-    render(<ProductsList products={[{ ...runner, stock: 0 }]} />);
-
-    const region = card("Runner");
-    expect(within(region).getByText("Out of stock")).toBeVisible();
-    expect(within(region).getByRole("link", { name: "Out of Stock" })).toHaveAttribute(
-      "aria-disabled",
-      "true"
-    );
-  });
-});
-
-describe("catalog cards for single-SKU products", () => {
-  it("adds straight to the cart and switches to a stepper", async () => {
-    const user = userEvent.setup();
-    render(<ProductsList products={[mug]} />);
-
-    await user.click(within(card("Mug")).getByRole("button", { name: "Add to Cart" }));
-
-    expect(useCartStore.getState().cartProducts[0].id).toBe("mug");
-    expect(within(card("Mug")).getByText("1")).toBeVisible();
-  });
-
-  it("disables the button when out of stock", () => {
-    render(<ProductsList products={[soldOut]} />);
-    expect(
-      within(card("Pins")).getByRole("button", { name: "Out of Stock" })
-    ).toBeDisabled();
-  });
-
-  it("does not treat a variant line as this product's cart entry", () => {
-    // A cart holding sized lines must not put an unrelated card into stepper mode.
-    useCartStore.setState({
-      cartProducts: [{ ...runner, quantity: 1, variantSku: "runner-eu42-black" }],
-    });
-
-    render(<ProductsList products={[runner, mug]} />);
-    expect(within(card("Mug")).getByRole("button", { name: "Add to Cart" })).toBeVisible();
-  });
-});
-
-describe("search and sort", () => {
   it("filters on name and description", async () => {
     const user = userEvent.setup();
-    render(<ProductsList products={[runner, mug, soldOut]} />);
+    render(<ProductsList products={catalog} />);
 
     await user.type(screen.getByRole("searchbox"), "ceramic");
 
-    expect(screen.getByRole("heading", { name: "Mug" })).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Runner" })).toBeNull();
+    expect(headings()).toEqual(["Mug"]);
     expect(screen.getByText("1 of 3 products")).toBeVisible();
   });
 
   it("offers a reset when nothing matches", async () => {
     const user = userEvent.setup();
-    render(<ProductsList products={[runner, mug]} />);
+    render(<ProductsList products={catalog} />);
 
     await user.type(screen.getByRole("searchbox"), "zzzz");
     expect(screen.getByText("No products match")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Reset filters" }));
-    expect(screen.getByRole("heading", { name: "Runner" })).toBeVisible();
+    expect(headings()).toEqual(["Mug", "Pins", "Runner"]);
   });
 
   it("sorts by price", async () => {
     const user = userEvent.setup();
-    render(<ProductsList products={[runner, mug, soldOut]} />);
+    render(<ProductsList products={catalog} />);
 
     await user.selectOptions(screen.getByRole("combobox"), "price-asc");
+    expect(headings()).toEqual(["Pins", "Mug", "Runner"]);
 
-    const headings = screen
-      .getAllByRole("heading", { level: 2 })
-      .map((node) => node.textContent);
-    expect(headings).toEqual(["Pins", "Mug", "Runner"]);
+    await user.selectOptions(screen.getByRole("combobox"), "price-desc");
+    expect(headings()).toEqual(["Runner", "Mug", "Pins"]);
+  });
+
+  it("sorts by stock", async () => {
+    const user = userEvent.setup();
+    render(<ProductsList products={catalog} />);
+
+    await user.selectOptions(screen.getByRole("combobox"), "stock-desc");
+    expect(headings()).toEqual(["Runner", "Mug", "Pins"]);
+  });
+
+  it("surfaces a cart error above the grid", () => {
+    useCartStore.setState({ cartError: "Not enough stock for that quantity." });
+    render(<ProductsList products={catalog} />);
+
+    expect(
+      screen.getByText("Not enough stock for that quantity.")
+    ).toBeVisible();
   });
 });

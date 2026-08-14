@@ -12,6 +12,7 @@ import { adminProductCreateSchema, resolveVariants } from "@/app/lib/schemas";
 import {
   serializeVariants,
   totalVariantStock,
+  type ColorImage,
   type ProductVariant,
 } from "@/app/lib/variants";
 import { getServerSession } from "next-auth";
@@ -34,6 +35,7 @@ function serializeProduct(doc: Record<string, unknown>) {
     imageUrl: doc.imageUrl,
     stock: getAvailableStock(doc.stock),
     variants: serializeVariants(doc.variants as ProductVariant[] | undefined) ?? [],
+    colorImages: (doc.colorImages as ColorImage[] | undefined) ?? [],
   };
 }
 
@@ -82,6 +84,19 @@ export async function POST(req: NextRequest) {
     : undefined;
   const stock = variants ? totalVariantStock(variants) : (parsed.data.stock ?? 0);
 
+  // Colour photos go through the same host allowlist as the main image.
+  let colorImages: ColorImage[] | undefined;
+  try {
+    colorImages = parsed.data.colorImages?.length
+      ? parsed.data.colorImages.map((entry) => ({
+          color: entry.color,
+          imageUrl: normalizeProductImageUrl(entry.imageUrl),
+        }))
+      : undefined;
+  } catch (err) {
+    return badRequest(err instanceof Error ? err.message : "Invalid image URL");
+  }
+
   const product = {
     id,
     name,
@@ -90,6 +105,7 @@ export async function POST(req: NextRequest) {
     price,
     stock,
     ...(variants ? { variants } : {}),
+    ...(colorImages ? { colorImages } : {}),
     createdAt: new Date(),
     updatedAt: new Date(),
   };

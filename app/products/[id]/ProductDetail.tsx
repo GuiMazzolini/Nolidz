@@ -9,6 +9,7 @@ import { useCheckout } from "@/app/lib/use-checkout";
 import {
   formatSize,
   hasVariants,
+  imageForColor,
   isNumericSize,
   listColors,
   variantsForColor,
@@ -18,9 +19,14 @@ import type { Product } from "@/app/product-data";
 
 type ProductDetailProps = {
   product: Product;
+  /** Colourway chosen on the catalog card, via `?color=`. */
+  initialColor?: string | null;
 };
 
-export default function ProductDetail({ product }: ProductDetailProps) {
+export default function ProductDetail({
+  product,
+  initialColor = null,
+}: ProductDetailProps) {
   const [buyingNow, setBuyingNow] = useState(false);
 
   const cartProducts = useCartStore((s) => s.cartProducts);
@@ -36,14 +42,19 @@ export default function ProductDetail({ product }: ProductDetailProps) {
 
   // Opens on the first colourway that has something to sell, so the common
   // case needs one click (a size) rather than two.
-  const [color, setColor] = useState<string>(
-    () =>
+  const [color, setColor] = useState<string>(() => {
+    const requested = colors.find(
+      (c) => c.trim().toLowerCase() === initialColor?.trim().toLowerCase()
+    );
+    return (
+      requested ??
       colors.find((c) =>
         variantsForColor(variants, c).some((v) => v.stock > 0)
       ) ??
       colors[0] ??
       ""
-  );
+    );
+  });
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
 
   const sizesForColor = useMemo(
@@ -131,6 +142,10 @@ export default function ProductDetail({ product }: ProductDetailProps) {
       : `${product.stock} in stock`;
   }
 
+  // The hero follows the chosen colourway, matching the catalog swatch that
+  // brought the shopper here.
+  const heroImage = imageForColor(product, color);
+
   const stockToneClass =
     outOfStock || (isVariantProduct && selected && selected.stock < 1)
       ? "text-red-600"
@@ -147,8 +162,9 @@ export default function ProductDetail({ product }: ProductDetailProps) {
             <div className="lg:w-1/2 p-8 bg-gray-100 flex items-center justify-center">
               <div className="relative w-full aspect-square max-w-md">
                 <Image
-                  src={getImageSrc(product.imageUrl)}
-                  alt={product.name}
+                  key={heroImage}
+                  src={getImageSrc(heroImage)}
+                  alt={color ? `${product.name} in ${color}` : product.name}
                   fill
                   className="object-cover rounded-xl"
                   unoptimized
@@ -161,6 +177,9 @@ export default function ProductDetail({ product }: ProductDetailProps) {
               <div className="mb-6">
                 <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
                   {product.name}
+                  {color && (
+                    <span className="font-normal text-gray-500"> – {color}</span>
+                  )}
                 </h1>
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-bold text-blue-600">

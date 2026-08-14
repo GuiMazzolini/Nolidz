@@ -31,6 +31,7 @@ export default async function ProductsPage() {
       imageUrl: doc.imageUrl,
       stock: getAvailableStock(doc.stock),
       variants: serializeVariants(doc.variants),
+      colorImages: doc.colorImages,
     })
   );
 

@@ -1,5 +1,10 @@
 import type { Product } from '../product-data';
-import { buildVariantSku, totalVariantStock, type ProductVariant } from './variants';
+import {
+  buildVariantSku,
+  totalVariantStock,
+  type ColorImage,
+  type ProductVariant,
+} from './variants';
 
 /**
  * Sample catalog for the shoe shop. Every product sells by EU shoe size and
@@ -42,15 +47,22 @@ function variantsFor(
   );
 }
 
-type SeedInput = Omit<Product, 'stock' | 'variants'> & {
+type SeedInput = Omit<Product, 'stock' | 'variants' | 'colorImages'> & {
   colors: string[];
   sizes: string[];
+  /** One photo per colourway, in the same order as `colors`. */
+  colorPhotos: string[];
 };
 
-function toProduct({ colors, sizes, ...rest }: SeedInput): Product {
+function toProduct({ colors, sizes, colorPhotos, ...rest }: SeedInput): Product {
   const variants = variantsFor(rest.id, colors, sizes);
+  const colorImages: ColorImage[] = colors.map((color, index) => ({
+    color,
+    // Falls back to the hero image when a colourway has no photo of its own.
+    imageUrl: colorPhotos[index] ?? rest.imageUrl,
+  }));
   // The product-level count mirrors the variant total, as the admin API does.
-  return { ...rest, variants, stock: totalVariantStock(variants) };
+  return { ...rest, variants, colorImages, stock: totalVariantStock(variants) };
 }
 
 /**
@@ -79,6 +91,7 @@ const CATALOG: SeedInput[] = [
       'Low-profile runner with a suede-and-mesh upper, compression-moulded foam midsole, and a gum rubber outsole. An everyday trainer that survives a commute and a weekend.',
     imageUrl: IMAGES.runner,
     colors: ['Core Black', 'Bone White', 'Sand'],
+    colorPhotos: [IMAGES.court, IMAGES.trail, IMAGES.skate],
     sizes: MENS,
   },
   {
@@ -89,6 +102,7 @@ const CATALOG: SeedInput[] = [
       'A clean full-grain leather court shoe with perforated toe detailing and a stitched cupsole. Creases in all the right places after a month of wear.',
     imageUrl: IMAGES.court,
     colors: ['White / Green', 'White / Navy', 'Triple White'],
+    colorPhotos: [IMAGES.trail, IMAGES.skate, IMAGES.retro],
     sizes: UNISEX,
   },
   {
@@ -99,6 +113,7 @@ const CATALOG: SeedInput[] = [
       'Waterproof trail shoe with a lugged outsole, rock plate underfoot, and a gusseted tongue that keeps grit out on long descents.',
     imageUrl: IMAGES.trail,
     colors: ['Slate / Lime', 'Black / Orange'],
+    colorPhotos: [IMAGES.skate, IMAGES.retro, IMAGES.slip],
     sizes: MENS,
   },
   {
@@ -109,6 +124,7 @@ const CATALOG: SeedInput[] = [
       'Vulcanised mid-top in heavyweight canvas with a padded collar and a herringbone grip sole. Built for board feel, worn everywhere else.',
     imageUrl: IMAGES.skate,
     colors: ['Black / Gum', 'Faded Blue', 'Oxblood'],
+    colorPhotos: [IMAGES.retro, IMAGES.slip, IMAGES.chunky],
     sizes: UNISEX,
   },
   {
@@ -119,6 +135,7 @@ const CATALOG: SeedInput[] = [
       'A faithful reissue of the 1988 trainer: nubuck overlays, a mesh base, and a visible air unit in the heel. Cut on the original last.',
     imageUrl: IMAGES.retro,
     colors: ['Grey / Red', 'Off White / Navy'],
+    colorPhotos: [IMAGES.slip, IMAGES.chunky, IMAGES.boot],
     sizes: MENS,
   },
   {
@@ -129,6 +146,7 @@ const CATALOG: SeedInput[] = [
       'Elasticated slip-on in washed canvas with a cushioned insole and a low-profile sole. The shoe you keep by the door.',
     imageUrl: IMAGES.slip,
     colors: ['Washed Black', 'Natural', 'Olive'],
+    colorPhotos: [IMAGES.chunky, IMAGES.boot, IMAGES.knit],
     sizes: WOMENS,
   },
   {
@@ -139,6 +157,7 @@ const CATALOG: SeedInput[] = [
       'Layered mesh and suede on an oversized stacked midsole. Heavier than it looks and more comfortable than it has any right to be.',
     imageUrl: IMAGES.chunky,
     colors: ['White / Grey', 'Cream / Tan'],
+    colorPhotos: [IMAGES.boot, IMAGES.knit, IMAGES.tennis],
     sizes: UNISEX,
   },
   {
@@ -149,6 +168,7 @@ const CATALOG: SeedInput[] = [
       'Ankle-height hiker in oiled leather with a padded cuff, speed lacing, and a deep-lug outsole that clears mud instead of holding it.',
     imageUrl: IMAGES.boot,
     colors: ['Dark Brown', 'Black'],
+    colorPhotos: [IMAGES.knit, IMAGES.tennis, IMAGES.runner],
     sizes: MENS,
   },
   {
@@ -159,6 +179,7 @@ const CATALOG: SeedInput[] = [
       'Sock-fit knit upper on a single-density foam sole, under 250 g in a size 42. Packs flat for travel and washes clean.',
     imageUrl: IMAGES.knit,
     colors: ['Charcoal', 'Dusty Rose', 'Sage'],
+    colorPhotos: [IMAGES.tennis, IMAGES.runner, IMAGES.court],
     sizes: WOMENS,
   },
   {
@@ -169,6 +190,7 @@ const CATALOG: SeedInput[] = [
       'A slim tennis silhouette in soft leather with a tonal heel tab and a thin rubber cupsole. Sits low and pairs with everything.',
     imageUrl: IMAGES.tennis,
     colors: ['White', 'Black', 'Pale Blue'],
+    colorPhotos: [IMAGES.runner, IMAGES.court, IMAGES.trail],
     sizes: UNISEX,
   },
 ];
