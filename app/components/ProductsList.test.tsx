@@ -67,10 +67,75 @@ describe("catalog cards for variant products", () => {
     ).toBeNull();
   });
 
-  it("counts distinct sizes in stock, not variant rows", () => {
-    // EU 42 appears in two colourways and EU 43 is sold out.
+  it("shows the buyable size range and the colourways", () => {
+    // EU 43 is sold out, so the advertised range stops at the size you can buy.
     render(<ProductsList products={[runner]} />);
-    expect(within(card("Runner")).getByText(/1 EU size · 2 colours/)).toBeVisible();
+
+    const region = card("Runner");
+    expect(within(region).getByText("EU 42")).toBeVisible();
+    expect(within(region).getByText("Black")).toBeVisible();
+    expect(within(region).getByText("White")).toBeVisible();
+  });
+
+  it("spans the range when several sizes are buyable", () => {
+    render(
+      <ProductsList
+        products={[
+          {
+            ...runner,
+            variants: [
+              { sku: "a", size: "40", color: "Black", stock: 2 },
+              { sku: "b", size: "42", color: "Black", stock: 1 },
+              { sku: "c", size: "45", color: "Black", stock: 3 },
+            ],
+          },
+        ]}
+      />
+    );
+
+    expect(within(card("Runner")).getByText("EU 40–45")).toBeVisible();
+  });
+
+  it("drops the EU prefix for a product that is not numerically sized", () => {
+    render(
+      <ProductsList
+        products={[
+          {
+            ...mug,
+            variants: [
+              { sku: "a", size: "One size", color: "Matte Black", stock: 4 },
+              { sku: "b", size: "One size", color: "Cream", stock: 2 },
+            ],
+          },
+        ]}
+      />
+    );
+
+    const region = card("Mug");
+    expect(within(region).getByText("One size")).toBeVisible();
+    expect(within(region).queryByText(/EU/)).toBeNull();
+  });
+
+  it("summarises the overflow past three colourways", () => {
+    render(
+      <ProductsList
+        products={[
+          {
+            ...runner,
+            variants: ["Black", "White", "Sand", "Olive", "Red"].map(
+              (color, i) => ({
+                sku: `sku-${i}`,
+                size: "42",
+                color,
+                stock: 2,
+              })
+            ),
+          },
+        ]}
+      />
+    );
+
+    expect(within(card("Runner")).getByText("+2")).toBeVisible();
   });
 
   it("shows how many units of the product are already in the cart", () => {

@@ -128,15 +128,50 @@ export function serializeVariants(
   }));
 }
 
+/**
+ * A size as shown to a customer.
+ *
+ * The "EU" prefix belongs to numeric sizing only. Accessories are sized
+ * "One size", and "EU One size" reads like a mistake.
+ */
+export function formatSize(size: string): string {
+  return isNumericSize(size) ? `EU ${size}` : size;
+}
+
+export function isNumericSize(size: string): boolean {
+  return !Number.isNaN(Number.parseFloat(size));
+}
+
 /** Human-readable variant label, e.g. "EU 42.5 · Off White". */
 export function variantLabel(
   size: string | null | undefined,
   color: string | null | undefined
 ): string {
   const parts: string[] = [];
-  if (size) parts.push(`EU ${size}`);
+  if (size) parts.push(formatSize(size));
   if (color) parts.push(color);
   return parts.join(" · ");
+}
+
+/**
+ * The size run in one line for a catalog card: "EU 40–45", or the single size
+ * when there is only one. Reads from what is actually buyable, falling back to
+ * the full run when everything is sold out.
+ */
+export function sizeRangeLabel(variants: ProductVariant[]): string | null {
+  const inStock = variants.filter((v) => v.stock > 0);
+  const pool = inStock.length > 0 ? inStock : variants;
+  if (pool.length === 0) return null;
+
+  const sizes = [...new Set(pool.map((v) => v.size))];
+  if (sizes.length === 1) return formatSize(sizes[0]);
+
+  const numeric = sizes.filter(isNumericSize).map(Number.parseFloat);
+  if (numeric.length !== sizes.length) return sizes.join(", ");
+
+  const low = Math.min(...numeric);
+  const high = Math.max(...numeric);
+  return low === high ? `EU ${low}` : `EU ${low}–${high}`;
 }
 
 /** Product name as it should appear on a Stripe line item and order row. */

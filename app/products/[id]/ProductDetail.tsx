@@ -7,7 +7,9 @@ import { getImageSrc } from "@/app/lib/images";
 import { useCartStore } from "@/app/lib/store/cartStore";
 import { useCheckout } from "@/app/lib/use-checkout";
 import {
+  formatSize,
   hasVariants,
+  isNumericSize,
   listColors,
   variantsForColor,
   type ProductVariant,
@@ -48,6 +50,11 @@ export default function ProductDetail({ product }: ProductDetailProps) {
     () => (color ? variantsForColor(variants, color) : []),
     [variants, color]
   );
+
+  // Accessories are sold "One size", where an "EU size" heading is wrong.
+  const sizeHeading = variants.some((v) => isNumericSize(v.size))
+    ? "EU size"
+    : "Size";
 
   const selected: ProductVariant | null = useMemo(
     () => sizesForColor.find((v) => v.sku === selectedSku) ?? null,
@@ -113,9 +120,10 @@ export default function ProductDetail({ product }: ProductDetailProps) {
       if (outOfStock) return "Out of stock in every size";
       if (!selected) return "Select a size to see availability";
       if (selected.stock < 1) return "This size is sold out";
+      const label = formatSize(selected.size);
       return selected.stock <= 5
-        ? `Only ${selected.stock} left in EU ${selected.size}`
-        : `${selected.stock} in stock in EU ${selected.size}`;
+        ? `Only ${selected.stock} left in ${label}`
+        : `${selected.stock} in stock in ${label}`;
     }
     if (outOfStock) return "Out of stock";
     return product.stock <= 5
@@ -210,7 +218,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
 
                   <div>
                     <p className="mb-2 text-sm font-semibold text-gray-900">
-                      EU size
+                      {sizeHeading}
                     </p>
                     <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                       {sizesForColor.map((variant) => {

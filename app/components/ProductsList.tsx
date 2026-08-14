@@ -6,18 +6,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { getImageSrc } from "../lib/images";
 import { useCartStore } from "../lib/store/cartStore";
-import { hasVariants, listColors } from "../lib/variants";
+import { hasVariants, listColors, sizeRangeLabel } from "../lib/variants";
 import CartErrorBanner from "./CartErrorBanner";
 
 type SortOption = "name-asc" | "price-asc" | "price-desc" | "stock-desc";
 
-/** Distinct EU sizes still buyable, counted once across colourways. */
-function sizesInStock(product: Product): number {
-  const sizes = new Set(
-    (product.variants ?? []).filter((v) => v.stock > 0).map((v) => v.size)
-  );
-  return sizes.size;
-}
 
 export default function ProductsList({ products }: { products: Product[] }) {
   const { cartProducts, addToCart, updateQuantity, isLoading } = useCartStore();
@@ -144,9 +137,12 @@ export default function ProductsList({ products }: { products: Product[] }) {
               const unitsInCart = isVariantProduct
                 ? variantUnitsInCart(product.id)
                 : 0;
-              const colorCount = isVariantProduct
-                ? listColors(product.variants ?? []).length
-                : 0;
+              const colors = isVariantProduct
+                ? listColors(product.variants ?? [])
+                : [];
+              const sizeLabel = isVariantProduct
+                ? sizeRangeLabel(product.variants ?? [])
+                : null;
 
               return (
                 <div key={product.id} className="group">
@@ -184,11 +180,24 @@ export default function ProductsList({ products }: { products: Product[] }) {
                         </div>
 
                         {isVariantProduct && (
-                          <p className="mt-2 text-xs text-gray-500">
-                            {sizesInStock(product)} EU size
-                            {sizesInStock(product) === 1 ? "" : "s"}
-                            {colorCount > 1 ? ` · ${colorCount} colours` : ""}
-                          </p>
+                          <div className="mt-2 space-y-1 text-xs text-gray-500">
+                            {sizeLabel && <p>{sizeLabel}</p>}
+                            <div className="flex flex-wrap gap-1">
+                              {colors.slice(0, 3).map((option) => (
+                                <span
+                                  key={option}
+                                  className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-700"
+                                >
+                                  {option}
+                                </span>
+                              ))}
+                              {colors.length > 3 && (
+                                <span className="px-1 py-0.5">
+                                  +{colors.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>

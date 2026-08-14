@@ -13,9 +13,11 @@ import { adminProductCreateSchema, resolveVariants } from "@/app/lib/schemas";
 import {
   buildVariantSku,
   cartLineKey,
+  formatSize,
   listColors,
   lineItemName,
   resolveLineStock,
+  sizeRangeLabel,
   totalVariantStock,
   variantsForColor,
   type ProductVariant,
@@ -56,6 +58,62 @@ describe("variant identity", () => {
   it("labels line items with size and colour", () => {
     expect(lineItemName("Runner", "42", "Black")).toBe("Runner — EU 42 · Black");
     expect(lineItemName("Mug")).toBe("Mug");
+  });
+
+  it("prefixes EU only for numeric sizes", () => {
+    // "EU One size" reads like a bug, so accessories keep their own wording.
+    expect(formatSize("42")).toBe("EU 42");
+    expect(formatSize("42.5")).toBe("EU 42.5");
+    expect(formatSize("One size")).toBe("One size");
+    expect(lineItemName("Mug", "One size", "Cream")).toBe(
+      "Mug — One size · Cream"
+    );
+  });
+});
+
+describe("size range for a catalog card", () => {
+  it("spans the lowest and highest buyable size", () => {
+    expect(
+      sizeRangeLabel([
+        { sku: "a", size: "40", color: "Black", stock: 1 },
+        { sku: "b", size: "45", color: "Black", stock: 2 },
+      ])
+    ).toBe("EU 40–45");
+  });
+
+  it("ignores sold-out sizes, so the range is honest", () => {
+    expect(
+      sizeRangeLabel([
+        { sku: "a", size: "40", color: "Black", stock: 1 },
+        { sku: "b", size: "42", color: "Black", stock: 3 },
+        { sku: "c", size: "45", color: "Black", stock: 0 },
+      ])
+    ).toBe("EU 40–42");
+  });
+
+  it("falls back to the full run when everything is sold out", () => {
+    expect(
+      sizeRangeLabel([
+        { sku: "a", size: "40", color: "Black", stock: 0 },
+        { sku: "b", size: "45", color: "Black", stock: 0 },
+      ])
+    ).toBe("EU 40–45");
+  });
+
+  it("collapses a single size and keeps non-numeric sizing as written", () => {
+    expect(
+      sizeRangeLabel([{ sku: "a", size: "42", color: "Black", stock: 1 }])
+    ).toBe("EU 42");
+    expect(
+      sizeRangeLabel([
+        { sku: "a", size: "One size", color: "Cream", stock: 1 },
+        { sku: "b", size: "One size", color: "Black", stock: 1 },
+      ])
+    ).toBe("One size");
+  });
+
+  it("has nothing to say about a product with no variants", () => {
+    expect(sizeRangeLabel([])).toBeNull();
   });
 });
 
