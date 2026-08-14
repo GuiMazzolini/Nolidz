@@ -62,16 +62,27 @@ starts as a service container.
 Unlike the tests, the app needs a real database.
 
 ```bash
-cp .env.example .env.local   # then fill in the values
-npm run db:start             # a local MongoDB in Docker — or use a cloud one
-npm run seed                 # sample catalog, including a sized product
+cp -n .env.example .env.local   # -n: never overwrite an existing .env.local
+npm run db:start                # a local MongoDB in Docker — or use a cloud one
+npm run seed                    # sample catalog, including a sized product
 npm run dev
 ```
 
+Then open `.env.local` and fill it in. The one value the app cannot start
+without is `MONGODB_URI`; for a local database that is:
+
+```
+MONGODB_URI=mongodb://127.0.0.1:27017
+```
+
+`NEXTAUTH_SECRET` also needs any random string — `openssl rand -base64 32`
+generates one. Changing it later signs everyone out. Stripe, Cloudinary, and
+the OAuth keys are optional in development; the app runs without them and only
+the features that use them are unavailable.
+
 `npm run db:start` needs Docker and does nothing if a database is already
-running on the port. It writes the connection string it expects to the console;
-put that in `.env.local` as `MONGODB_URI`. `npm run db:stop` stops it again, and
-your data survives until the container is removed.
+running on the port. `npm run db:stop` stops it again, and your data survives
+until the container is removed.
 
 If you would rather not run a database locally, create a free cluster at
 [MongoDB Atlas](https://www.mongodb.com/atlas) and put its connection string in
