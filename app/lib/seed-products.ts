@@ -66,21 +66,16 @@ function toProduct({ colors, sizes, colorPhotos, ...rest }: SeedInput): Product 
 }
 
 /**
- * Photography is still the placeholder set from the starter catalog, so the
- * images do not match the shoes yet. Replace them from the admin product form.
+ * Sneaker photography, served from `public/products`.
+ *
+ * Local files rather than a remote CDN: the catalog then renders offline, in
+ * CI, and on a fresh clone without depending on anyone else's host staying up.
+ *
+ * These are stock photos of real Nike shoes, used as development placeholders.
+ * A shop that does not sell Nike should not ship them — swap them for your own
+ * photography from the admin product form before this goes anywhere public.
  */
-const IMAGES = {
-  runner: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006715/styleshop/products/shirt.jpg',
-  court: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006711/styleshop/products/hat.jpg',
-  trail: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006723/styleshop/products/apron.jpg',
-  skate: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006725/styleshop/products/hoodie.png',
-  retro: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006713/styleshop/products/mug.jpg',
-  slip: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006731/styleshop/products/tote.png',
-  chunky: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006729/styleshop/products/bottle.png',
-  boot: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006733/styleshop/products/notebook.png',
-  knit: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006735/styleshop/products/pins.png',
-  tennis: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006727/styleshop/products/stickers.png',
-};
+const PHOTO = (name: string) => `/products/${name}.jpg`;
 
 const CATALOG: SeedInput[] = [
   {
@@ -88,10 +83,10 @@ const CATALOG: SeedInput[] = [
     name: 'Outlet Runner Low',
     price: 89.99,
     description:
-      'Low-profile runner with a suede-and-mesh upper, compression-moulded foam midsole, and a gum rubber outsole. An everyday trainer that survives a commute and a weekend.',
-    imageUrl: IMAGES.runner,
-    colors: ['Core Black', 'Bone White', 'Sand'],
-    colorPhotos: [IMAGES.court, IMAGES.trail, IMAGES.skate],
+      'Low-profile runner with a knit upper, compression-moulded foam midsole, and a flexible cut-out sole. An everyday trainer that survives a commute and a weekend.',
+    imageUrl: PHOTO('runner-black'),
+    colors: ['Black', 'White', 'Red'],
+    colorPhotos: [PHOTO('runner-black'), PHOTO('runner-white'), PHOTO('runner-red')],
     sizes: MENS,
   },
   {
@@ -99,10 +94,10 @@ const CATALOG: SeedInput[] = [
     name: 'Court Classic Leather',
     price: 74.99,
     description:
-      'A clean full-grain leather court shoe with perforated toe detailing and a stitched cupsole. Creases in all the right places after a month of wear.',
-    imageUrl: IMAGES.court,
-    colors: ['White / Green', 'White / Navy', 'Triple White'],
-    colorPhotos: [IMAGES.trail, IMAGES.skate, IMAGES.retro],
+      'A clean leather court shoe with perforated toe detailing and a stitched cupsole. Creases in all the right places after a month of wear.',
+    imageUrl: PHOTO('court-white'),
+    colors: ['Triple White', 'Pastel', 'Green'],
+    colorPhotos: [PHOTO('court-white'), PHOTO('court-blue'), PHOTO('court-green')],
     sizes: UNISEX,
   },
   {
@@ -111,9 +106,9 @@ const CATALOG: SeedInput[] = [
     price: 129.99,
     description:
       'Waterproof trail shoe with a lugged outsole, rock plate underfoot, and a gusseted tongue that keeps grit out on long descents.',
-    imageUrl: IMAGES.trail,
-    colors: ['Slate / Lime', 'Black / Orange'],
-    colorPhotos: [IMAGES.skate, IMAGES.retro, IMAGES.slip],
+    imageUrl: PHOTO('trail-grey'),
+    colors: ['Grey', 'Orange'],
+    colorPhotos: [PHOTO('trail-grey'), PHOTO('trail-orange')],
     sizes: MENS,
   },
   {
@@ -121,10 +116,10 @@ const CATALOG: SeedInput[] = [
     name: 'Skate Mid Canvas',
     price: 64.99,
     description:
-      'Vulcanised mid-top in heavyweight canvas with a padded collar and a herringbone grip sole. Built for board feel, worn everywhere else.',
-    imageUrl: IMAGES.skate,
-    colors: ['Black / Gum', 'Faded Blue', 'Oxblood'],
-    colorPhotos: [IMAGES.retro, IMAGES.slip, IMAGES.chunky],
+      'Vulcanised mid-top with a padded collar and a herringbone grip sole. Built for board feel, worn everywhere else.',
+    imageUrl: PHOTO('skate-black'),
+    colors: ['Black', 'Blue', 'Red'],
+    colorPhotos: [PHOTO('skate-black'), PHOTO('skate-blue'), PHOTO('skate-red')],
     sizes: UNISEX,
   },
   {
@@ -133,9 +128,9 @@ const CATALOG: SeedInput[] = [
     price: 99.99,
     description:
       'A faithful reissue of the 1988 trainer: nubuck overlays, a mesh base, and a visible air unit in the heel. Cut on the original last.',
-    imageUrl: IMAGES.retro,
-    colors: ['Grey / Red', 'Off White / Navy'],
-    colorPhotos: [IMAGES.slip, IMAGES.chunky, IMAGES.boot],
+    imageUrl: PHOTO('retro-grey'),
+    colors: ['Grey', 'Navy'],
+    colorPhotos: [PHOTO('retro-grey'), PHOTO('retro-navy')],
     sizes: MENS,
   },
   {
@@ -143,10 +138,10 @@ const CATALOG: SeedInput[] = [
     name: 'Deck Slip-On',
     price: 54.99,
     description:
-      'Elasticated slip-on in washed canvas with a cushioned insole and a low-profile sole. The shoe you keep by the door.',
-    imageUrl: IMAGES.slip,
-    colors: ['Washed Black', 'Natural', 'Olive'],
-    colorPhotos: [IMAGES.chunky, IMAGES.boot, IMAGES.knit],
+      'Elasticated slip-on with a cushioned insole and a low-profile sole. The shoe you keep by the door.',
+    imageUrl: PHOTO('slip-black'),
+    colors: ['Black', 'Pink', 'Yellow'],
+    colorPhotos: [PHOTO('slip-black'), PHOTO('slip-pink'), PHOTO('slip-yellow')],
     sizes: WOMENS,
   },
   {
@@ -155,9 +150,9 @@ const CATALOG: SeedInput[] = [
     price: 109.99,
     description:
       'Layered mesh and suede on an oversized stacked midsole. Heavier than it looks and more comfortable than it has any right to be.',
-    imageUrl: IMAGES.chunky,
-    colors: ['White / Grey', 'Cream / Tan'],
-    colorPhotos: [IMAGES.boot, IMAGES.knit, IMAGES.tennis],
+    imageUrl: PHOTO('chunky-white'),
+    colors: ['White', 'Brown'],
+    colorPhotos: [PHOTO('chunky-white'), PHOTO('chunky-brown')],
     sizes: UNISEX,
   },
   {
@@ -165,10 +160,10 @@ const CATALOG: SeedInput[] = [
     name: 'All-Weather Hiker Boot',
     price: 149.99,
     description:
-      'Ankle-height hiker in oiled leather with a padded cuff, speed lacing, and a deep-lug outsole that clears mud instead of holding it.',
-    imageUrl: IMAGES.boot,
-    colors: ['Dark Brown', 'Black'],
-    colorPhotos: [IMAGES.knit, IMAGES.tennis, IMAGES.runner],
+      'Canvas and corduroy upper with a fleece-lined collar, speed lacing, and a sole that clears mud instead of holding it.',
+    imageUrl: PHOTO('boot-brown'),
+    colors: ['Tan', 'Black'],
+    colorPhotos: [PHOTO('boot-brown'), PHOTO('boot-black')],
     sizes: MENS,
   },
   {
@@ -177,9 +172,9 @@ const CATALOG: SeedInput[] = [
     price: 79.99,
     description:
       'Sock-fit knit upper on a single-density foam sole, under 250 g in a size 42. Packs flat for travel and washes clean.',
-    imageUrl: IMAGES.knit,
-    colors: ['Charcoal', 'Dusty Rose', 'Sage'],
-    colorPhotos: [IMAGES.tennis, IMAGES.runner, IMAGES.court],
+    imageUrl: PHOTO('knit-offwhite'),
+    colors: ['Off White', 'Red', 'Green'],
+    colorPhotos: [PHOTO('knit-offwhite'), PHOTO('knit-red'), PHOTO('knit-green')],
     sizes: WOMENS,
   },
   {
@@ -188,9 +183,9 @@ const CATALOG: SeedInput[] = [
     price: 69.99,
     description:
       'A slim tennis silhouette in soft leather with a tonal heel tab and a thin rubber cupsole. Sits low and pairs with everything.',
-    imageUrl: IMAGES.tennis,
-    colors: ['White', 'Black', 'Pale Blue'],
-    colorPhotos: [IMAGES.runner, IMAGES.court, IMAGES.trail],
+    imageUrl: PHOTO('tennis-white'),
+    colors: ['White', 'Black', 'Red'],
+    colorPhotos: [PHOTO('tennis-white'), PHOTO('tennis-black'), PHOTO('tennis-red')],
     sizes: UNISEX,
   },
 ];

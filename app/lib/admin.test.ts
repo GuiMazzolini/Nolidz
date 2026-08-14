@@ -80,3 +80,17 @@ describe("slugifyProductId", () => {
     expect(slugifyProductId("日本語")).toMatch(/^product-\d+$/);
   });
 });
+
+describe("normalizeProductImageUrl and local photography", () => {
+  it("accepts a same-origin path, which is the seeded photography", () => {
+    expect(normalizeProductImageUrl("/products/runner-black.jpg")).toBe(
+      "/products/runner-black.jpg"
+    );
+    expect(normalizeProductImageUrl("  /products/x.jpg  ")).toBe("/products/x.jpg");
+  });
+
+  it("still rejects a protocol-relative URL dressed up as a path", () => {
+    // `//evil.example.com/x.png` looks local but resolves off-site.
+    expect(() => normalizeProductImageUrl("//evil.example.com/x.png")).toThrow();
+  });
+});
