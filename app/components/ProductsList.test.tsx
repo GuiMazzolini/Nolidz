@@ -67,17 +67,17 @@ describe("catalog cards for variant products", () => {
     ).toBeNull();
   });
 
-  it("shows the buyable size range and the colourways", () => {
-    // EU 43 is sold out, so the advertised range stops at the size you can buy.
+  it("names the sizes still in stock, and the colourways", () => {
+    // EU 43 is sold out, so only 42 is offered.
     render(<ProductsList products={[runner]} />);
 
     const region = card("Runner");
-    expect(within(region).getByText("EU 42")).toBeVisible();
+    expect(within(region).getByText("Size left: EU 42")).toBeVisible();
     expect(within(region).getByText("Black")).toBeVisible();
     expect(within(region).getByText("White")).toBeVisible();
   });
 
-  it("spans the range when several sizes are buyable", () => {
+  it("lists each buyable size rather than a range that hides the gaps", () => {
     render(
       <ProductsList
         products={[
@@ -85,7 +85,7 @@ describe("catalog cards for variant products", () => {
             ...runner,
             variants: [
               { sku: "a", size: "40", color: "Black", stock: 2 },
-              { sku: "b", size: "42", color: "Black", stock: 1 },
+              { sku: "b", size: "42", color: "Black", stock: 0 },
               { sku: "c", size: "45", color: "Black", stock: 3 },
             ],
           },
@@ -93,10 +93,10 @@ describe("catalog cards for variant products", () => {
       />
     );
 
-    expect(within(card("Runner")).getByText("EU 40–45")).toBeVisible();
+    expect(within(card("Runner")).getByText("Sizes left: EU 40, 45")).toBeVisible();
   });
 
-  it("drops the EU prefix for a product that is not numerically sized", () => {
+  it("omits the size line for a product that only comes in one size", () => {
     render(
       <ProductsList
         products={[
@@ -112,8 +112,10 @@ describe("catalog cards for variant products", () => {
     );
 
     const region = card("Mug");
-    expect(within(region).getByText("One size")).toBeVisible();
-    expect(within(region).queryByText(/EU/)).toBeNull();
+    expect(within(region).queryByText(/One size/)).toBeNull();
+    expect(within(region).queryByText(/left: /)).toBeNull();
+    // The colourways still show.
+    expect(within(region).getByText("Matte Black")).toBeVisible();
   });
 
   it("summarises the overflow past three colourways", () => {

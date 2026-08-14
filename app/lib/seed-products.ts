@@ -2,23 +2,23 @@ import type { Product } from '../product-data';
 import { buildVariantSku, totalVariantStock, type ProductVariant } from './variants';
 
 /**
- * Sample catalog. Every product sells by size and colour.
+ * Sample catalog for the shoe shop. Every product sells by EU shoe size and
+ * colourway, and each size/colour combination carries its own stock count.
  *
- * Sizing is per category: footwear runs EU 40–45, apparel runs EU 46–52 (the
- * European clothing scale), and accessories are "One size" — the size label
- * drops its "EU" prefix when it is not a number, so a mug reads
- * "One size · Matte Black" rather than "EU One size".
+ * Size runs differ per style the way they do in a real outlet: a men's runner
+ * goes to EU 46, a women's court shoe starts at 36, and half sizes appear only
+ * where that style offers them.
  */
 
-const FOOTWEAR_SIZES = ['40', '41', '42', '43', '44', '45'];
-const APPAREL_SIZES = ['46', '48', '50', '52'];
-const ONE_SIZE = ['One size'];
+const MENS = ['40', '41', '42', '42.5', '43', '44', '45', '46'];
+const WOMENS = ['36', '36.5', '37', '38', '38.5', '39', '40', '41'];
+const UNISEX = ['38', '39', '40', '41', '42', '43', '44', '45'];
 
 /**
  * Stock counts derived from the SKU rather than Math.random, so re-seeding
- * does not reshuffle the catalog and the numbers on screen are reproducible
- * when someone reports a problem. Roughly one combination in nine is sold out,
- * which is what makes the sold-out states visible without hand-editing.
+ * does not reshuffle the catalog and a number someone reports can be
+ * reproduced. Roughly one size in nine lands on zero, which is what makes the
+ * sold-out states visible without hand-editing anything.
  */
 function stockFor(sku: string): number {
   let hash = 0;
@@ -53,127 +53,123 @@ function toProduct({ colors, sizes, ...rest }: SeedInput): Product {
   return { ...rest, variants, stock: totalVariantStock(variants) };
 }
 
+/**
+ * Photography is still the placeholder set from the starter catalog, so the
+ * images do not match the shoes yet. Replace them from the admin product form.
+ */
+const IMAGES = {
+  runner: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006715/styleshop/products/shirt.jpg',
+  court: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006711/styleshop/products/hat.jpg',
+  trail: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006723/styleshop/products/apron.jpg',
+  skate: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006725/styleshop/products/hoodie.png',
+  retro: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006713/styleshop/products/mug.jpg',
+  slip: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006731/styleshop/products/tote.png',
+  chunky: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006729/styleshop/products/bottle.png',
+  boot: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006733/styleshop/products/notebook.png',
+  knit: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006735/styleshop/products/pins.png',
+  tennis: 'https://res.cloudinary.com/djxvfermp/image/upload/v1786006727/styleshop/products/stickers.png',
+};
+
 const CATALOG: SeedInput[] = [
   {
     id: 'runner-low',
     name: 'Outlet Runner Low',
     price: 89.99,
     description:
-      'Low-profile outlet runner with a suede-and-mesh upper, foam midsole, and a gum outsole. Each size is a separate SKU, so what you see in stock is what ships.',
-    imageUrl:
-      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006715/styleshop/products/shirt.jpg',
+      'Low-profile runner with a suede-and-mesh upper, compression-moulded foam midsole, and a gum rubber outsole. An everyday trainer that survives a commute and a weekend.',
+    imageUrl: IMAGES.runner,
     colors: ['Core Black', 'Bone White', 'Sand'],
-    sizes: FOOTWEAR_SIZES,
+    sizes: MENS,
   },
   {
-    id: 'hoodie',
-    name: 'RoboByte Pullover Hoodie',
+    id: 'court-classic',
+    name: 'Court Classic Leather',
+    price: 74.99,
+    description:
+      'A clean full-grain leather court shoe with perforated toe detailing and a stitched cupsole. Creases in all the right places after a month of wear.',
+    imageUrl: IMAGES.court,
+    colors: ['White / Green', 'White / Navy', 'Triple White'],
+    sizes: UNISEX,
+  },
+  {
+    id: 'trail-gtx',
+    name: 'Trail Runner GTX',
+    price: 129.99,
+    description:
+      'Waterproof trail shoe with a lugged outsole, rock plate underfoot, and a gusseted tongue that keeps grit out on long descents.',
+    imageUrl: IMAGES.trail,
+    colors: ['Slate / Lime', 'Black / Orange'],
+    sizes: MENS,
+  },
+  {
+    id: 'skate-mid',
+    name: 'Skate Mid Canvas',
+    price: 64.99,
+    description:
+      'Vulcanised mid-top in heavyweight canvas with a padded collar and a herringbone grip sole. Built for board feel, worn everywhere else.',
+    imageUrl: IMAGES.skate,
+    colors: ['Black / Gum', 'Faded Blue', 'Oxblood'],
+    sizes: UNISEX,
+  },
+  {
+    id: 'retro-88',
+    name: 'Retro 88 Trainer',
+    price: 99.99,
+    description:
+      'A faithful reissue of the 1988 trainer: nubuck overlays, a mesh base, and a visible air unit in the heel. Cut on the original last.',
+    imageUrl: IMAGES.retro,
+    colors: ['Grey / Red', 'Off White / Navy'],
+    sizes: MENS,
+  },
+  {
+    id: 'deck-slip-on',
+    name: 'Deck Slip-On',
     price: 54.99,
     description:
-      'Cozy heavyweight navy hoodie with a brushed fleece interior and our signature circuit-robot chest print. Kangaroo pocket, ribbed cuffs, and a lined hood for those late-night debugging sessions.',
-    imageUrl:
-      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006725/styleshop/products/hoodie.png',
-    colors: ['Navy', 'Heather Grey', 'Forest'],
-    sizes: APPAREL_SIZES,
+      'Elasticated slip-on in washed canvas with a cushioned insole and a low-profile sole. The shoe you keep by the door.',
+    imageUrl: IMAGES.slip,
+    colors: ['Washed Black', 'Natural', 'Olive'],
+    sizes: WOMENS,
   },
   {
-    id: 'shirt',
-    name: 'Premium Cotton T-Shirt',
-    price: 29.99,
+    id: 'chunky-dad',
+    name: 'Chunky Dad Sneaker',
+    price: 109.99,
     description:
-      'Soft, pre-shrunk ring-spun cotton tee with a relaxed fit and a front mascot print. A wardrobe staple that pairs with anything.',
-    imageUrl:
-      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006715/styleshop/products/shirt.jpg',
-    colors: ['White', 'Black', 'Dusty Rose'],
-    sizes: APPAREL_SIZES,
+      'Layered mesh and suede on an oversized stacked midsole. Heavier than it looks and more comfortable than it has any right to be.',
+    imageUrl: IMAGES.chunky,
+    colors: ['White / Grey', 'Cream / Tan'],
+    sizes: UNISEX,
   },
   {
-    id: 'apron',
-    name: 'Kitchen Chef Apron',
-    price: 19.99,
+    id: 'hiker-boot',
+    name: 'All-Weather Hiker Boot',
+    price: 149.99,
     description:
-      'Durable cotton apron with front pockets and an adjustable neck strap. Keeps you clean while you cook up something great.',
-    imageUrl:
-      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006723/styleshop/products/apron.jpg',
-    colors: ['Charcoal', 'Olive'],
-    sizes: APPAREL_SIZES,
+      'Ankle-height hiker in oiled leather with a padded cuff, speed lacing, and a deep-lug outsole that clears mud instead of holding it.',
+    imageUrl: IMAGES.boot,
+    colors: ['Dark Brown', 'Black'],
+    sizes: MENS,
   },
   {
-    id: 'hat',
-    name: 'Classic Canvas Cap',
-    price: 24.99,
+    id: 'knit-runner',
+    name: 'Knit Runner Lite',
+    price: 79.99,
     description:
-      'A lightweight, breathable canvas cap with an adjustable strap and embroidered mascot patch. Perfect for sunny days and outdoor meetups.',
-    imageUrl:
-      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006711/styleshop/products/hat.jpg',
-    colors: ['Stone', 'Black', 'Faded Blue'],
-    sizes: ONE_SIZE,
+      'Sock-fit knit upper on a single-density foam sole, under 250 g in a size 42. Packs flat for travel and washes clean.',
+    imageUrl: IMAGES.knit,
+    colors: ['Charcoal', 'Dusty Rose', 'Sage'],
+    sizes: WOMENS,
   },
   {
-    id: 'bottle',
-    name: 'Insulated Steel Water Bottle',
-    price: 27.99,
+    id: 'lo-pro-tennis',
+    name: 'Lo-Pro Tennis',
+    price: 69.99,
     description:
-      'Matte-black double-walled stainless steel bottle that keeps drinks cold for 24 hours or hot for 12. Leak-proof lid and a laser-etched mascot logo that never fades.',
-    imageUrl:
-      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006729/styleshop/products/bottle.png',
-    colors: ['Matte Black', 'Brushed Steel', 'Sage'],
-    sizes: ONE_SIZE,
-  },
-  {
-    id: 'tote',
-    name: 'Canvas Tote Bag',
-    price: 17.99,
-    description:
-      'Sturdy natural-canvas tote with reinforced straps and a roomy interior. Carries your laptop, dev boards, and groceries in equal style.',
-    imageUrl:
-      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006731/styleshop/products/tote.png',
-    colors: ['Natural', 'Washed Black'],
-    sizes: ONE_SIZE,
-  },
-  {
-    id: 'mug',
-    name: 'Ceramic Coffee Mug',
-    price: 14.99,
-    description:
-      'A sturdy 12oz ceramic mug with a comfortable handle. Microwave- and dishwasher-safe for your daily dose of caffeine-driven development.',
-    imageUrl:
-      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006713/styleshop/products/mug.jpg',
-    colors: ['Matte Black', 'Cream', 'Terracotta'],
-    sizes: ONE_SIZE,
-  },
-  {
-    id: 'notebook',
-    name: 'Hardcover Circuit Notebook',
-    price: 15.99,
-    description:
-      'A5 hardcover journal with 192 dotted pages, an elastic closure, ribbon bookmark, and a deep-blue cover embossed with gold circuit foil. Ideal for sketches, schematics, and standup notes.',
-    imageUrl:
-      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006733/styleshop/products/notebook.png',
-    colors: ['Deep Blue', 'Oxblood'],
-    sizes: ONE_SIZE,
-  },
-  {
-    id: 'pins',
-    name: 'Enamel Pin Set',
-    price: 12.99,
-    description:
-      'A trio of hard-enamel pins — the RoboBuddy mascot, a mini circuit board, and a lightning bolt — with rubber clutch backs. Pin them to bags, jackets, or lanyards.',
-    imageUrl:
-      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006735/styleshop/products/pins.png',
-    colors: ['Gold Trim', 'Silver Trim'],
-    sizes: ONE_SIZE,
-  },
-  {
-    id: 'stickers',
-    name: 'Die-Cut Sticker Pack (10)',
-    price: 9.99,
-    description:
-      'Ten weatherproof, scratch-resistant vinyl stickers featuring our robot mascot in every mood plus retro circuit-board art. Perfect for laptops, water bottles, and hardware cases.',
-    imageUrl:
-      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006727/styleshop/products/stickers.png',
-    colors: ['Classic', 'Neon'],
-    sizes: ONE_SIZE,
+      'A slim tennis silhouette in soft leather with a tonal heel tab and a thin rubber cupsole. Sits low and pairs with everything.',
+    imageUrl: IMAGES.tennis,
+    colors: ['White', 'Black', 'Pale Blue'],
+    sizes: UNISEX,
   },
 ];
 

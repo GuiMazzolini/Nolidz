@@ -153,25 +153,46 @@ export function variantLabel(
   return parts.join(" · ");
 }
 
+/** Distinct sizes with stock somewhere in the run, smallest first. */
+export function sizesInStock(variants: ProductVariant[]): string[] {
+  const sizes = [...new Set(variants.filter((v) => v.stock > 0).map((v) => v.size))];
+  return sizes.sort((a, b) => {
+    const left = Number.parseFloat(a);
+    const right = Number.parseFloat(b);
+    if (Number.isNaN(left) || Number.isNaN(right)) return a.localeCompare(b);
+    return left - right;
+  });
+}
+
 /**
- * The size run in one line for a catalog card: "EU 40–45", or the single size
- * when there is only one. Reads from what is actually buyable, falling back to
- * the full run when everything is sold out.
+ * Which sizes a shopper can still buy, for a catalog card: "EU 40, 42, 45".
+ *
+ * The sizes are listed rather than collapsed to a range, because a range hides
+ * exactly what an outlet shopper is scanning for — "EU 40–45" reads as six
+ * sizes when only two are left. Returns null when there is nothing useful to
+ * say: everything sold out, or a product that only comes in one size, where
+ * the label is noise next to the stock count already on the card.
  */
-export function sizeRangeLabel(variants: ProductVariant[]): string | null {
-  const inStock = variants.filter((v) => v.stock > 0);
-  const pool = inStock.length > 0 ? inStock : variants;
-  if (pool.length === 0) return null;
+export function sizesLeftLabel(
+  variants: ProductVariant[],
+  // A full shoe run is eight or nine sizes; listing it whole is the point on a
+  // catalog card, so the cutoff sits above that rather than at a tidy number.
+  maxListed = 9
+): string | null {
+  const sizes = sizesInStock(variants);
+  if (sizes.length === 0) return null;
+  if (sizes.length === 1 && !isNumericSize(sizes[0])) return null;
 
-  const sizes = [...new Set(pool.map((v) => v.size))];
-  if (sizes.length === 1) return formatSize(sizes[0]);
+  const shown = sizes.slice(0, maxListed);
+  const overflow = sizes.length - shown.length;
 
-  const numeric = sizes.filter(isNumericSize).map(Number.parseFloat);
-  if (numeric.length !== sizes.length) return sizes.join(", ");
+  const numeric = shown.every(isNumericSize);
+  const list = numeric
+    ? `EU ${shown.join(", ")}`
+    : shown.map(formatSize).join(", ");
 
-  const low = Math.min(...numeric);
-  const high = Math.max(...numeric);
-  return low === high ? `EU ${low}` : `EU ${low}–${high}`;
+  const noun = sizes.length === 1 ? "Size" : "Sizes";
+  return `${noun} left: ${list}${overflow > 0 ? ` +${overflow}` : ""}`;
 }
 
 /** Product name as it should appear on a Stripe line item and order row. */

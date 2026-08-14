@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getImageSrc } from "../lib/images";
 import { useCartStore } from "../lib/store/cartStore";
-import { hasVariants, listColors, sizeRangeLabel } from "../lib/variants";
+import { hasVariants, listColors, sizesLeftLabel } from "../lib/variants";
 import CartErrorBanner from "./CartErrorBanner";
 
 type SortOption = "name-asc" | "price-asc" | "price-desc" | "stock-desc";
@@ -141,7 +141,7 @@ export default function ProductsList({ products }: { products: Product[] }) {
                 ? listColors(product.variants ?? [])
                 : [];
               const sizeLabel = isVariantProduct
-                ? sizeRangeLabel(product.variants ?? [])
+                ? sizesLeftLabel(product.variants ?? [])
                 : null;
 
               return (
