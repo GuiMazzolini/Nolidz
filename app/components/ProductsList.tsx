@@ -6,17 +6,34 @@ import Image from "next/image";
 import Link from "next/link";
 import { getImageSrc } from "../lib/images";
 import { useCartStore } from "../lib/store/cartStore";
+import { hasVariants, listColors } from "../lib/variants";
 import CartErrorBanner from "./CartErrorBanner";
 
 type SortOption = "name-asc" | "price-asc" | "price-desc" | "stock-desc";
+
+/** Distinct EU sizes still buyable, counted once across colourways. */
+function sizesInStock(product: Product): number {
+  const sizes = new Set(
+    (product.variants ?? []).filter((v) => v.stock > 0).map((v) => v.size)
+  );
+  return sizes.size;
+}
 
 export default function ProductsList({ products }: { products: Product[] }) {
   const { cartProducts, addToCart, updateQuantity, isLoading } = useCartStore();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortOption>("name-asc");
 
+  /** Only meaningful for single-SKU products; a variant product has one cart line per size. */
   function cartEntry(productId: string) {
-    return cartProducts.find((cp) => cp.id === productId);
+    return cartProducts.find((cp) => cp.id === productId && !cp.variantSku);
+  }
+
+  /** Units of a variant product in the cart, across every size. */
+  function variantUnitsInCart(productId: string) {
+    return cartProducts
+      .filter((cp) => cp.id === productId && cp.variantSku)
+      .reduce((sum, cp) => sum + (cp.quantity || 1), 0);
   }
 
   const filteredProducts = useMemo(() => {
@@ -114,12 +131,22 @@ export default function ProductsList({ products }: { products: Product[] }) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredProducts.map((product) => {
-              const entry = cartEntry(product.id);
+              // Size and colour are picked on the product page, so a variant
+              // product never gets an inline add button — there is no single
+              // SKU the card could add.
+              const isVariantProduct = hasVariants(product);
+              const entry = isVariantProduct ? undefined : cartEntry(product.id);
               const inCart = !!entry;
               const quantity = entry?.quantity || 0;
               const loading = isLoading(product.id);
               const outOfStock = product.stock < 1;
               const atStockLimit = quantity >= product.stock;
+              const unitsInCart = isVariantProduct
+                ? variantUnitsInCart(product.id)
+                : 0;
+              const colorCount = isVariantProduct
+                ? listColors(product.variants ?? []).length
+                : 0;
 
               return (
                 <div key={product.id} className="group">
@@ -155,11 +182,35 @@ export default function ProductsList({ products }: { products: Product[] }) {
                             </span>
                           )}
                         </div>
+
+                        {isVariantProduct && (
+                          <p className="mt-2 text-xs text-gray-500">
+                            {sizesInStock(product)} EU size
+                            {sizesInStock(product) === 1 ? "" : "s"}
+                            {colorCount > 1 ? ` · ${colorCount} colours` : ""}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </Link>
 
-                  {inCart ? (
+                  {isVariantProduct ? (
+                    <Link
+                      href={`/products/${product.id}`}
+                      className={`mt-3 block w-full rounded-lg py-2 text-center font-semibold transition-all duration-200 ${
+                        outOfStock
+                          ? "cursor-not-allowed bg-gray-200 text-gray-500"
+                          : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
+                      aria-disabled={outOfStock}
+                    >
+                      {outOfStock
+                        ? "Out of Stock"
+                        : unitsInCart > 0
+                          ? `In cart (${unitsInCart}) · Add size`
+                          : "Choose Size"}
+                    </Link>
+                  ) : inCart ? (
                     <div className="mt-3 flex items-center justify-between border border-gray-300 rounded-lg overflow-hidden">
                       <button
                         onClick={() => updateQuantity(product.id, quantity - 1)}

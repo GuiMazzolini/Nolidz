@@ -1,12 +1,18 @@
 import { connectToDB } from "@/app/api/db";
 import { authOptions } from "@/app/lib/auth";
-import { clampCartQuantity, getAvailableStock } from "@/app/lib/cart-limits";
+import { clampCartQuantity } from "@/app/lib/cart-limits";
 import {
   carts,
   products,
   type CartItemDoc,
   type ProductDoc,
 } from "@/app/lib/db-collections";
+import {
+  cartLineKey,
+  findVariant,
+  hasVariants,
+  resolveLineStock,
+} from "@/app/lib/variants";
 import { parseBody } from "@/app/lib/api-request";
 import { cartMergeSchema } from "@/app/lib/schemas";
 import { enforceRateLimit, RATE_LIMITS } from "@/app/lib/rate-limit";
@@ -25,14 +31,24 @@ async function buildCartProducts(db: Db, items: CartItemDoc[]) {
     .map((item) => {
       const product = productDocs.find((p) => p.id === item.productId);
       if (!product) return null;
+      const variant = findVariant(product.variants, item.variantSku);
+      if (hasVariants(product) && !variant) return null;
+
       return {
         id: product.id,
         name: product.name,
         price: product.price,
         description: product.description,
         imageUrl: product.imageUrl,
-        stock: getAvailableStock(product.stock),
+        stock: resolveLineStock(product, item.variantSku),
         quantity: item.quantity,
+        ...(variant
+          ? {
+              variantSku: variant.sku,
+              variantSize: variant.size,
+              variantColor: variant.color,
+            }
+          : {}),
       };
     })
     .filter(Boolean);
@@ -62,17 +78,35 @@ export async function POST(req: NextRequest) {
   const cart = await carts(db).findOne({ userId });
   const existing: CartItemDoc[] = cart?.items || [];
 
-  const quantities = new Map<string, number>();
-  for (const item of existing) {
-    if (item?.productId) {
-      quantities.set(item.productId, item.quantity || 0);
+  // Keyed per size/colour: the same shoe in EU 42 and EU 43 must stay two
+  // lines through the merge instead of collapsing into one.
+  const lines = new Map<
+    string,
+    { productId: string; variantSku?: string; quantity: number }
+  >();
+
+  function addLine(item: CartItemDoc, quantity: number) {
+    const key = cartLineKey(item.productId, item.variantSku);
+    const existingLine = lines.get(key);
+    if (existingLine) {
+      existingLine.quantity += quantity;
+      return;
     }
-  }
-  for (const { productId, quantity } of incoming) {
-    quantities.set(productId, (quantities.get(productId) || 0) + quantity);
+    lines.set(key, {
+      productId: item.productId,
+      variantSku: item.variantSku,
+      quantity,
+    });
   }
 
-  const productIds = [...quantities.keys()];
+  for (const item of existing) {
+    if (item?.productId) addLine(item, item.quantity || 0);
+  }
+  for (const item of incoming) {
+    addLine(item, item.quantity);
+  }
+
+  const productIds = [...new Set([...lines.values()].map((l) => l.productId))];
   const productDocs = await products(db)
     .find({ id: { $in: productIds } })
     .toArray();
@@ -81,13 +115,23 @@ export async function POST(req: NextRequest) {
   );
 
   const mergedItems: CartItemDoc[] = [];
-  for (const [productId, rawQty] of quantities.entries()) {
-    const product = productsById.get(productId);
+  for (const line of lines.values()) {
+    const product = productsById.get(line.productId);
     if (!product) continue;
-    const stock = getAvailableStock(product.stock);
-    const quantity = clampCartQuantity(rawQty, stock);
+    // Drops lines pointing at a variant that no longer exists, and lines with
+    // no variant on a product that now sells only by size.
+    if (hasVariants(product) && !findVariant(product.variants, line.variantSku)) {
+      continue;
+    }
+
+    const stock = resolveLineStock(product, line.variantSku);
+    const quantity = clampCartQuantity(line.quantity, stock);
     if (quantity >= 1) {
-      mergedItems.push({ productId, quantity });
+      mergedItems.push({
+        productId: line.productId,
+        quantity,
+        ...(line.variantSku ? { variantSku: line.variantSku } : {}),
+      });
     }
   }
 

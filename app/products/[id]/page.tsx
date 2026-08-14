@@ -4,6 +4,7 @@ import { connectToDB } from "@/app/api/db";
 import { getImageSrc } from "@/app/lib/images";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products } from "@/app/lib/db-collections";
+import { serializeVariants, type ProductVariant } from "@/app/lib/variants";
 import ProductDetail from "./ProductDetail";
 
 type Params = { id: string };
@@ -18,6 +19,7 @@ type DBProduct = {
   description: string;
   imageUrl: string;
   stock: number;
+  variants?: ProductVariant[];
 };
 
 async function getProduct(id: string): Promise<DBProduct | null> {
@@ -32,6 +34,7 @@ async function getProduct(id: string): Promise<DBProduct | null> {
     description: product.description,
     imageUrl: product.imageUrl,
     stock: getAvailableStock(product.stock),
+    variants: serializeVariants(product.variants),
   };
 }
 

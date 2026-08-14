@@ -7,6 +7,7 @@ import Link from "next/link";
 import CartItem from "../components/CartItem";
 import CartErrorBanner from "../components/CartErrorBanner";
 import { useCartStore } from "../lib/store/cartStore";
+import { cartLineKey } from "../lib/variants";
 import { useCheckout } from "../lib/use-checkout";
 import {
   FREE_SHIPPING_THRESHOLD,
@@ -96,7 +97,10 @@ export default function ShoppingCartList({ initialCartProducts }: { initialCartP
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
             {cartProducts.map((product) => (
-              <CartItem key={product.id} product={product} />
+              <CartItem
+                key={cartLineKey(product.id, product.variantSku)}
+                product={product}
+              />
             ))}
           </div>
 

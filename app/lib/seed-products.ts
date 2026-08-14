@@ -1,6 +1,51 @@
 import type { Product } from '../product-data';
+import { buildVariantSku, totalVariantStock, type ProductVariant } from './variants';
+
+/** Builds one colourway's size run: `[size, stock]` pairs for EU sizing. */
+function sizeRun(
+  productId: string,
+  color: string,
+  sizes: [string, number][],
+): ProductVariant[] {
+  return sizes.map(([size, stock]) => ({
+    sku: buildVariantSku(productId, size, color),
+    size,
+    color,
+    stock,
+  }));
+}
+
+const RUNNER_VARIANTS: ProductVariant[] = [
+  ...sizeRun('runner-low', 'Core Black', [
+    ['40', 4],
+    ['41', 6],
+    ['42', 8],
+    ['43', 7],
+    ['44', 5],
+    ['45', 2],
+  ]),
+  ...sizeRun('runner-low', 'Bone White', [
+    ['40', 3],
+    ['41', 0],
+    ['42', 5],
+    ['43', 4],
+    ['44', 2],
+    ['45', 0],
+  ]),
+];
 
 export const SEED_PRODUCTS: Product[] = [
+  {
+    id: 'runner-low',
+    name: 'Outlet Runner Low',
+    price: 89.99,
+    description:
+      'Low-profile outlet runner with a suede-and-mesh upper, foam midsole, and a gum outsole. Sized EU 40–45 in two colourways — each size is a separate SKU, so what you see in stock is what ships.',
+    imageUrl:
+      'https://res.cloudinary.com/djxvfermp/image/upload/v1786006715/styleshop/products/shirt.jpg',
+    stock: totalVariantStock(RUNNER_VARIANTS),
+    variants: RUNNER_VARIANTS,
+  },
   {
     id: 'hoodie',
     name: 'RoboByte Pullover Hoodie',

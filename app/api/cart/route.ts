@@ -1,7 +1,7 @@
 import { connectToDB } from "@/app/api/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
-import { getAvailableStock, MAX_CART_QUANTITY } from "@/app/lib/cart-limits";
+import { MAX_CART_QUANTITY } from "@/app/lib/cart-limits";
 import { carts, products, type CartItemDoc, type ProductDoc } from "@/app/lib/db-collections";
 import { parseBody, unauthorized } from "@/app/lib/api-request";
 import {
@@ -9,7 +9,8 @@ import {
   cartPatchSchema,
   cartPostSchema,
 } from "@/app/lib/schemas";
-import type { Db } from "mongodb";
+import { findVariant, hasVariants, resolveLineStock } from "@/app/lib/variants";
+import type { Db, Filter } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
 /** The cart is keyed by email, so a session without one cannot own a cart. */
@@ -18,16 +19,57 @@ async function getUserId(): Promise<string | null> {
   return session?.user?.email ?? null;
 }
 
-function serializeCartProduct(product: ProductDoc, quantity: number) {
-  const stock = getAvailableStock(product.stock);
+/**
+ * Criteria identifying one cart line. A line for a single-SKU product must
+ * match only lines that carry no SKU, or removing "the shoe" would remove
+ * whichever size Mongo happened to store first.
+ */
+function cartItemMatch(productId: string, variantSku?: string) {
+  // Operator form throughout: the driver's $pull typing rejects a shape that
+  // mixes a bare value with an operator object.
+  return {
+    productId: { $eq: productId },
+    variantSku: variantSku ? { $eq: variantSku } : { $exists: false },
+  };
+}
+
+function itemFilter(userId: string, productId: string, variantSku?: string) {
+  return {
+    userId,
+    items: { $elemMatch: cartItemMatch(productId, variantSku) },
+  } as Filter<{ userId: string; items: CartItemDoc[] }>;
+}
+
+function findCartItem(
+  items: CartItemDoc[],
+  productId: string,
+  variantSku?: string
+): CartItemDoc | undefined {
+  return items.find(
+    (i) => i.productId === productId && (i.variantSku ?? undefined) === variantSku
+  );
+}
+
+function serializeCartProduct(
+  product: ProductDoc,
+  item: CartItemDoc
+) {
+  const variant = findVariant(product.variants, item.variantSku);
   return {
     id: product.id,
     name: product.name,
     price: product.price,
     description: product.description,
     imageUrl: product.imageUrl,
-    stock,
-    quantity,
+    stock: resolveLineStock(product, item.variantSku),
+    quantity: item.quantity,
+    ...(variant
+      ? {
+          variantSku: variant.sku,
+          variantSize: variant.size,
+          variantColor: variant.color,
+        }
+      : {}),
   };
 }
 
@@ -42,9 +84,35 @@ async function buildCartProducts(db: Db, items: CartItemDoc[]) {
     .map((item) => {
       const product = productDocs.find((p) => p.id === item.productId);
       if (!product) return null;
-      return serializeCartProduct(product, item.quantity);
+      // A line whose variant was deleted from the catalog can no longer be
+      // priced or shipped, so it drops out of the cart instead of showing.
+      if (hasVariants(product) && !findVariant(product.variants, item.variantSku)) {
+        return null;
+      }
+      return serializeCartProduct(product, item);
     })
     .filter(Boolean);
+}
+
+/** Resolve the product and the stock backing this line, or an error response. */
+async function resolveLine(db: Db, productId: string, variantSku?: string) {
+  const product = await products(db).findOne({ id: productId });
+  if (!product) {
+    return {
+      error: NextResponse.json({ error: "Product not found" }, { status: 404 }),
+    };
+  }
+
+  if (hasVariants(product) && !findVariant(product.variants, variantSku)) {
+    return {
+      error: NextResponse.json(
+        { error: "Choose a size and colour" },
+        { status: 400 }
+      ),
+    };
+  }
+
+  return { product, stock: resolveLineStock(product, variantSku) };
 }
 
 export async function GET() {
@@ -64,20 +132,20 @@ export async function POST(req: NextRequest) {
 
   const parsed = await parseBody(req, cartPostSchema);
   if (!parsed.ok) return parsed.response;
-  const { productId } = parsed.data;
+  const { productId, variantSku } = parsed.data;
 
   const { db } = await connectToDB();
 
-  const product = await products(db).findOne({ id: productId });
-  if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  const line = await resolveLine(db, productId, variantSku);
+  if (line.error) return line.error;
 
-  const stock = getAvailableStock(product.stock);
+  const { stock } = line;
   if (stock < 1) {
     return NextResponse.json({ error: "Out of stock" }, { status: 409 });
   }
 
   const cart = await carts(db).findOne({ userId });
-  const existingItem = cart?.items?.find((i) => i.productId === productId);
+  const existingItem = findCartItem(cart?.items || [], productId, variantSku);
 
   let updatedCart;
   if (existingItem) {
@@ -89,7 +157,7 @@ export async function POST(req: NextRequest) {
     }
     const nextQuantity = Math.min(existingItem.quantity + 1, MAX_CART_QUANTITY, stock);
     updatedCart = await carts(db).findOneAndUpdate(
-      { userId, "items.productId": productId },
+      itemFilter(userId, productId, variantSku),
       { $set: { "items.$.quantity": nextQuantity, updatedAt: new Date() } },
       { returnDocument: "after" }
     );
@@ -97,7 +165,9 @@ export async function POST(req: NextRequest) {
     updatedCart = await carts(db).findOneAndUpdate(
       { userId },
       {
-        $push: { items: { productId, quantity: 1 } },
+        $push: {
+          items: { productId, quantity: 1, ...(variantSku ? { variantSku } : {}) },
+        },
         $set: { updatedAt: new Date() },
         $setOnInsert: { createdAt: new Date() },
       },
@@ -115,7 +185,7 @@ export async function PATCH(req: NextRequest) {
 
   const parsed = await parseBody(req, cartPatchSchema);
   if (!parsed.ok) return parsed.response;
-  const { productId, quantity } = parsed.data;
+  const { productId, quantity, variantSku } = parsed.data;
 
   const { db } = await connectToDB();
 
@@ -123,16 +193,19 @@ export async function PATCH(req: NextRequest) {
   if (quantity === 0) {
     updatedCart = await carts(db).findOneAndUpdate(
       { userId },
-      { $pull: { items: { productId } }, $set: { updatedAt: new Date() } },
+      {
+        $pull: { items: cartItemMatch(productId, variantSku) },
+        $set: { updatedAt: new Date() },
+      },
       { returnDocument: "after" }
     );
     if (!updatedCart)
       return NextResponse.json({ error: "Item not found in cart" }, { status: 404 });
   } else {
-    const product = await products(db).findOne({ id: productId });
-    if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    const line = await resolveLine(db, productId, variantSku);
+    if (line.error) return line.error;
 
-    const stock = getAvailableStock(product.stock);
+    const { stock } = line;
     if (stock < 1) {
       return NextResponse.json({ error: "Out of stock" }, { status: 409 });
     }
@@ -144,7 +217,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     updatedCart = await carts(db).findOneAndUpdate(
-      { userId, "items.productId": productId },
+      itemFilter(userId, productId, variantSku),
       { $set: { "items.$.quantity": quantity, updatedAt: new Date() } },
       { returnDocument: "after" }
     );
@@ -162,13 +235,16 @@ export async function DELETE(req: NextRequest) {
 
   const parsed = await parseBody(req, cartDeleteSchema);
   if (!parsed.ok) return parsed.response;
-  const { productId } = parsed.data;
+  const { productId, variantSku } = parsed.data;
 
   const { db } = await connectToDB();
 
   const updatedCart = await carts(db).findOneAndUpdate(
     { userId },
-    { $pull: { items: { productId } }, $set: { updatedAt: new Date() } },
+    {
+      $pull: { items: cartItemMatch(productId, variantSku) },
+      $set: { updatedAt: new Date() },
+    },
     { returnDocument: "after" }
   );
 

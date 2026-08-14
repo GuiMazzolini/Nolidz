@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connectToDB } from "@/app/api/db";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products as productsCollection } from "@/app/lib/db-collections";
+import { serializeVariants } from "@/app/lib/variants";
 import AdminProductsTable from "./AdminProductsTable";
 
 export const metadata: Metadata = {
@@ -18,6 +19,7 @@ export default async function AdminProductsPage() {
     price: doc.price,
     imageUrl: doc.imageUrl,
     stock: getAvailableStock(doc.stock),
+    variants: serializeVariants(doc.variants) ?? [],
   }));
 
   return (

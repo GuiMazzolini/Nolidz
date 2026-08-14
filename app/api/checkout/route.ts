@@ -5,10 +5,8 @@ import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { getAppUrl, getStripe } from "@/app/lib/stripe";
 import { getShippingCost } from "@/app/lib/shipping";
-import {
-  encodeCartItemsMetadata,
-  STRIPE_METADATA_VALUE_LIMIT,
-} from "@/app/lib/cart-metadata";
+import { buildCartMetadata } from "@/app/lib/cart-metadata";
+import { lineItemName } from "@/app/lib/variants";
 import { MAX_CART_LINE_ITEMS } from "@/app/lib/schemas";
 import { enforceRateLimit, RATE_LIMITS } from "@/app/lib/rate-limit";
 import {
@@ -103,7 +101,9 @@ export async function POST(req: NextRequest) {
         currency: "usd",
         unit_amount: Math.round(p.price * 100),
         product_data: {
-          name: p.name,
+          // The size and colour ride along in the name, so they appear on the
+          // Stripe page, the receipt, and the order rows built from it.
+          name: lineItemName(p.name, p.variantSize, p.variantColor),
           ...(image ? { images: image } : {}),
         },
       },
@@ -112,13 +112,17 @@ export async function POST(req: NextRequest) {
 
   const subtotal = cartProducts.reduce((sum, p) => sum + p.price * p.quantity, 0);
   const shippingCost = getShippingCost(subtotal);
-  const cartItemsMeta = encodeCartItemsMetadata(
-    cartProducts.map((p) => ({ productId: p.id, quantity: p.quantity }))
-  );
 
-  // Stripe rejects metadata values over 500 chars. Fulfillment decrements stock
-  // from this string, so silently truncating it would leave inventory wrong.
-  if (cartItemsMeta.length > STRIPE_METADATA_VALUE_LIMIT) {
+  // Fulfillment decrements stock from this metadata, so a cart that cannot be
+  // encoded in full is refused rather than checked out with lines missing.
+  const cartMetadata = buildCartMetadata(
+    cartProducts.map((p) => ({
+      productId: p.id,
+      quantity: p.quantity,
+      variantSku: p.variantSku,
+    }))
+  );
+  if (!cartMetadata) {
     return NextResponse.json(
       { error: "Cart is too large to check out. Please remove some items." },
       { status: 400 }
@@ -157,10 +161,10 @@ export async function POST(req: NextRequest) {
             ...(stripeCustomerId
               ? { customer: stripeCustomerId }
               : { customer_email: email }),
-            metadata: { userId: email, cartItems: cartItemsMeta },
+            metadata: { userId: email, ...cartMetadata },
           }
         : {
-            metadata: { isGuest: "true", cartItems: cartItemsMeta },
+            metadata: { isGuest: "true", ...cartMetadata },
           }),
     });
   } catch (err) {

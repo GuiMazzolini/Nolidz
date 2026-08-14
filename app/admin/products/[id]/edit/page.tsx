@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connectToDB } from "@/app/api/db";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products } from "@/app/lib/db-collections";
+import { serializeVariants } from "@/app/lib/variants";
 import ProductForm from "../../ProductForm";
 
 type Params = { id: string };
@@ -34,6 +35,7 @@ export default async function EditProductPage({
           imageUrl: product.imageUrl,
           price: product.price,
           stock: getAvailableStock(product.stock),
+          variants: serializeVariants(product.variants),
         }}
       />
     </div>

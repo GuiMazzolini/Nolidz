@@ -8,9 +8,11 @@ import {
   registerSchema,
 } from "@/app/lib/schemas";
 import {
+  buildCartMetadata,
   encodeCartItemsMetadata,
   STRIPE_METADATA_VALUE_LIMIT,
 } from "@/app/lib/cart-metadata";
+import { MAX_SKU_LENGTH } from "@/app/lib/variants";
 import { parseGuestCheckoutItems } from "@/app/lib/checkout-cart";
 
 describe("MongoDB operator injection", () => {
@@ -62,15 +64,28 @@ describe("cart quantity bounds", () => {
 });
 
 describe("cart line-item cap vs Stripe metadata limit", () => {
-  it("keeps a maximum-size cart under Stripe's 500-char metadata limit", () => {
-    // The cap only holds if it accounts for the longest possible product id.
-    const worstCase = Array.from({ length: MAX_CART_LINE_ITEMS }, (_, i) => ({
-      productId: `${String(i).padStart(2, "0")}${"x".repeat(62)}`, // 64 chars, the schema max
-      quantity: 99,
-    }));
+  // A cart at the line-item cap, every line at the schema's longest product id
+  // and SKU — far past what one 500-char metadata value can hold.
+  const worstCase = Array.from({ length: MAX_CART_LINE_ITEMS }, (_, i) => ({
+    productId: `${String(i).padStart(2, "0")}${"x".repeat(62)}`, // 64 chars, the schema max
+    variantSku: `${String(i).padStart(2, "0")}${"y".repeat(MAX_SKU_LENGTH - 2)}`,
+    quantity: 99,
+  }));
 
-    const encoded = encodeCartItemsMetadata(worstCase);
-    expect(encoded.length).toBeGreaterThan(STRIPE_METADATA_VALUE_LIMIT);
+  it("overflows a single metadata value", () => {
+    expect(encodeCartItemsMetadata(worstCase).length).toBeGreaterThan(
+      STRIPE_METADATA_VALUE_LIMIT
+    );
+  });
+
+  it("still fits once split across chunk keys", () => {
+    // Fulfillment reads stock decrements out of this metadata, so the largest
+    // cart the schemas accept has to survive the round trip.
+    const metadata = buildCartMetadata(worstCase);
+    expect(metadata).not.toBeNull();
+    for (const value of Object.values(metadata!)) {
+      expect(value.length).toBeLessThanOrEqual(STRIPE_METADATA_VALUE_LIMIT);
+    }
   });
 
   it("rejects a guest cart over the line-item cap", () => {

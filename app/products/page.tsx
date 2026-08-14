@@ -3,6 +3,7 @@ import { connectToDB } from "@/app/api/db";
 import ProductsList from "../components/ProductsList";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products as productsCollection } from "@/app/lib/db-collections";
+import { serializeVariants } from "@/app/lib/variants";
 import type { Product } from "@/app/product-data";
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default async function ProductsPage() {
       description: doc.description,
       imageUrl: doc.imageUrl,
       stock: getAvailableStock(doc.stock),
+      variants: serializeVariants(doc.variants),
     })
   );
 

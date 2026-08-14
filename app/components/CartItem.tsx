@@ -4,6 +4,7 @@ import { Product } from "../product-data";
 import { MAX_CART_QUANTITY } from "../lib/cart-limits";
 import { getImageSrc } from "../lib/images";
 import { useCartStore } from "../lib/store/cartStore";
+import { variantLabel } from "../lib/variants";
 
 interface CartItemProps {
   product: Product;
@@ -14,7 +15,9 @@ export default function CartItem({ product }: CartItemProps) {
   const removeFromCart = useCartStore((s) => s.removeFromCart);
   const isLoading = useCartStore((s) => s.isLoading);
 
-  const loading = isLoading(product.id);
+  const sku = product.variantSku;
+  const loading = isLoading(product.id, sku);
+  const label = variantLabel(product.variantSize, product.variantColor);
   const quantity = product.quantity || 1;
   const stock =
     typeof product.stock === "number" ? product.stock : MAX_CART_QUANTITY;
@@ -43,6 +46,12 @@ export default function CartItem({ product }: CartItemProps) {
                 {product.name}
               </h3>
             </Link>
+
+            {label && (
+              <p className="mb-2 inline-block rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+                {label}
+              </p>
+            )}
 
             <p className="text-gray-600 text-sm line-clamp-2 mb-2">
               {product.description}
@@ -79,7 +88,7 @@ export default function CartItem({ product }: CartItemProps) {
               <div className="flex items-center border border-gray-300 rounded-lg">
                 {quantity <= 1 ? (
                   <button
-                    onClick={() => removeFromCart(product.id)}
+                    onClick={() => removeFromCart(product.id, sku)}
                     disabled={loading}
                     aria-label="Remove from cart"
                     className="px-3 py-2 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
@@ -100,7 +109,7 @@ export default function CartItem({ product }: CartItemProps) {
                   </button>
                 ) : (
                   <button
-                    onClick={() => updateQuantity(product.id, quantity - 1)}
+                    onClick={() => updateQuantity(product.id, quantity - 1, sku)}
                     disabled={loading}
                     aria-label="Decrease quantity"
                     className="px-3 py-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -114,7 +123,7 @@ export default function CartItem({ product }: CartItemProps) {
                 </span>
 
                 <button
-                  onClick={() => updateQuantity(product.id, quantity + 1)}
+                  onClick={() => updateQuantity(product.id, quantity + 1, sku)}
                   disabled={loading || atLimit}
                   aria-label="Increase quantity"
                   className="px-3 py-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

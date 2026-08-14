@@ -4,7 +4,7 @@ import {
   sendShippingNotificationEmail,
 } from "@/app/lib/email";
 import { getStripe } from "@/app/lib/stripe";
-import { decodeCartItemsMetadata } from "@/app/lib/cart-metadata";
+import { decodeCartMetadata } from "@/app/lib/cart-metadata";
 import { carts, orders, products } from "@/app/lib/db-collections";
 import { isDuplicateKeyError } from "@/app/lib/mongo-errors";
 import { normalizeEmail } from "@/app/lib/normalize-email";
@@ -118,16 +118,36 @@ async function decrementStockForSession(
   db: Db,
   session: Stripe.Checkout.Session
 ) {
-  const cartItems = decodeCartItemsMetadata(session.metadata?.cartItems);
+  const cartItems = decodeCartMetadata(session.metadata);
   for (const item of cartItems) {
-    const result = await products(db).updateOne(
-      { id: item.productId, stock: { $gte: item.quantity } },
-      { $inc: { stock: -item.quantity } }
-    );
+    // A variant line moves both counters at once: the variant's own stock and
+    // the product-level mirror the catalog reads. Doing them in one update
+    // keeps the mirror from drifting when the second write would have failed.
+    const result = item.variantSku
+      ? await products(db).updateOne(
+          {
+            id: item.productId,
+            variants: {
+              $elemMatch: { sku: item.variantSku, stock: { $gte: item.quantity } },
+            },
+          },
+          {
+            $inc: {
+              "variants.$.stock": -item.quantity,
+              stock: -item.quantity,
+            },
+          }
+        )
+      : await products(db).updateOne(
+          { id: item.productId, stock: { $gte: item.quantity } },
+          { $inc: { stock: -item.quantity } }
+        );
+
     // If stock raced to zero after payment, keep the paid order; stock just won't go negative.
     if (result.modifiedCount === 0) {
+      const ref = item.variantSku ? `${item.productId}/${item.variantSku}` : item.productId;
       console.warn(
-        `Stock decrement skipped for ${item.productId} x${item.quantity} (session ${session.id})`
+        `Stock decrement skipped for ${ref} x${item.quantity} (session ${session.id})`
       );
     }
   }

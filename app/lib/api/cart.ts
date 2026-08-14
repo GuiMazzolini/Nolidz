@@ -38,20 +38,29 @@ export function fetchCartItems() {
   return request("GET");
 }
 
-export function addCartItem(productId: string) {
-  return request("POST", { productId });
+/** Omitted for single-SKU products; identifies the size/colour otherwise. */
+function variantBody(variantSku?: string) {
+  return variantSku ? { variantSku } : {};
 }
 
-export function updateCartQuantity(productId: string, quantity: number) {
-  return request("PATCH", { productId, quantity });
+export function addCartItem(productId: string, variantSku?: string) {
+  return request("POST", { productId, ...variantBody(variantSku) });
 }
 
-export function removeCartItem(productId: string) {
-  return request("DELETE", { productId });
+export function updateCartQuantity(
+  productId: string,
+  quantity: number,
+  variantSku?: string
+) {
+  return request("PATCH", { productId, quantity, ...variantBody(variantSku) });
+}
+
+export function removeCartItem(productId: string, variantSku?: string) {
+  return request("DELETE", { productId, ...variantBody(variantSku) });
 }
 
 export function mergeGuestCart(
-  items: { productId: string; quantity: number }[]
+  items: { productId: string; quantity: number; variantSku?: string }[]
 ) {
   return request("POST", { items }, "/api/cart/merge");
 }

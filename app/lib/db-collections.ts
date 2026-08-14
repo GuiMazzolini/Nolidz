@@ -1,5 +1,6 @@
 import type { Db } from "mongodb";
 import type { Order } from "@/app/lib/orders";
+import type { ProductVariant } from "@/app/lib/variants";
 
 /**
  * Typed accessors for every collection in the database.
@@ -16,12 +17,23 @@ export type ProductDoc = {
   description: string;
   imageUrl: string;
   price: number;
+  /** Mirror of the variant total when `variants` is set; see lib/variants. */
   stock: number;
+  /** Absent on single-SKU products, which sell straight off `stock`. */
+  variants?: ProductVariant[];
   createdAt?: Date;
   updatedAt?: Date;
 };
 
-export type CartItemDoc = { productId: string; quantity: number };
+/**
+ * One cart line. `variantSku` is absent for single-SKU products, so the same
+ * shoe in two sizes is two documents in this array.
+ */
+export type CartItemDoc = {
+  productId: string;
+  quantity: number;
+  variantSku?: string;
+};
 
 export type CartDoc = {
   userId: string;
