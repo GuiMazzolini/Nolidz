@@ -2,6 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
+import {
+  EU_SIZES,
+  MAX_PRODUCT_VARIANTS,
+  variantComboKey,
+  type ProductVariant,
+} from "@/app/lib/variants";
 
 export type ProductFormValues = {
   id?: string;
@@ -10,6 +16,7 @@ export type ProductFormValues = {
   imageUrl: string;
   price: number;
   stock: number;
+  variants?: ProductVariant[];
 };
 
 type FieldErrors = {
@@ -18,7 +25,37 @@ type FieldErrors = {
   imageUrl?: string;
   price?: string;
   stock?: string;
+  variants?: string;
 };
+
+/** Stock is a string while editing so the input can be cleared. */
+type VariantRow = {
+  /**
+   * Client-only identity for the React key. It cannot be derived from size and
+   * colour: those are the fields being edited, and a key that changes on each
+   * keystroke remounts the input and drops focus mid-word.
+   */
+  uid: string;
+  sku?: string;
+  size: string;
+  color: string;
+  stock: string;
+};
+
+let rowCounter = 0;
+function nextUid(): string {
+  return `row-${++rowCounter}`;
+}
+
+function toRows(variants: ProductVariant[] | undefined): VariantRow[] {
+  return (variants ?? []).map((v) => ({
+    uid: nextUid(),
+    sku: v.sku,
+    size: v.size,
+    color: v.color,
+    stock: String(v.stock),
+  }));
+}
 
 export default function ProductForm({
   mode,
@@ -40,6 +77,53 @@ export default function ProductForm({
   const [uploading, setUploading] = useState(false);
   const [previewBroken, setPreviewBroken] = useState(false);
 
+  const [useVariants, setUseVariants] = useState(
+    (initial?.variants?.length ?? 0) > 0
+  );
+  const [variantRows, setVariantRows] = useState<VariantRow[]>(() =>
+    toRows(initial?.variants)
+  );
+  // Size-run builder: pick a colour and a default count, then tap sizes.
+  const [runColor, setRunColor] = useState("");
+  const [runStock, setRunStock] = useState("3");
+
+  const variantStockTotal = useMemo(
+    () =>
+      variantRows.reduce((sum, row) => {
+        const value = Number(row.stock);
+        return sum + (Number.isFinite(value) && value > 0 ? Math.floor(value) : 0);
+      }, 0),
+    [variantRows]
+  );
+
+  function updateRow(index: number, patch: Partial<VariantRow>) {
+    setFieldErrors((prev) => ({ ...prev, variants: undefined }));
+    setVariantRows((rows) =>
+      rows.map((row, i) => (i === index ? { ...row, ...patch } : row))
+    );
+  }
+
+  function removeRow(index: number) {
+    setFieldErrors((prev) => ({ ...prev, variants: undefined }));
+    setVariantRows((rows) => rows.filter((_, i) => i !== index));
+  }
+
+  function addRow(size: string, color: string, stock: string) {
+    setFieldErrors((prev) => ({ ...prev, variants: undefined }));
+    setVariantRows((rows) => {
+      if (rows.length >= MAX_PRODUCT_VARIANTS) return rows;
+      // Tapping a size already in the run toggles it back off, so building a
+      // size run stays a single row of clicks.
+      const existing = rows.findIndex(
+        (row) => variantComboKey(row.size, row.color) === variantComboKey(size, color)
+      );
+      if (existing >= 0) {
+        return rows.filter((_, i) => i !== existing);
+      }
+      return [...rows, { uid: nextUid(), size, color, stock }];
+    });
+  }
+
   // Use the raw HTTPS URL for the admin preview so a bad transform
   // (or Next/Image quirks) never blank out the thumbnail.
   const previewSrc = useMemo(() => {
@@ -58,11 +142,48 @@ export default function ProductForm({
     if (!Number.isFinite(priceNum) || priceNum < 0) {
       next.price = "Enter a valid non-negative price.";
     }
-    const stockNum = Number(stock);
-    if (!Number.isInteger(stockNum) || stockNum < 0) {
-      next.stock = "Stock must be a whole number ≥ 0.";
+
+    if (useVariants) {
+      next.variants = validateVariants();
+    } else {
+      const stockNum = Number(stock);
+      if (!Number.isInteger(stockNum) || stockNum < 0) {
+        next.stock = "Stock must be a whole number ≥ 0.";
+      }
     }
-    return next;
+
+    // Drop the keys we deliberately left undefined so the caller's
+    // "any errors?" check stays a simple key count.
+    return Object.fromEntries(
+      Object.entries(next).filter(([, value]) => value !== undefined)
+    ) as FieldErrors;
+  }
+
+  function validateVariants(): string | undefined {
+    if (variantRows.length === 0) {
+      return "Add at least one size/colour, or turn variants off.";
+    }
+    if (variantRows.length > MAX_PRODUCT_VARIANTS) {
+      return `At most ${MAX_PRODUCT_VARIANTS} variants.`;
+    }
+
+    const combos = new Set<string>();
+    for (const row of variantRows) {
+      if (!row.size.trim()) return "Every variant needs an EU size.";
+      if (!row.color.trim()) return "Every variant needs a colour.";
+
+      const stockNum = Number(row.stock);
+      if (!Number.isInteger(stockNum) || stockNum < 0) {
+        return `Stock for EU ${row.size} / ${row.color} must be a whole number ≥ 0.`;
+      }
+
+      const combo = variantComboKey(row.size, row.color);
+      if (combos.has(combo)) {
+        return `EU ${row.size} / ${row.color} is listed twice.`;
+      }
+      combos.add(combo);
+    }
+    return undefined;
   }
 
   async function uploadToCloudinary(file: File) {
@@ -138,7 +259,22 @@ export default function ProductForm({
       description: description.trim(),
       imageUrl: imageUrl.trim(),
       price: Number(price),
-      stock: Number(stock),
+      ...(useVariants
+        ? {
+            // The server derives the product-level stock from these rows.
+            variants: variantRows.map((row) => ({
+              ...(row.sku ? { sku: row.sku } : {}),
+              size: row.size.trim(),
+              color: row.color.trim(),
+              stock: Number(row.stock),
+            })),
+          }
+        : {
+            stock: Number(stock),
+            // An empty array clears variants when editing a product that had
+            // them; harmless on create.
+            ...(mode === "edit" ? { variants: [] } : {}),
+          }),
       ...(mode === "create" && id.trim() ? { id: id.trim() } : {}),
     };
 
@@ -343,27 +479,205 @@ export default function ProductForm({
           <label htmlFor="stock" className="mb-1 block text-sm font-medium text-gray-700">
             Stock
           </label>
-          <input
-            id="stock"
-            type="number"
-            min="0"
-            step="1"
-            value={stock}
-            onChange={(e) => {
-              setStock(e.target.value);
-              setFieldErrors((prev) => ({ ...prev, stock: undefined }));
-            }}
-            required
-            aria-invalid={!!fieldErrors.stock}
-            className={`w-full rounded-lg border px-3 py-2 ${
-              fieldErrors.stock ? "border-red-400" : "border-gray-300"
-            }`}
-          />
+          {useVariants ? (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+              {variantStockTotal} across {variantRows.length} variant
+              {variantRows.length === 1 ? "" : "s"}
+            </div>
+          ) : (
+            <input
+              id="stock"
+              type="number"
+              min="0"
+              step="1"
+              value={stock}
+              onChange={(e) => {
+                setStock(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, stock: undefined }));
+              }}
+              required
+              aria-invalid={!!fieldErrors.stock}
+              className={`w-full rounded-lg border px-3 py-2 ${
+                fieldErrors.stock ? "border-red-400" : "border-gray-300"
+              }`}
+            />
+          )}
           {fieldErrors.stock && (
             <p className="mt-1 text-sm text-red-600">{fieldErrors.stock}</p>
           )}
         </div>
       </div>
+
+      <fieldset className="rounded-xl border border-gray-200 p-4">
+        <legend className="px-1 text-sm font-medium text-gray-700">
+          Sizes &amp; colours
+        </legend>
+
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={useVariants}
+            onChange={(e) => {
+              setUseVariants(e.target.checked);
+              setFieldErrors((prev) => ({
+                ...prev,
+                stock: undefined,
+                variants: undefined,
+              }));
+            }}
+            className="mt-1"
+          />
+          <span className="text-sm text-gray-700">
+            Sell this product by EU size and colour
+            <span className="mt-0.5 block text-xs text-gray-500">
+              Each size/colour combination gets its own SKU and stock count.
+              Turning this off sells the product as a single SKU.
+            </span>
+          </span>
+        </label>
+
+        {useVariants && (
+          <div className="mt-5 space-y-5">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <p className="mb-2 text-sm font-medium text-gray-700">
+                Add a size run
+              </p>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="block">
+                  <span className="mb-1 block text-xs text-gray-600">Colour</span>
+                  <input
+                    value={runColor}
+                    onChange={(e) => setRunColor(e.target.value)}
+                    placeholder="e.g. Black"
+                    className="w-44 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs text-gray-600">
+                    Stock per size
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={runStock}
+                    onChange={(e) => setRunStock(e.target.value)}
+                    className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {EU_SIZES.map((size) => {
+                  const active = variantRows.some(
+                    (row) =>
+                      variantComboKey(row.size, row.color) ===
+                      variantComboKey(size, runColor)
+                  );
+                  return (
+                    <button
+                      key={size}
+                      type="button"
+                      disabled={!runColor.trim()}
+                      onClick={() => addRow(size, runColor.trim(), runStock || "0")}
+                      className={`rounded-md border px-2.5 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                        active
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-gray-300 bg-white text-gray-700 hover:border-gray-500"
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                {runColor.trim()
+                  ? "Tap a size to add it for this colour; tap again to remove."
+                  : "Enter a colour first, then tap the sizes you stock."}
+              </p>
+            </div>
+
+            {variantRows.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="text-left text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="py-2 pr-3 font-medium">EU size</th>
+                      <th className="py-2 pr-3 font-medium">Colour</th>
+                      <th className="py-2 pr-3 font-medium">Stock</th>
+                      <th className="py-2" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {variantRows.map((row, index) => (
+                      <tr key={row.uid}>
+                        <td className="py-2 pr-3">
+                          <input
+                            value={row.size}
+                            onChange={(e) => updateRow(index, { size: e.target.value })}
+                            aria-label={`EU size for row ${index + 1}`}
+                            className="w-20 rounded-lg border border-gray-300 px-2 py-1.5"
+                          />
+                        </td>
+                        <td className="py-2 pr-3">
+                          <input
+                            value={row.color}
+                            onChange={(e) => updateRow(index, { color: e.target.value })}
+                            aria-label={`Colour for row ${index + 1}`}
+                            className="w-40 rounded-lg border border-gray-300 px-2 py-1.5"
+                          />
+                        </td>
+                        <td className="py-2 pr-3">
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={row.stock}
+                            onChange={(e) => updateRow(index, { stock: e.target.value })}
+                            aria-label={`Stock for row ${index + 1}`}
+                            className="w-24 rounded-lg border border-gray-300 px-2 py-1.5"
+                          />
+                        </td>
+                        <td className="py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => removeRow(index)}
+                            className="text-sm font-medium text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() =>
+                setVariantRows((rows) =>
+                  rows.length >= MAX_PRODUCT_VARIANTS
+                    ? rows
+                    : [
+                        ...rows,
+                        { uid: nextUid(), size: "", color: runColor.trim(), stock: "0" },
+                      ]
+                )
+              }
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Add empty row
+            </button>
+
+            {fieldErrors.variants && (
+              <p className="text-sm text-red-600">{fieldErrors.variants}</p>
+            )}
+          </div>
+        )}
+      </fieldset>
 
       {error && (
         <div

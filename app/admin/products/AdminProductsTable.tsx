@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getImageSrc } from "@/app/lib/images";
+import type { ProductVariant } from "@/app/lib/variants";
 import DeleteProductButton from "./DeleteProductButton";
 
 export type AdminProduct = {
@@ -11,13 +12,23 @@ export type AdminProduct = {
   name: string;
   price: number;
   imageUrl: string;
+  /** Total units; for a variant product, the sum across every size/colour. */
   stock: number;
+  variants?: ProductVariant[];
 };
 
 type StockFilter = "all" | "in-stock" | "low-stock" | "out-of-stock";
 type SortOption = "name-asc" | "price-asc" | "price-desc" | "stock-asc";
 
 const LOW_STOCK_THRESHOLD = 5;
+
+/** "8 of 10 combos in stock · 2 sold out" — surfaces gaps a total hides. */
+function variantSummary(variants: ProductVariant[]): string {
+  const inStock = variants.filter((v) => v.stock > 0).length;
+  const soldOut = variants.length - inStock;
+  const base = `${inStock} of ${variants.length} combos in stock`;
+  return soldOut > 0 ? `${base} · ${soldOut} sold out` : base;
+}
 
 export default function AdminProductsTable({
   products,
@@ -201,6 +212,11 @@ export default function AdminProductsTable({
                           ? " · Low"
                           : ""}
                     </span>
+                    {product.variants && product.variants.length > 0 && (
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {variantSummary(product.variants)}
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-3">

@@ -1,7 +1,17 @@
-import { getAvailableStock } from "@/app/lib/cart-limits";
 import { guestCheckoutSchema } from "@/app/lib/schemas";
+import {
+  findVariant,
+  hasVariants,
+  resolveLineStock,
+  variantLabel,
+  type ProductVariant,
+} from "@/app/lib/variants";
 
-export type CartItem = { productId: string; quantity: number };
+export type CartItem = {
+  productId: string;
+  quantity: number;
+  variantSku?: string;
+};
 
 export type StockCheckedProduct = {
   id: string;
@@ -11,6 +21,16 @@ export type StockCheckedProduct = {
   imageUrl?: string;
   stock: number;
   quantity: number;
+  variantSku?: string;
+  variantSize?: string;
+  variantColor?: string;
+};
+
+type CatalogProduct = {
+  id: string;
+  name: string;
+  stock?: number;
+  variants?: ProductVariant[] | null;
 };
 
 /**
@@ -22,23 +42,37 @@ export function parseGuestCheckoutItems(body: unknown): CartItem[] | null {
   return result.success ? result.data.items : null;
 }
 
+/** "Runner Low (EU 42 · Black)" — used in stock errors. */
+function describe(product: CatalogProduct, item: CartItem): string {
+  const variant = findVariant(product.variants, item.variantSku);
+  const label = variant ? variantLabel(variant.size, variant.color) : "";
+  return label ? `${product.name} (${label})` : product.name;
+}
+
 /**
- * Validate requested quantities against product stock.
+ * Validate requested quantities against stock, per size/colour combination.
  * Returns a user-facing error string, or null when the cart is stock-safe.
  */
 export function getCartStockError(
   items: CartItem[],
-  products: { id: string; name: string; stock?: number }[]
+  products: CatalogProduct[]
 ): string | null {
   for (const item of items) {
     const product = products.find((p) => p.id === item.productId);
     if (!product) continue;
 
-    const stock = getAvailableStock(product.stock);
+    // A variant product reached with no SKU cannot be priced against a size,
+    // so it is refused rather than sold from the pooled total.
+    if (hasVariants(product) && !findVariant(product.variants, item.variantSku)) {
+      return `Please choose a size and colour for ${product.name}`;
+    }
+
+    const stock = resolveLineStock(product, item.variantSku);
     if (item.quantity > stock) {
+      const label = describe(product, item);
       return stock < 1
-        ? `${product.name} is out of stock`
-        : `Only ${stock} of ${product.name} left in stock`;
+        ? `${label} is out of stock`
+        : `Only ${stock} of ${label} left in stock`;
     }
   }
   return null;
@@ -50,20 +84,35 @@ export function getCartStockError(
  */
 export function attachQuantitiesToProducts(
   items: CartItem[],
-  products: { id: string; name: string; price: number; description?: string; imageUrl?: string; stock?: number }[]
+  products: (CatalogProduct & {
+    price: number;
+    description?: string;
+    imageUrl?: string;
+  })[]
 ): StockCheckedProduct[] {
   const result: StockCheckedProduct[] = [];
   for (const item of items) {
     const product = products.find((p) => p.id === item.productId);
     if (!product) continue;
+
+    const variant = findVariant(product.variants, item.variantSku);
+    if (hasVariants(product) && !variant) continue;
+
     result.push({
       id: product.id,
       name: product.name,
       price: product.price,
       description: product.description,
       imageUrl: product.imageUrl,
-      stock: getAvailableStock(product.stock),
+      stock: resolveLineStock(product, item.variantSku),
       quantity: item.quantity,
+      ...(variant
+        ? {
+            variantSku: variant.sku,
+            variantSize: variant.size,
+            variantColor: variant.color,
+          }
+        : {}),
     });
   }
   return result;

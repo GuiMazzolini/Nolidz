@@ -10,6 +10,7 @@ import {
   CartRequestError,
 } from "../api/cart";
 import { clampCartQuantity, MAX_CART_QUANTITY } from "../cart-limits";
+import { cartLineKey } from "../variants";
 
 type LoadingMap = Record<string, boolean>;
 
@@ -19,6 +20,14 @@ function cartErrorMessage(err: unknown): string {
     if (err.status === 409) return "Not enough stock for that quantity.";
   }
   return "Could not update your cart. Please try again.";
+}
+
+/**
+ * Cart lines are identified by product *and* variant: two sizes of the same
+ * shoe are two independent lines with independent stock.
+ */
+function isSameLine(line: Product, productId: string, variantSku?: string) {
+  return line.id === productId && (line.variantSku ?? undefined) === variantSku;
 }
 
 interface CartState {
@@ -33,13 +42,17 @@ interface CartState {
   clearGuestCart: () => void;
   fetchCart: () => Promise<void>;
   addToCart: (product: Product) => Promise<void>;
-  updateQuantity: (productId: string, quantity: number) => Promise<void>;
-  removeFromCart: (productId: string) => Promise<void>;
+  updateQuantity: (
+    productId: string,
+    quantity: number,
+    variantSku?: string
+  ) => Promise<void>;
+  removeFromCart: (productId: string, variantSku?: string) => Promise<void>;
   clearCartError: () => void;
 
-  isLoading: (productId: string) => boolean;
-  setLoading: (productId: string, value: boolean) => void;
-  clearLoading: (productId: string) => void;
+  isLoading: (productId: string, variantSku?: string) => boolean;
+  setLoading: (key: string, value: boolean) => void;
+  clearLoading: (key: string) => void;
 
   getSubtotal: () => number;
   getTotalItems: () => number;
@@ -71,6 +84,7 @@ export const useCartStore = create<CartState>()(
               guestItems.map((p) => ({
                 productId: p.id,
                 quantity: p.quantity || 1,
+                ...(p.variantSku ? { variantSku: p.variantSku } : {}),
               }))
             );
             set({ cartProducts: merged });
@@ -102,6 +116,9 @@ export const useCartStore = create<CartState>()(
       },
 
       addToCart: async (product) => {
+        const variantSku = product.variantSku;
+        const key = cartLineKey(product.id, variantSku);
+
         if (!get().isAuthenticated) {
           const stock = typeof product.stock === "number" ? product.stock : 0;
           if (stock < 1) {
@@ -109,7 +126,9 @@ export const useCartStore = create<CartState>()(
             return;
           }
           const current = get().guestCart;
-          const index = current.findIndex((p) => p.id === product.id);
+          const index = current.findIndex((p) =>
+            isSameLine(p, product.id, variantSku)
+          );
           if (index >= 0 && (current[index].quantity || 1) >= stock) {
             set({ cartError: `Only ${stock} in stock.` });
             return;
@@ -135,88 +154,96 @@ export const useCartStore = create<CartState>()(
         }
 
         const { setLoading, clearLoading } = get();
-        setLoading(product.id, true);
+        setLoading(key, true);
         try {
-          const updated = await addCartItem(product.id);
+          const updated = await addCartItem(product.id, variantSku);
           set({ cartProducts: updated, cartError: null });
         } catch (err) {
           console.error("Failed to add item:", err);
           set({ cartError: cartErrorMessage(err) });
         } finally {
-          clearLoading(product.id);
+          clearLoading(key);
         }
       },
 
-      updateQuantity: async (productId, quantity) => {
+      updateQuantity: async (productId, quantity, variantSku) => {
+        const key = cartLineKey(productId, variantSku);
+
         if (!get().isAuthenticated) {
-          const item = get().guestCart.find((p) => p.id === productId);
+          const item = get().guestCart.find((p) =>
+            isSameLine(p, productId, variantSku)
+          );
           const stock = typeof item?.stock === "number" ? item.stock : undefined;
           const clamped = quantity <= 0 ? 0 : clampCartQuantity(quantity, stock);
-          if (quantity > 0 && stock !== undefined && quantity > stock) {
-            set({ cartError: `Only ${stock} in stock.` });
-          }
+          const overStock =
+            quantity > 0 && stock !== undefined && quantity > stock;
+
           const next = get()
             .guestCart.map((p) =>
-              p.id === productId ? { ...p, quantity: clamped } : p
+              isSameLine(p, productId, variantSku)
+                ? { ...p, quantity: clamped }
+                : p
             )
             .filter((p) => (p.quantity || 0) > 0);
           set({
             guestCart: next,
             cartProducts: next,
-            cartError:
-              quantity > 0 && stock !== undefined && quantity > stock
-                ? `Only ${stock} in stock.`
-                : null,
+            cartError: overStock ? `Only ${stock} in stock.` : null,
           });
           return;
         }
 
         const { setLoading, clearLoading } = get();
-        setLoading(productId, true);
+        setLoading(key, true);
         try {
-          const updated = await updateCartQuantity(productId, quantity);
+          const updated = await updateCartQuantity(productId, quantity, variantSku);
           set({ cartProducts: updated, cartError: null });
         } catch (error) {
           console.error("Failed to update quantity:", error);
           set({ cartError: cartErrorMessage(error) });
         } finally {
-          clearLoading(productId);
+          clearLoading(key);
         }
       },
 
-      removeFromCart: async (productId) => {
+      removeFromCart: async (productId, variantSku) => {
+        const key = cartLineKey(productId, variantSku);
+
         if (!get().isAuthenticated) {
-          const next = get().guestCart.filter((p) => p.id !== productId);
+          const next = get().guestCart.filter(
+            (p) => !isSameLine(p, productId, variantSku)
+          );
           set({ guestCart: next, cartProducts: next });
           return;
         }
 
         const { setLoading, clearLoading } = get();
-        setLoading(productId, true);
+        setLoading(key, true);
         try {
-          const updated = await removeCartItem(productId);
+          const updated = await removeCartItem(productId, variantSku);
           set({ cartProducts: updated, cartError: null });
         } catch (error) {
           console.error("Failed to remove item:", error);
           set({ cartError: cartErrorMessage(error) });
         } finally {
-          clearLoading(productId);
+          clearLoading(key);
         }
       },
 
-      setLoading: (productId, value) =>
+      setLoading: (key, value) =>
         set((state) => ({
-          loading: { ...state.loading, [productId]: value },
+          loading: { ...state.loading, [key]: value },
         })),
 
-      clearLoading: (productId) =>
+      clearLoading: (key) =>
         set((state) => {
-          const { [productId]: removed, ...rest } = state.loading;
+          const { [key]: removed, ...rest } = state.loading;
           void removed;
           return { loading: rest };
         }),
 
-      isLoading: (productId) => !!get().loading[productId],
+      isLoading: (productId, variantSku) =>
+        !!get().loading[cartLineKey(productId, variantSku)],
 
       getSubtotal: () =>
         get().cartProducts.reduce(

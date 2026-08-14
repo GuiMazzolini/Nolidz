@@ -4,7 +4,13 @@ import { authOptions } from "@/app/lib/auth";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products, type ProductDoc } from "@/app/lib/db-collections";
 import { badRequest, parseBody } from "@/app/lib/api-request";
-import { adminProductUpdateSchema } from "@/app/lib/schemas";
+import { adminProductUpdateSchema, resolveVariants } from "@/app/lib/schemas";
+import {
+  hasVariants,
+  serializeVariants,
+  totalVariantStock,
+  type ProductVariant,
+} from "@/app/lib/variants";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -26,6 +32,7 @@ function serializeProduct(doc: Record<string, unknown>) {
     description: doc.description,
     imageUrl: doc.imageUrl,
     stock: getAvailableStock(doc.stock),
+    variants: serializeVariants(doc.variants as ProductVariant[] | undefined) ?? [],
   };
 }
 
@@ -65,11 +72,10 @@ export async function PATCH(
     updatedAt: new Date(),
   };
 
-  const { name, description, imageUrl, price, stock } = parsed.data;
+  const { name, description, imageUrl, price, stock, variants } = parsed.data;
   if (name !== undefined) updates.name = name;
   if (description !== undefined) updates.description = description;
   if (price !== undefined) updates.price = price;
-  if (stock !== undefined) updates.stock = stock;
   if (imageUrl !== undefined) {
     try {
       updates.imageUrl = normalizeProductImageUrl(imageUrl);
@@ -79,9 +85,37 @@ export async function PATCH(
   }
 
   const { db } = await connectToDB();
+  const current = await products(db).findOne({ id });
+  if (!current) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
+
+  // An empty array clears the variants; omitting the field leaves them alone.
+  const clearVariants = variants !== undefined && variants.length === 0;
+  const nextVariants =
+    variants && variants.length > 0 ? resolveVariants(id, variants) : null;
+
+  if (nextVariants) {
+    updates.variants = nextVariants;
+    // Derived, never taken from the body: the two must not disagree.
+    updates.stock = totalVariantStock(nextVariants);
+  } else if (clearVariants) {
+    updates.stock = stock ?? 0;
+  } else if (stock !== undefined) {
+    if (hasVariants(current)) {
+      return badRequest(
+        "This product's stock is the total of its size/colour variants — edit those instead"
+      );
+    }
+    updates.stock = stock;
+  }
+
   const updated = await products(db).findOneAndUpdate(
     { id },
-    { $set: updates },
+    {
+      $set: updates,
+      ...(clearVariants ? { $unset: { variants: "" } } : {}),
+    },
     { returnDocument: "after" }
   );
 

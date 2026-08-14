@@ -44,6 +44,7 @@ export function useCheckout() {
               items: cartProducts.map((p) => ({
                 productId: p.id,
                 quantity: p.quantity || 1,
+                ...(p.variantSku ? { variantSku: p.variantSku } : {}),
               })),
             })
           : undefined,

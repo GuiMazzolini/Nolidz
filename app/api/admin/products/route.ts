@@ -8,7 +8,12 @@ import { authOptions } from "@/app/lib/auth";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products as productsCollection } from "@/app/lib/db-collections";
 import { badRequest, parseBody } from "@/app/lib/api-request";
-import { adminProductCreateSchema } from "@/app/lib/schemas";
+import { adminProductCreateSchema, resolveVariants } from "@/app/lib/schemas";
+import {
+  serializeVariants,
+  totalVariantStock,
+  type ProductVariant,
+} from "@/app/lib/variants";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -28,6 +33,7 @@ function serializeProduct(doc: Record<string, unknown>) {
     description: doc.description,
     imageUrl: doc.imageUrl,
     stock: getAvailableStock(doc.stock),
+    variants: serializeVariants(doc.variants as ProductVariant[] | undefined) ?? [],
   };
 }
 
@@ -50,7 +56,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = await parseBody(req, adminProductCreateSchema);
   if (!parsed.ok) return parsed.response;
-  const { name, description, price, stock } = parsed.data;
+  const { name, description, price } = parsed.data;
 
   let imageUrl: string;
   try {
@@ -69,6 +75,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "A product with this id already exists" }, { status: 409 });
   }
 
+  // With variants, the product-level count is their sum: one number the
+  // catalog can sort and filter on without loading every size.
+  const variants = parsed.data.variants?.length
+    ? resolveVariants(id, parsed.data.variants)
+    : undefined;
+  const stock = variants ? totalVariantStock(variants) : (parsed.data.stock ?? 0);
+
   const product = {
     id,
     name,
@@ -76,6 +89,7 @@ export async function POST(req: NextRequest) {
     imageUrl,
     price,
     stock,
+    ...(variants ? { variants } : {}),
     createdAt: new Date(),
     updatedAt: new Date(),
   };
