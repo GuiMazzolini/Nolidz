@@ -1,16 +1,15 @@
 import { connectToDB } from "@/app/api/db";
 import { isAdminEmail, normalizeProductImageUrl } from "@/app/lib/admin";
+import { serializeAdminProduct } from "@/app/lib/admin-products";
 import { authOptions } from "@/app/lib/auth";
-import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products, type ProductDoc } from "@/app/lib/db-collections";
 import { badRequest, parseBody } from "@/app/lib/api-request";
 import { adminProductUpdateSchema, resolveVariants } from "@/app/lib/schemas";
+import { heldStockFor } from "@/app/lib/stock-hold";
 import {
   hasVariants,
-  serializeVariants,
   totalVariantStock,
   type ColorImage,
-  type ProductVariant,
 } from "@/app/lib/variants";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -23,19 +22,6 @@ async function requireAdmin() {
     return null;
   }
   return session;
-}
-
-function serializeProduct(doc: Record<string, unknown>) {
-  return {
-    id: doc.id,
-    name: doc.name,
-    price: doc.price,
-    description: doc.description,
-    imageUrl: doc.imageUrl,
-    stock: getAvailableStock(doc.stock),
-    variants: serializeVariants(doc.variants as ProductVariant[] | undefined) ?? [],
-    colorImages: (doc.colorImages as ColorImage[] | undefined) ?? [],
-  };
 }
 
 export async function GET(
@@ -54,7 +40,8 @@ export async function GET(
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
-  return NextResponse.json(serializeProduct(product));
+  const held = await heldStockFor(db, [id]);
+  return NextResponse.json(serializeAdminProduct(product, held.get(id)));
 }
 
 export async function PATCH(
@@ -110,19 +97,35 @@ export async function PATCH(
   const nextVariants =
     variants && variants.length > 0 ? resolveVariants(id, variants) : null;
 
+  /**
+   * The form shows shelf stock, so the submitted numbers include units that
+   * checkouts in progress have already taken. Subtracting them back out is
+   * what keeps a released hold from adding its units on top of the new count.
+   * The result may go negative if the admin writes down fewer than are held —
+   * that is a genuine oversell, and leaving it negative stops further sales
+   * until the count recovers rather than hiding it.
+   */
+  const held = (await heldStockFor(db, [id])).get(id);
+  const available = (shelf: number, sku?: string) =>
+    shelf - (sku ? (held?.bySku.get(sku) ?? 0) : (held?.total ?? 0));
+
   if (nextVariants) {
-    updates.variants = nextVariants;
+    const adjusted = nextVariants.map((variant) => ({
+      ...variant,
+      stock: available(variant.stock, variant.sku),
+    }));
+    updates.variants = adjusted;
     // Derived, never taken from the body: the two must not disagree.
-    updates.stock = totalVariantStock(nextVariants);
+    updates.stock = totalVariantStock(adjusted);
   } else if (clearVariants) {
-    updates.stock = stock ?? 0;
+    updates.stock = available(stock ?? 0);
   } else if (stock !== undefined) {
     if (hasVariants(current)) {
       return badRequest(
         "This product's stock is the total of its size/colour variants — edit those instead"
       );
     }
-    updates.stock = stock;
+    updates.stock = available(stock);
   }
 
   const updated = await products(db).findOneAndUpdate(
@@ -145,7 +148,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
-  return NextResponse.json(serializeProduct(updated));
+  return NextResponse.json(serializeAdminProduct(updated, held));
 }
 
 export async function DELETE(

@@ -43,6 +43,9 @@ vi.mock("@/app/lib/stripe", () => ({
 
 import { POST } from "@/app/api/checkout/route";
 import { decodeCartMetadata } from "@/app/lib/cart-metadata";
+import { RATE_LIMITS } from "@/app/lib/rate-limit";
+import { MAX_OPEN_HOLDS_PER_BUYER } from "@/app/lib/reservations";
+import { commitHold } from "@/app/lib/stock-hold";
 import { BUYER, catalog, runnerProduct } from "@/app/test/fixtures";
 import { jsonRequest, readResponse } from "@/app/test/http";
 import { testDb } from "@/app/test/mongo-double";
@@ -71,6 +74,19 @@ function variantStock(sku: string): number {
   const product = testDb.all("products").find((p) => p.id === "runner");
   const variants = product!.variants as { sku: string; stock: number }[];
   return variants.find((v) => v.sku === sku)!.stock;
+}
+
+/** Enough of one size that a run of checkouts cannot exhaust it. */
+function seedDeepStock() {
+  testDb.seed("products", [
+    {
+      ...runnerProduct,
+      stock: 99,
+      variants: [
+        { sku: "runner-eu42-black", size: "42", color: "Black", stock: 99 },
+      ],
+    },
+  ]);
 }
 
 describe("guest checkout", () => {
@@ -297,22 +313,95 @@ describe("authenticated checkout", () => {
 
   it("is rate limited", async () => {
     // Every attempt takes a hold and none of them pay, so the size needs
-    // enough stock to survive the run — the limiter is what should stop the
-    // 21st request, not the inventory.
-    testDb.seed("products", [
+    // enough stock to survive the run — the request budget is what should
+    // stop this, not the inventory.
+    seedDeepStock();
+
+    for (let i = 0; i < RATE_LIMITS.checkout.limit; i++) {
+      expect((await POST(jsonRequest("POST"))).status).toBe(200);
+      // Open holds are capped separately, and this test is about the request
+      // budget. Clearing them isolates the one limit under test.
+      testDb.seed("reservations", []);
+    }
+
+    expect((await POST(jsonRequest("POST"))).status).toBe(429);
+  });
+});
+
+describe("capping how much stock one buyer can hold at once", () => {
+  beforeEach(() => {
+    setMockSession(BUYER);
+    testDb.seed("carts", [
       {
-        ...runnerProduct,
-        stock: 99,
-        variants: [
-          { sku: "runner-eu42-black", size: "42", color: "Black", stock: 99 },
-        ],
+        userId: BUYER,
+        items: [{ productId: "runner", quantity: 1, variantSku: "runner-eu42-black" }],
       },
     ]);
+    seedDeepStock();
+  });
 
-    for (let i = 0; i < 20; i++) {
+  it("refuses a buyer who already has the maximum open", async () => {
+    for (let i = 0; i < MAX_OPEN_HOLDS_PER_BUYER; i++) {
       expect((await POST(jsonRequest("POST"))).status).toBe(200);
     }
-    expect((await POST(jsonRequest("POST"))).status).toBe(429);
+
+    const { status, body } = await readResponse<{ error: string }>(
+      await POST(jsonRequest("POST"))
+    );
+
+    expect(status).toBe(429);
+    expect(body.error).toContain("checkouts open");
+    // The refused attempt must not have taken any stock of its own.
+    expect(variantStock("runner-eu42-black")).toBe(99 - MAX_OPEN_HOLDS_PER_BUYER);
+  });
+
+  it("lets them start again once a hold is settled", async () => {
+    for (let i = 0; i < MAX_OPEN_HOLDS_PER_BUYER; i++) {
+      await POST(jsonRequest("POST"));
+    }
+
+    const [first] = testDb.all("reservations");
+    await commitHold(testDb as never, first.reservationId as string);
+
+    expect((await POST(jsonRequest("POST"))).status).toBe(200);
+  });
+
+  it("does not let one buyer's holds lock out another", async () => {
+    for (let i = 0; i < MAX_OPEN_HOLDS_PER_BUYER; i++) {
+      await POST(jsonRequest("POST"));
+    }
+
+    // A guest checking out from a different address is a different holder.
+    setMockSession(null);
+    const { status } = await readResponse(
+      await POST(
+        jsonRequest("POST", {
+          items: [
+            { productId: "runner", quantity: 1, variantSku: "runner-eu42-black" },
+          ],
+        })
+      )
+    );
+
+    expect(status).toBe(200);
+  });
+
+  it("counts lapsed checkouts as closed, not open", async () => {
+    for (let i = 0; i < MAX_OPEN_HOLDS_PER_BUYER; i++) {
+      await POST(jsonRequest("POST"));
+    }
+
+    // Their window passed without payment, so they no longer count against
+    // the buyer — otherwise abandoning a checkout would lock them out.
+    testDb.seed(
+      "reservations",
+      testDb.all("reservations").map((doc) => ({
+        ...doc,
+        expiresAt: new Date(Date.now() - 60_000),
+      }))
+    );
+
+    expect((await POST(jsonRequest("POST"))).status).toBe(200);
   });
 });
 

@@ -116,6 +116,28 @@ The cost of this design is phantom stock: a size can look sold out for up to 35
 minutes because of a checkout nobody completed. That is the deliberate trade
 against overselling the last pair.
 
+Because holding stock costs the holder nothing, two limits bound how much of it
+one party can freeze: ten checkouts per hour per IP, and three open holds at a
+time per buyer (account email, or IP for a guest). **These raise the cost of
+inventory griefing; they do not eliminate it.** Someone with a pool of
+addresses can still keep scarce sizes out of sale. Closing that properly means
+requiring an account to check out, or authorising payment before the hold —
+both product decisions rather than code ones.
+
+### Stock in the admin screens
+
+`stock` in the database is what is *available*. An admin counting boxes is
+looking at what is *on the shelf*, so the admin API and pages add held units
+back and the write path subtracts them again. Saving the form is therefore
+safe while checkouts are in progress: without that reconciliation, releasing a
+hold would add its units on top of the newly saved number and invent stock that
+does not exist. The products table shows "N held in checkout" whenever the two
+numbers differ.
+
+If an admin records fewer units than are currently held, available stock goes
+negative and stays there. That is a real oversell, and leaving it visible stops
+further sales until the count recovers.
+
 Holds live in the `reservations` collection, one document per checkout, keeping
 `held` / `committed` / `released` and the lines whose stock was actually taken.
 Nothing deletes them, so a disputed order can be traced. `app/lib/stock-hold.ts`

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { connectToDB } from "@/app/api/db";
-import { getAvailableStock } from "@/app/lib/cart-limits";
+import { serializeAdminProduct } from "@/app/lib/admin-products";
 import { products as productsCollection } from "@/app/lib/db-collections";
-import { serializeVariants } from "@/app/lib/variants";
+import { heldStockFor } from "@/app/lib/stock-hold";
 import AdminProductsTable from "./AdminProductsTable";
 
 export const metadata: Metadata = {
@@ -13,14 +13,12 @@ export const metadata: Metadata = {
 export default async function AdminProductsPage() {
   const { db } = await connectToDB();
   const docs = await productsCollection(db).find({}).sort({ name: 1 }).toArray();
-  const products = docs.map((doc) => ({
-    id: doc.id,
-    name: doc.name,
-    price: doc.price,
-    imageUrl: doc.imageUrl,
-    stock: getAvailableStock(doc.stock),
-    variants: serializeVariants(doc.variants) ?? [],
-  }));
+  // Shelf stock, matching the edit form. Showing available here and shelf
+  // there would have the same product reporting two different numbers.
+  const held = await heldStockFor(db, docs.map((doc) => doc.id));
+  const products = docs.map((doc) =>
+    serializeAdminProduct(doc, held.get(doc.id))
+  );
 
   return (
     <div>

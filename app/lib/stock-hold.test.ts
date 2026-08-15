@@ -20,6 +20,16 @@ import { testDb } from "@/app/test/mongo-double";
 
 const db = testDb as never;
 
+/** Most of these care about stock, not about who took it. */
+function takeHold(args: {
+  reservationId: string;
+  lines: Parameters<typeof holdStock>[1]["lines"];
+  userId?: string | null;
+  holder?: string;
+}) {
+  return holdStock(db, { holder: "buyer@example.com", ...args });
+}
+
 /** Stock of one size, as the catalog would report it. */
 function stockOf(sku: string): number {
   const product = testDb
@@ -53,7 +63,7 @@ beforeEach(() => {
 
 describe("taking a hold", () => {
   it("moves the size and the product mirror together", async () => {
-    const result = await holdStock(db, {
+    const result = await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 2, variantSku: BLACK_42 }],
     });
@@ -65,7 +75,7 @@ describe("taking a hold", () => {
   });
 
   it("takes stock from a single-SKU product", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "mug", quantity: 2 }],
     });
@@ -74,7 +84,7 @@ describe("taking a hold", () => {
   });
 
   it("refuses to take more of a size than exists", async () => {
-    const result = await holdStock(db, {
+    const result = await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 4, variantSku: BLACK_42 }],
     });
@@ -87,7 +97,7 @@ describe("taking a hold", () => {
   });
 
   it("gives back the lines it already took when a later one is short", async () => {
-    const result = await holdStock(db, {
+    const result = await takeHold({
       reservationId: "r1",
       lines: [
         { productId: "runner", quantity: 2, variantSku: WHITE_42 },
@@ -107,8 +117,8 @@ describe("taking a hold", () => {
   it("lets the second buyer of the last pair fail rather than oversell", async () => {
     const line = { productId: "runner", quantity: 3, variantSku: BLACK_42 };
 
-    const first = await holdStock(db, { reservationId: "r1", lines: [line] });
-    const second = await holdStock(db, { reservationId: "r2", lines: [line] });
+    const first = await takeHold({ reservationId: "r1", lines: [line] });
+    const second = await takeHold({ reservationId: "r2", lines: [line] });
 
     expect(first.ok).toBe(true);
     expect(second.ok).toBe(false);
@@ -117,7 +127,7 @@ describe("taking a hold", () => {
   });
 
   it("records only the lines it actually took", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [
         { productId: "mug", quantity: 1 },
@@ -132,7 +142,7 @@ describe("taking a hold", () => {
 
 describe("releasing a hold", () => {
   it("puts the stock back on sale", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 2, variantSku: BLACK_42 }],
     });
@@ -144,7 +154,7 @@ describe("releasing a hold", () => {
   });
 
   it("does not return the same stock twice", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 2, variantSku: BLACK_42 }],
     });
@@ -161,7 +171,7 @@ describe("releasing a hold", () => {
 
   it("warns rather than throws when the size was deleted mid-checkout", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 1, variantSku: BLACK_42 }],
     });
@@ -174,7 +184,7 @@ describe("releasing a hold", () => {
   });
 
   it("cannot release what was already paid for", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 2, variantSku: BLACK_42 }],
     });
@@ -188,7 +198,7 @@ describe("releasing a hold", () => {
 
 describe("committing a hold", () => {
   it("moves no counters, because the stock already left at hold time", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 2, variantSku: BLACK_42 }],
     });
@@ -198,7 +208,7 @@ describe("committing a hold", () => {
   });
 
   it("is safe to retry, as Stripe retries webhooks", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 2, variantSku: BLACK_42 }],
     });
@@ -209,7 +219,7 @@ describe("committing a hold", () => {
   });
 
   it("reports a hold that expired before the payment landed", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 2, variantSku: BLACK_42 }],
     });
@@ -226,7 +236,7 @@ describe("committing a hold", () => {
 
 describe("sweeping expired holds", () => {
   it("returns stock from a checkout nobody paid for", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 3, variantSku: BLACK_42 }],
     });
@@ -238,7 +248,7 @@ describe("sweeping expired holds", () => {
   });
 
   it("leaves a checkout that is still open alone", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 3, variantSku: BLACK_42 }],
     });
@@ -248,7 +258,7 @@ describe("sweeping expired holds", () => {
   });
 
   it("ignores holds that are already settled", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 1, variantSku: BLACK_42 }],
     });
@@ -263,7 +273,7 @@ describe("sweeping expired holds", () => {
 
 describe("the Stripe session on a hold", () => {
   it("is recorded for support lookups", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "mug", quantity: 1 }],
       userId: "buyer@example.com",
@@ -276,7 +286,7 @@ describe("the Stripe session on a hold", () => {
   });
 
   it("leaves a guest hold unattributed", async () => {
-    await holdStock(db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "mug", quantity: 1 }],
     });
