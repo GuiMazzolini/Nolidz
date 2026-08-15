@@ -2,43 +2,60 @@
 
 import { useMemo, useState } from "react";
 import { Product } from "../product-data";
+import { toColorways, type Colorway } from "../lib/colorways";
 import CartErrorBanner from "./CartErrorBanner";
 import ProductCard from "./ProductCard";
 
 type SortOption = "name-asc" | "price-asc" | "price-desc" | "stock-desc";
 
-
 export default function ProductsList({ products }: { products: Product[] }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortOption>("name-asc");
 
-  const filteredProducts = useMemo(() => {
+  /**
+   * One tile per colourway, so a shoe in three colours is three cards.
+   *
+   * Everything below works on colourways rather than products: a shopper
+   * filtering for "black" wants the black pair, not the shoe that happens to
+   * come in black among others, and a stock sort that ranked one tile by the
+   * whole product's total would order the grid by numbers it never shows.
+   */
+  const colorways = useMemo(
+    () => products.flatMap(toColorways),
+    [products]
+  );
+
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
-    let next = products.filter((product) => {
+    const next = colorways.filter((colorway: Colorway) => {
+      if (!q) return true;
+      const { product, color } = colorway;
       return (
-        !q ||
         product.name.toLowerCase().includes(q) ||
-        product.description.toLowerCase().includes(q)
+        product.description.toLowerCase().includes(q) ||
+        (color?.toLowerCase().includes(q) ?? false)
       );
     });
 
-    next = [...next].sort((a, b) => {
+    return [...next].sort((a, b) => {
       switch (sort) {
         case "price-asc":
-          return a.price - b.price;
+          return a.product.price - b.product.price;
         case "price-desc":
-          return b.price - a.price;
+          return b.product.price - a.product.price;
         case "stock-desc":
           return b.stock - a.stock;
         case "name-asc":
         default:
-          return a.name.localeCompare(b.name);
+          // Colourways of one shoe stay adjacent, in the admin's entry order.
+          return (
+            a.product.name.localeCompare(b.product.name) ||
+            (a.color ?? "").localeCompare(b.color ?? "")
+          );
       }
     });
-
-    return next;
-  }, [products, query, sort]);
+  }, [colorways, query, sort]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -46,8 +63,10 @@ export default function ProductsList({ products }: { products: Product[] }) {
         <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">Our Products</h1>
+            {/* Counts tiles, which is what the grid shows and what the
+                filters act on — products would be a different, lower number. */}
             <p className="mt-2 text-gray-600">
-              {filteredProducts.length} of {products.length} products
+              {filtered.length} of {colorways.length} items
             </p>
           </div>
 
@@ -85,7 +104,7 @@ export default function ProductsList({ products }: { products: Product[] }) {
 
         <CartErrorBanner />
 
-        {filteredProducts.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               No products match
@@ -106,8 +125,8 @@ export default function ProductsList({ products }: { products: Product[] }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+            {filtered.map((colorway) => (
+              <ProductCard key={colorway.key} colorway={colorway} />
             ))}
           </div>
         )}

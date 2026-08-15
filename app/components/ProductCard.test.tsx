@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import ProductCard from "@/app/components/ProductCard";
+import { toColorways } from "@/app/lib/colorways";
 import { useCartStore } from "@/app/lib/store/cartStore";
 import type { Product } from "@/app/product-data";
 
 /**
- * The banner is revealed with `group-hover` CSS, which jsdom does not evaluate.
- * These tests cover the behaviour behind it — which photo, which sizes, which
- * colour the card is presenting — not the visual reveal itself.
+ * A card is one colourway. Colourway construction is covered in
+ * colorways.test.ts; this covers what the card does with one.
  */
 
 const runner: Product = {
@@ -19,18 +19,18 @@ const runner: Product = {
   description: "A shoe",
   imageUrl: "/runner-black.png",
   price: 89.99,
-  stock: 9,
+  stock: 11,
   variants: [
     { sku: "r-42-black", size: "42", color: "Black", stock: 3 },
     { sku: "r-43-black", size: "43", color: "Black", stock: 2 },
-    { sku: "r-44-black", size: "44", color: "Black", stock: 1 },
-    { sku: "r-45-black", size: "45", color: "Black", stock: 4 },
     { sku: "r-42-white", size: "42", color: "White", stock: 5 },
+    { sku: "r-42-red", size: "42", color: "Red", stock: 1 },
   ],
   colorImages: [
     { color: "Black", imageUrl: "/runner-black.png" },
     { color: "White", imageUrl: "/runner-white.png" },
   ],
+  images: ["/sole.png", "/detail.png"],
 };
 
 const mug: Product = {
@@ -42,8 +42,15 @@ const mug: Product = {
   stock: 4,
 };
 
-function hero() {
-  return screen.getByAltText(/^Runner in/) as HTMLImageElement;
+/** The card for one colour of the runner. */
+function cardFor(color: string, product: Product = runner) {
+  const card = toColorways(product).find((c) => c.color === color);
+  if (!card) throw new Error(`no colourway ${color}`);
+  return card;
+}
+
+function hero(): HTMLImageElement {
+  return screen.getByAltText(/^Runner – /) as HTMLImageElement;
 }
 
 /** Swatches are hidden from assistive tech, so they are found by their data hook. */
@@ -53,13 +60,15 @@ function swatch(color: string): HTMLElement {
   return node as HTMLElement;
 }
 
-function swatchCount() {
-  return document.querySelectorAll("[data-color]").length;
+function swatchColors(): string[] {
+  return [...document.querySelectorAll("[data-color]")].map(
+    (node) => node.getAttribute("data-color")!
+  );
 }
 
 /** next/image rewrites src; the filename is what identifies the photo. */
-function photoName(img: HTMLElement) {
-  return decodeURIComponent((img as HTMLImageElement).src).split("/").pop();
+function photoName(img: HTMLImageElement) {
+  return decodeURIComponent(img.src).split("/").pop();
 }
 
 beforeEach(() => {
@@ -72,170 +81,219 @@ beforeEach(() => {
   });
 });
 
-describe("the colour swatch banner", () => {
-  it("rests on the first colourway, naming it after the product", () => {
-    render(<ProductCard product={runner} />);
+describe("a colourway card", () => {
+  it("names the product and its colour", () => {
+    render(<ProductCard colorway={cardFor("White")} />);
 
-    expect(
-      screen.getByRole("heading", { name: /Runner\s+–\s+Black/ })
-    ).toBeVisible();
-    expect(photoName(hero())).toBe("runner-black.png");
-  });
-
-  it("swaps the main photo and the name when a swatch is hovered", async () => {
-    const user = userEvent.setup();
-    render(<ProductCard product={runner} />);
-
-    await user.hover(swatch("White"));
-
-    expect(photoName(hero())).toBe("runner-white.png");
-    expect(
-      screen.getByRole("heading", { name: /Runner\s+–\s+White/ })
-    ).toBeVisible();
-  });
-
-  it("returns to the resting colourway when the card is left", async () => {
-    const user = userEvent.setup();
-    const { container } = render(<ProductCard product={runner} />);
-
-    await user.hover(swatch("White"));
-    await user.unhover(container.querySelector(".group")!);
-
-    expect(photoName(hero())).toBe("runner-black.png");
-    expect(
-      screen.getByRole("heading", { name: /Runner\s+–\s+Black/ })
-    ).toBeVisible();
-  });
-
-  it("shows one swatch per colourway, not per variant", () => {
-    // Five variants, two colourways.
-    render(<ProductCard product={runner} />);
-    expect(swatchCount()).toBe(2);
-  });
-
-  it("summarises the sizes when there are more than three", () => {
-    // Black stocks EU 42, 43, 44, 45.
-    render(<ProductCard product={runner} />);
-    expect(screen.getByText("Available in several sizes")).toBeVisible();
-  });
-
-  it("names the sizes when there are only a few", async () => {
-    const user = userEvent.setup();
-    render(<ProductCard product={runner} />);
-
-    // White stocks a single size.
-    await user.hover(swatch("White"));
-    expect(screen.getByText("EU 42")).toBeVisible();
-  });
-
-  it("reports the sizes of the hovered colourway, not the whole product", async () => {
-    const user = userEvent.setup();
-    render(<ProductCard product={runner} />);
-
-    expect(screen.getByText("Available in several sizes")).toBeVisible();
-    await user.hover(swatch("White"));
-    expect(screen.queryByText("Available in several sizes")).toBeNull();
-  });
-
-  it("carries the previewed colour to the product page", async () => {
-    const user = userEvent.setup();
-    render(<ProductCard product={runner} />);
-
-    expect(screen.getByRole("link", { name: /Choose Size/ })).toHaveAttribute(
-      "href",
-      "/products/runner?color=Black"
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(
+      "Runner – White"
     );
+    expect(photoName(hero())).toBe("runner-white.png");
+  });
 
-    await user.hover(swatch("White"));
-    expect(screen.getByRole("link", { name: /Choose Size/ })).toHaveAttribute(
+  it("reports the stock of that colour alone", () => {
+    render(<ProductCard colorway={cardFor("Red")} />);
+    expect(screen.getByText("1 left")).toBeVisible();
+  });
+
+  it("links to the product page on its own colour", () => {
+    render(<ProductCard colorway={cardFor("White")} />);
+
+    expect(screen.getByRole("link", { name: "View Runner – White" })).toHaveAttribute(
       "href",
       "/products/runner?color=White"
     );
   });
 
-  it("marks a sold-out colourway", () => {
-    render(
-      <ProductCard
-        product={{
-          ...runner,
-          variants: [
-            { sku: "a", size: "42", color: "Black", stock: 2 },
-            { sku: "b", size: "42", color: "White", stock: 0 },
-          ],
-        }}
-      />
-    );
+  it("marks a colourway with nothing left as out of stock", () => {
+    const gone: Product = {
+      ...runner,
+      variants: [{ sku: "r-42-black", size: "42", color: "Black", stock: 0 }],
+    };
+    render(<ProductCard colorway={cardFor("Black", gone)} />);
 
-    expect(swatch("White")).toHaveAttribute("title", "White — sold out");
-    expect(swatch("Black")).toHaveAttribute("title", "Black");
-  });
-
-  it("summarises colourways past the fifth", () => {
-    render(
-      <ProductCard
-        product={{
-          ...runner,
-          variants: ["Black", "White", "Sand", "Olive", "Red", "Blue"].map(
-            (color, i) => ({ sku: `s${i}`, size: "42", color, stock: 1 })
-          ),
-        }}
-      />
-    );
-
-    expect(swatchCount()).toBe(5);
-    expect(screen.getByText("+1")).toBeVisible();
-  });
-
-  it("falls back to the main photo for a colourway with none of its own", async () => {
-    const user = userEvent.setup();
-    render(<ProductCard product={{ ...runner, colorImages: [] }} />);
-
-    await user.hover(swatch("White"));
-    expect(photoName(hero())).toBe("runner-black.png");
+    expect(screen.getByText("Out of stock")).toBeVisible();
+    expect(screen.queryByText(/left$/)).toBeNull();
   });
 });
 
-describe("cards without a colour banner", () => {
-  it("shows no swatches for a sold-out product", () => {
-    render(<ProductCard product={{ ...runner, stock: 0 }} />);
-
-    expect(swatchCount()).toBe(0);
-    expect(screen.getByRole("link", { name: "Out of Stock" })).toBeVisible();
+describe("paging through a card's photos", () => {
+  it("opens on the colourway photo", () => {
+    render(<ProductCard colorway={cardFor("Black")} />);
+    expect(photoName(hero())).toBe("runner-black.png");
   });
 
-  it("keeps a single-SKU product on its inline add button", async () => {
+  it("steps forward and back with the arrows", async () => {
     const user = userEvent.setup();
-    render(<ProductCard product={mug} />);
+    render(<ProductCard colorway={cardFor("Black")} />);
 
-    expect(screen.getByRole("heading", { name: "Mug" })).toBeVisible();
-    expect(screen.queryByText(/Available in several sizes/)).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: "Next photo of Runner – Black" })
+    );
+    expect(photoName(hero())).toBe("sole.png");
 
-    await user.click(screen.getByRole("button", { name: "Add to Cart" }));
-    expect(useCartStore.getState().cartProducts[0].id).toBe("mug");
+    await user.click(
+      screen.getByRole("button", { name: "Previous photo of Runner – Black" })
+    );
+    expect(photoName(hero())).toBe("runner-black.png");
+  });
+
+  it("wraps around in both directions", async () => {
+    const user = userEvent.setup();
+    render(<ProductCard colorway={cardFor("Black")} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Previous photo of Runner – Black" })
+    );
+    expect(photoName(hero())).toBe("detail.png");
+  });
+
+  /** A one-photo card must not grow controls that do nothing. */
+  it("shows no arrows when there is only one photo", () => {
+    const plain: Product = { ...runner, images: undefined, colorImages: [] };
+    render(<ProductCard colorway={cardFor("Black", plain)} />);
+
+    expect(screen.queryByRole("button", { name: /Next photo/ })).toBeNull();
+    expect(screen.getByAltText("Runner – Black")).toBeInTheDocument();
+  });
+});
+
+describe("the swatch banner on a colourway card", () => {
+  it("offers the other colours and never its own", () => {
+    render(<ProductCard colorway={cardFor("Black")} />);
+    expect(swatchColors()).toEqual(["White", "Red"]);
+
+    cleanup();
+    render(<ProductCard colorway={cardFor("White")} />);
+    expect(swatchColors()).toEqual(["Black", "Red"]);
+  });
+
+  it("shows no banner for a product with a single colourway", () => {
+    const one: Product = {
+      ...runner,
+      variants: [{ sku: "r-42-black", size: "42", color: "Black", stock: 1 }],
+    };
+    render(<ProductCard colorway={cardFor("Black", one)} />);
+
+    expect(swatchColors()).toEqual([]);
+  });
+
+  it("marks a sold-out sibling colourway", () => {
+    const partly: Product = {
+      ...runner,
+      variants: [
+        { sku: "r-42-black", size: "42", color: "Black", stock: 2 },
+        { sku: "r-42-white", size: "42", color: "White", stock: 0 },
+      ],
+    };
+    render(<ProductCard colorway={cardFor("Black", partly)} />);
+
+    expect(swatch("White")).toHaveAttribute("title", "White — sold out");
+  });
+});
+
+describe("previewing a sibling colourway", () => {
+  it("turns the card over to the hovered colour", async () => {
+    const user = userEvent.setup();
+    render(<ProductCard colorway={cardFor("Black")} />);
+
+    await user.hover(swatch("White"));
+
+    expect(photoName(hero())).toBe("runner-white.png");
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(
+      "Runner – White"
+    );
+  });
+
+  it("reports the previewed colour's stock, not its own", async () => {
+    const user = userEvent.setup();
+    render(<ProductCard colorway={cardFor("Black")} />);
+
+    expect(screen.getByText("5 left")).toBeVisible();
+    await user.hover(swatch("Red"));
+    expect(screen.getByText("1 left")).toBeVisible();
+  });
+
+  it("carries the previewed colour into the links", async () => {
+    const user = userEvent.setup();
+    render(<ProductCard colorway={cardFor("Black")} />);
+
+    await user.hover(swatch("Red"));
+
+    expect(screen.getByRole("link", { name: "View Runner – Red" })).toHaveAttribute(
+      "href",
+      "/products/runner?color=Red"
+    );
+    expect(screen.getByRole("link", { name: "Choose Size" })).toHaveAttribute(
+      "href",
+      "/products/runner?color=Red"
+    );
+  });
+
+  it("returns to its own colourway when the card is left", async () => {
+    const user = userEvent.setup();
+    render(<ProductCard colorway={cardFor("Black")} />);
+
+    await user.hover(swatch("White"));
+    expect(photoName(hero())).toBe("runner-white.png");
+
+    await user.unhover(screen.getByRole("heading", { level: 2 }));
+    expect(photoName(hero())).toBe("runner-black.png");
+  });
+
+  /** A previewed colour brings its own photos, starting at the first. */
+  it("resets the gallery position when the preview changes", async () => {
+    const user = userEvent.setup();
+    render(<ProductCard colorway={cardFor("Black")} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Next photo of Runner – Black" })
+    );
+    expect(photoName(hero())).toBe("sole.png");
+
+    await user.hover(swatch("White"));
+    expect(photoName(hero())).toBe("runner-white.png");
   });
 });
 
 describe("the cart state a card reflects", () => {
-  it("counts every size of a variant product already in the cart", () => {
+  it("counts only the sizes of its own colourway", () => {
     useCartStore.setState({
       cartProducts: [
-        { ...runner, quantity: 1, variantSku: "r-42-black" },
-        { ...runner, quantity: 2, variantSku: "r-42-white" },
+        { ...runner, variantSku: "r-42-black", quantity: 2 },
+        { ...runner, variantSku: "r-43-black", quantity: 1 },
+        { ...runner, variantSku: "r-42-white", quantity: 4 },
       ],
     });
+    render(<ProductCard colorway={cardFor("Black")} />);
 
-    render(<ProductCard product={runner} />);
     expect(
-      screen.getByRole("link", { name: /In cart \(3\) · Add size/ })
+      screen.getByRole("link", { name: "In cart (3) · Add size" })
     ).toBeVisible();
+  });
+
+  it("sends a variant card to the product page rather than adding inline", () => {
+    render(<ProductCard colorway={cardFor("Black")} />);
+
+    expect(screen.getByRole("link", { name: "Choose Size" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Add to Cart" })).toBeNull();
+  });
+
+  it("keeps a single-SKU product on its inline add button", async () => {
+    const user = userEvent.setup();
+    render(<ProductCard colorway={toColorways(mug)[0]} />);
+
+    await user.click(screen.getByRole("button", { name: "Add to Cart" }));
+
+    expect(useCartStore.getState().cartProducts[0].id).toBe("mug");
   });
 
   it("does not treat a sized line as a single-SKU cart entry", () => {
     useCartStore.setState({
-      cartProducts: [{ ...mug, id: "mug", quantity: 1, variantSku: "x" }],
+      cartProducts: [{ ...mug, variantSku: "mug-x", quantity: 2 }],
     });
+    render(<ProductCard colorway={toColorways(mug)[0]} />);
 
-    render(<ProductCard product={mug} />);
-    expect(within(document.body).getByRole("button", { name: "Add to Cart" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Add to Cart" })).toBeVisible();
   });
 });

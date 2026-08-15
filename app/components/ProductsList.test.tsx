@@ -42,11 +42,11 @@ const soldOut: Product = {
 
 const catalog = [runner, mug, soldOut];
 
+/** Full card titles, "Runner – Black" included, in grid order. */
 function headings() {
   return screen
     .getAllByRole("heading", { level: 2 })
-    // A variant card appends " – Colour" to the name.
-    .map((node) => node.textContent!.split("–")[0].trim());
+    .map((node) => node.textContent!.replace(/\s+/g, " ").trim());
 }
 
 beforeEach(() => {
@@ -60,11 +60,17 @@ beforeEach(() => {
 });
 
 describe("the catalog grid", () => {
-  it("renders one card per product, alphabetically by default", () => {
+  /** The runner comes in two colours, so it occupies two of the four tiles. */
+  it("renders one card per colourway, alphabetically by default", () => {
     render(<ProductsList products={catalog} />);
 
-    expect(headings()).toEqual(["Mug", "Pins", "Runner"]);
-    expect(screen.getByText("3 of 3 products")).toBeVisible();
+    expect(headings()).toEqual([
+      "Mug",
+      "Pins",
+      "Runner – Black",
+      "Runner – White",
+    ]);
+    expect(screen.getByText("4 of 4 items")).toBeVisible();
   });
 
   it("filters on name and description", async () => {
@@ -74,7 +80,17 @@ describe("the catalog grid", () => {
     await user.type(screen.getByRole("searchbox"), "ceramic");
 
     expect(headings()).toEqual(["Mug"]);
-    expect(screen.getByText("1 of 3 products")).toBeVisible();
+    expect(screen.getByText("1 of 4 items")).toBeVisible();
+  });
+
+  /** Searching a colour returns that pair, not every colourway of the shoe. */
+  it("filters on colour", async () => {
+    const user = userEvent.setup();
+    render(<ProductsList products={catalog} />);
+
+    await user.type(screen.getByRole("searchbox"), "white");
+
+    expect(headings()).toEqual(["Runner – White"]);
   });
 
   it("offers a reset when nothing matches", async () => {
@@ -85,26 +101,37 @@ describe("the catalog grid", () => {
     expect(screen.getByText("No products match")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Reset filters" }));
-    expect(headings()).toEqual(["Mug", "Pins", "Runner"]);
+    expect(headings()).toHaveLength(4);
   });
 
-  it("sorts by price", async () => {
+  it("sorts by price, keeping a shoe's colourways together", async () => {
     const user = userEvent.setup();
     render(<ProductsList products={catalog} />);
 
     await user.selectOptions(screen.getByRole("combobox"), "price-asc");
-    expect(headings()).toEqual(["Pins", "Mug", "Runner"]);
+    expect(headings()).toEqual([
+      "Pins",
+      "Mug",
+      "Runner – Black",
+      "Runner – White",
+    ]);
 
     await user.selectOptions(screen.getByRole("combobox"), "price-desc");
-    expect(headings()).toEqual(["Runner", "Mug", "Pins"]);
+    expect(headings().slice(2)).toEqual(["Mug", "Pins"]);
   });
 
+  /** Stock sorts on the colourway's own count, which is what its tile shows. */
   it("sorts by stock", async () => {
     const user = userEvent.setup();
     render(<ProductsList products={catalog} />);
 
     await user.selectOptions(screen.getByRole("combobox"), "stock-desc");
-    expect(headings()).toEqual(["Runner", "Mug", "Pins"]);
+    expect(headings()).toEqual([
+      "Mug",
+      "Runner – Black",
+      "Runner – White",
+      "Pins",
+    ]);
   });
 
   it("surfaces a cart error above the grid", () => {
