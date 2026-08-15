@@ -17,6 +17,7 @@ import {
   listColors,
   lineItemName,
   resolveLineStock,
+  sellableVariants,
   sizesLeftLabel,
   totalVariantStock,
   variantsForColor,
@@ -169,6 +170,28 @@ describe("variant stock", () => {
   it("falls back to the product count when there are no variants", () => {
     expect(resolveLineStock({ stock: 4 })).toBe(4);
     expect(resolveLineStock({ stock: -2 })).toBe(0);
+  });
+});
+
+describe("variants offered by the public API", () => {
+  it("drops the sold-out combinations", () => {
+    expect(sellableVariants(RUNNER_VARIANTS)?.map((v) => v.sku)).toEqual([
+      "runner-eu42-black",
+      "runner-eu41-5-white",
+    ]);
+  });
+
+  it("reads a fully sold-out run as no variants at all", () => {
+    const gone = RUNNER_VARIANTS.map((v) => ({ ...v, stock: 0 }));
+    expect(sellableVariants(gone)).toBeUndefined();
+    expect(sellableVariants([])).toBeUndefined();
+    expect(sellableVariants(undefined)).toBeUndefined();
+  });
+
+  it("floors a negative count to sold out rather than offering it", () => {
+    expect(
+      sellableVariants([{ sku: "a", size: "42", color: "Black", stock: -3 }])
+    ).toBeUndefined();
   });
 });
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDB } from "../../db";
+import { products as productsCollection } from "@/app/lib/db-collections";
+import { serializePublicProduct } from "@/app/lib/public-products";
 
 type Params = { id: string };
 
@@ -7,14 +9,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<Pa
     const { db } = await connectToDB();
     const { id } = await params;
 
-    const product = await db.collection('products').findOne({ id: id })
+    const product = await productsCollection(db).findOne({ id: id })
 
     if (!product) {
         return NextResponse.json(
-            { error: 'Product not found!' }, 
+            { error: 'Product not found!' },
             { status: 404 }
         );
     };
 
-    return NextResponse.json(product);
+    return NextResponse.json(serializePublicProduct(product));
 };
