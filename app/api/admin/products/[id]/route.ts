@@ -4,6 +4,7 @@ import { serializeAdminProduct } from "@/app/lib/admin-products";
 import { authOptions } from "@/app/lib/auth";
 import { products, type ProductDoc } from "@/app/lib/db-collections";
 import { badRequest, parseBody } from "@/app/lib/api-request";
+import { isDuplicateKeyError } from "@/app/lib/mongo-errors";
 import { adminProductUpdateSchema, resolveVariants } from "@/app/lib/schemas";
 import { heldStockFor } from "@/app/lib/stock-hold";
 import {
@@ -61,7 +62,7 @@ export async function PATCH(
     updatedAt: new Date(),
   };
 
-  const { name, description, imageUrl, price, stock, variants, colorImages } =
+  const { name, description, imageUrl, price, stock, variants, colorImages, images } =
     parsed.data;
   if (name !== undefined) updates.name = name;
   if (description !== undefined) updates.description = description;
@@ -85,6 +86,15 @@ export async function PATCH(
     }
   }
   const clearColorImages = colorImages !== undefined && colorImages.length === 0;
+
+  if (images?.length) {
+    try {
+      updates.images = images.map((url) => normalizeProductImageUrl(url));
+    } catch (err) {
+      return badRequest(err instanceof Error ? err.message : "Invalid image URL");
+    }
+  }
+  const clearImages = images !== undefined && images.length === 0;
 
   const { db } = await connectToDB();
   const current = await products(db).findOne({ id });
@@ -128,21 +138,32 @@ export async function PATCH(
     updates.stock = available(stock);
   }
 
-  const updated = await products(db).findOneAndUpdate(
-    { id },
-    {
-      $set: updates,
-      ...(clearVariants || clearColorImages
-        ? {
-            $unset: {
-              ...(clearVariants ? { variants: "" } : {}),
-              ...(clearColorImages ? { colorImages: "" } : {}),
-            },
-          }
-        : {}),
-    },
-    { returnDocument: "after" }
-  );
+  let updated: ProductDoc | null;
+  try {
+    updated = await products(db).findOneAndUpdate(
+      { id },
+      {
+        $set: updates,
+        ...(clearVariants || clearColorImages || clearImages
+          ? {
+              $unset: {
+                ...(clearVariants ? { variants: "" } : {}),
+                ...(clearColorImages ? { colorImages: "" } : {}),
+                ...(clearImages ? { images: "" } : {}),
+              },
+            }
+          : {}),
+      },
+      { returnDocument: "after" }
+    );
+  } catch (err) {
+    // A hand-typed SKU that another product already owns; the unique index on
+    // `variants.sku` is what catches it.
+    if (isDuplicateKeyError(err)) {
+      return badRequest("One of these SKUs is already used by another product");
+    }
+    throw err;
+  }
 
   if (!updated) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });

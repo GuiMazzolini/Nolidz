@@ -20,6 +20,7 @@ export type ProductFormValues = {
   stock: number;
   variants?: ProductVariant[];
   colorImages?: ColorImage[];
+  images?: string[];
 };
 
 type FieldErrors = {
@@ -29,6 +30,7 @@ type FieldErrors = {
   price?: string;
   stock?: string;
   variants?: string;
+  images?: string;
 };
 
 /** Stock is a string while editing so the input can be cleared. */
@@ -80,6 +82,15 @@ export default function ProductForm({
   const [uploading, setUploading] = useState(false);
   const [previewBroken, setPreviewBroken] = useState(false);
 
+  /**
+   * Extra gallery shots, in display order. Held as a plain array of URLs — a
+   * blank row is a slot the admin has opened but not filled yet, and it is
+   * dropped on submit rather than sent as an empty string.
+   */
+  const [galleryImages, setGalleryImages] = useState<string[]>(
+    () => initial?.images ?? []
+  );
+
   const [useVariants, setUseVariants] = useState(
     (initial?.variants?.length ?? 0) > 0
   );
@@ -124,6 +135,33 @@ export default function ProductForm({
       }, 0),
     [variantRows]
   );
+
+  /** Filled gallery entries, which is what the server is sent. */
+  const filledGallery = useMemo(
+    () => galleryImages.map((url) => url.trim()).filter(Boolean),
+    [galleryImages]
+  );
+
+  function updateGalleryImage(index: number, value: string) {
+    setFieldErrors((prev) => ({ ...prev, images: undefined }));
+    setGalleryImages((urls) => urls.map((url, i) => (i === index ? value : url)));
+  }
+
+  function removeGalleryImage(index: number) {
+    setFieldErrors((prev) => ({ ...prev, images: undefined }));
+    setGalleryImages((urls) => urls.filter((_, i) => i !== index));
+  }
+
+  /** Reorder by one slot; the gallery renders in array order. */
+  function moveGalleryImage(index: number, delta: number) {
+    setGalleryImages((urls) => {
+      const target = index + delta;
+      if (target < 0 || target >= urls.length) return urls;
+      const next = [...urls];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
 
   function updateRow(index: number, patch: Partial<VariantRow>) {
     setFieldErrors((prev) => ({ ...prev, variants: undefined }));
@@ -171,6 +209,7 @@ export default function ProductForm({
     if (!Number.isFinite(priceNum) || priceNum < 0) {
       next.price = "Enter a valid non-negative price.";
     }
+    next.images = validateGallery();
 
     if (useVariants) {
       next.variants = validateVariants();
@@ -186,6 +225,18 @@ export default function ProductForm({
     return Object.fromEntries(
       Object.entries(next).filter(([, value]) => value !== undefined)
     ) as FieldErrors;
+  }
+
+  /**
+   * Blank rows are ignored rather than rejected: opening a slot and changing
+   * your mind is not an error, and submit drops them. There is no cap on how
+   * many photos a product may carry.
+   */
+  function validateGallery(): string | undefined {
+    if (filledGallery.some((url) => !url.startsWith("http"))) {
+      return "Each extra photo needs a Cloudinary URL (https://…).";
+    }
+    return undefined;
   }
 
   function validateVariants(): string | undefined {
@@ -217,10 +268,13 @@ export default function ProductForm({
 
   async function uploadToCloudinary(
     file: File,
-    onUploaded: (url: string) => void = setImageUrl
+    onUploaded: (url: string) => void = setImageUrl,
+    // Which field an upload failure is reported under, so a gallery upload does
+    // not put its error message beside the main image input.
+    errorField: "imageUrl" | "images" = "imageUrl"
   ) {
     setError(null);
-    setFieldErrors((prev) => ({ ...prev, imageUrl: undefined }));
+    setFieldErrors((prev) => ({ ...prev, [errorField]: undefined }));
     setUploading(true);
     setPreviewBroken(false);
 
@@ -257,7 +311,7 @@ export default function ProductForm({
       if (!uploadRes.ok || typeof uploadData.secure_url !== "string") {
         setFieldErrors((prev) => ({
           ...prev,
-          imageUrl: "Image upload failed. Try another file.",
+          [errorField]: "Image upload failed. Try another file.",
         }));
         return;
       }
@@ -266,7 +320,7 @@ export default function ProductForm({
     } catch {
       setFieldErrors((prev) => ({
         ...prev,
-        imageUrl: "Image upload failed. Check your connection and try again.",
+        [errorField]: "Image upload failed. Check your connection and try again.",
       }));
     } finally {
       setUploading(false);
@@ -291,6 +345,8 @@ export default function ProductForm({
       description: description.trim(),
       imageUrl: imageUrl.trim(),
       price: Number(price),
+      // Always sent: an empty array is how editing clears an existing gallery.
+      images: filledGallery,
       ...(useVariants
         ? {
             // Only colours that still have a variant row, so removing a
@@ -486,6 +542,98 @@ export default function ProductForm({
           )}
         </div>
       </div>
+
+      <fieldset className="rounded-xl border border-gray-200 p-4">
+        <legend className="px-1 text-sm font-medium text-gray-700">
+          More photos
+        </legend>
+        <p className="mb-3 text-xs text-gray-500">
+          As many extra shots as the product needs — profile, three-quarter,
+          sole, detail. Shown after the main image, in this order.
+        </p>
+
+        {galleryImages.length > 0 && (
+          <div className="mb-3 space-y-2">
+            {galleryImages.map((url, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+                  {url.trim().startsWith("http") && (
+                    /* eslint-disable-next-line @next/next/no-img-element -- admin preview of arbitrary remote URLs */
+                    <img src={url.trim()} alt="" className="h-full w-full object-cover" />
+                  )}
+                </div>
+
+                <input
+                  value={url}
+                  onChange={(e) => updateGalleryImage(index, e.target.value)}
+                  placeholder="https://res.cloudinary.com/…"
+                  aria-label={`Extra photo ${index + 1} URL`}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                />
+
+                <label className="shrink-0 cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                  Upload
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        void uploadToCloudinary(
+                          file,
+                          (uploaded) => updateGalleryImage(index, uploaded),
+                          "images"
+                        );
+                      }
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => moveGalleryImage(index, -1)}
+                  disabled={index === 0}
+                  aria-label={`Move photo ${index + 1} up`}
+                  className="shrink-0 rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveGalleryImage(index, 1)}
+                  disabled={index === galleryImages.length - 1}
+                  aria-label={`Move photo ${index + 1} down`}
+                  className="shrink-0 rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeGalleryImage(index)}
+                  className="shrink-0 text-sm font-medium text-red-600 hover:text-red-800"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setGalleryImages((urls) => [...urls, ""])}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Add photo
+        </button>
+
+        {fieldErrors.images && (
+          <p className="mt-2 text-sm text-red-600">{fieldErrors.images}</p>
+        )}
+      </fieldset>
 
       <div className="grid grid-cols-2 gap-4">
         <div>

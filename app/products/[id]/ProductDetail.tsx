@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useMemo, useState } from "react";
 import CartErrorBanner from "@/app/components/CartErrorBanner";
-import { getImageSrc } from "@/app/lib/images";
+import ProductGallery from "./ProductGallery";
+import { productGallery } from "@/app/lib/images";
 import { useCartStore } from "@/app/lib/store/cartStore";
 import { useCheckout } from "@/app/lib/use-checkout";
 import {
@@ -146,6 +146,16 @@ export default function ProductDetail({
   // brought the shopper here.
   const heroImage = imageForColor(product, color);
 
+  /**
+   * That hero, then the product's other shots. The colourway photo leads
+   * because it is the one the shopper picked; the extra angles are of the
+   * product as a whole and follow it.
+   */
+  const gallery = useMemo(
+    () => productGallery({ imageUrl: heroImage, images: product.images }),
+    [heroImage, product.images]
+  );
+
   const stockToneClass =
     outOfStock || (isVariantProduct && selected && selected.stock < 1)
       ? "text-red-600"
@@ -160,17 +170,14 @@ export default function ProductDetail({
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           <div className="flex flex-col lg:flex-row">
             <div className="lg:w-1/2 p-8 bg-gray-100 flex items-center justify-center">
-              <div className="relative w-full aspect-square max-w-md">
-                <Image
-                  key={heroImage}
-                  src={getImageSrc(heroImage)}
-                  alt={color ? `${product.name} in ${color}` : product.name}
-                  fill
-                  className="object-cover rounded-xl"
-                  unoptimized
-                  priority
-                />
-              </div>
+              <ProductGallery
+                // Remounting on a colour change resets the gallery to that
+                // colourway's hero, rather than leaving a shopper on the third
+                // photo of the shoe they just switched away from.
+                key={heroImage}
+                images={gallery}
+                alt={color ? `${product.name} in ${color}` : product.name}
+              />
             </div>
 
             <div className="lg:w-1/2 p-8 lg:p-12 flex flex-col justify-center">

@@ -25,6 +25,9 @@ export function serializePublicProduct(doc: ProductDoc) {
     stock: getAvailableStock(doc.stock),
     variants,
     colorImages: publicColorImages(doc, variants),
+    // Undefined rather than [] so a product with no gallery has no key at all,
+    // matching how `variants` is dropped for single-SKU products.
+    images: doc.images?.length ? doc.images : undefined,
   };
 }
 

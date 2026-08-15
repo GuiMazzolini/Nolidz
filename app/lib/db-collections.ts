@@ -24,6 +24,11 @@ export type ProductDoc = {
   variants?: ProductVariant[];
   /** Optional per-colourway photos; the main `imageUrl` is the fallback. */
   colorImages?: ColorImage[];
+  /**
+   * Extra gallery photos in display order, capped at MAX_PRODUCT_IMAGES. The
+   * main `imageUrl` is not repeated here — see productGallery in lib/images.
+   */
+  images?: string[];
   createdAt?: Date;
   updatedAt?: Date;
 };

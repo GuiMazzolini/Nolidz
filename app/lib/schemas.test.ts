@@ -6,6 +6,7 @@ import {
   cartPostSchema,
   MAX_CART_LINE_ITEMS,
   registerSchema,
+  resolveVariants,
 } from "@/app/lib/schemas";
 import {
   buildCartMetadata,
@@ -138,5 +139,78 @@ describe("adminProductSchema", () => {
   it("rejects an update with no fields", () => {
     expect(adminProductUpdateSchema.safeParse({}).success).toBe(false);
     expect(adminProductUpdateSchema.safeParse({ stock: 3 }).success).toBe(true);
+  });
+});
+
+describe("product gallery", () => {
+  const valid = {
+    name: "Hat",
+    description: "A hat",
+    imageUrl: "https://res.cloudinary.com/demo/image/upload/v1/hat.jpg",
+    price: 24.99,
+    stock: 10,
+  };
+
+  const photo = (n: number) =>
+    `https://res.cloudinary.com/demo/image/upload/v1/hat-${n}.jpg`;
+
+  const gallery = (count: number) =>
+    Array.from({ length: count }, (_, i) => photo(i));
+
+  /**
+   * Deliberately uncapped: how many angles a listing needs is the admin's
+   * call. The count here is arbitrary and only has to be far past anything a
+   * fixed limit would have allowed.
+   */
+  it("accepts as many photos as the admin uploads", () => {
+    expect(
+      adminProductCreateSchema.safeParse({ ...valid, images: gallery(40) }).success
+    ).toBe(true);
+  });
+
+  it("rejects an entry that is not a URL", () => {
+    expect(
+      adminProductCreateSchema.safeParse({ ...valid, images: ["nope"] }).success
+    ).toBe(false);
+  });
+
+  /**
+   * No floor: every product predating the gallery has none, and a minimum here
+   * would reject them the first time an admin edited anything else.
+   */
+  it("accepts a product with no gallery at all", () => {
+    expect(adminProductCreateSchema.safeParse(valid).success).toBe(true);
+    expect(adminProductCreateSchema.safeParse({ ...valid, images: [] }).success).toBe(
+      true
+    );
+  });
+
+  it("takes an empty array on update, which is how a gallery is cleared", () => {
+    expect(adminProductUpdateSchema.safeParse({ images: [] }).success).toBe(true);
+  });
+});
+
+describe("resolveVariants", () => {
+  /**
+   * The unique index on `variants.sku` cannot catch this — MongoDB
+   * de-duplicates one document's multikey entries before comparing them — so
+   * this is the only thing standing between two rows and a shared identity.
+   */
+  it("disambiguates two rows sent with the same explicit SKU", () => {
+    const resolved = resolveVariants("runner", [
+      { sku: "same-sku", size: "42", color: "Black", stock: 1 },
+      { sku: "same-sku", size: "43", color: "Black", stock: 1 },
+    ]);
+
+    expect(resolved[0].sku).toBe("same-sku");
+    expect(resolved[1].sku).not.toBe("same-sku");
+  });
+
+  it("derives a deterministic SKU when a row sends none", () => {
+    const resolved = resolveVariants("runner", [
+      { size: "42.5", color: "Off White", stock: 1 },
+    ]);
+
+    expect(resolved[0].sku).toBe("runner-eu42-5-off-white");
   });
 });
