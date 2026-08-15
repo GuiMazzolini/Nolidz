@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { colorwayHref, colorwayName, toColorways } from "@/app/lib/colorways";
+import {
+  colorwayHref,
+  colorwayName,
+  spreadColorways,
+  toColorways,
+} from "@/app/lib/colorways";
 import type { Product } from "@/app/product-data";
 
 const runner: Product = {
@@ -118,5 +123,52 @@ describe("colourway labels and links", () => {
   it("names a card by product and colour", () => {
     expect(colorwayName(toColorways(runner)[0])).toBe("Runner – Black");
     expect(colorwayName(toColorways(mug)[0])).toBe("Mug");
+  });
+});
+
+describe("spreadColorways", () => {
+  const byName = (a: { product: { name: string } }, b: { product: { name: string } }) =>
+    a.product.name.localeCompare(b.product.name);
+
+  const trail: Product = {
+    id: "trail",
+    name: "Trail",
+    description: "A boot",
+    imageUrl: "/trail.png",
+    price: 89.99,
+    stock: 4,
+    variants: [
+      { sku: "t-42-olive", size: "42", color: "Olive", stock: 3 },
+      { sku: "t-42-grey", size: "42", color: "Grey", stock: 1 },
+    ],
+  };
+
+  it("puts one colour of each shoe before repeating any", () => {
+    const cards = [...toColorways(runner), ...toColorways(trail), ...toColorways(mug)];
+
+    expect(spreadColorways(cards, byName).map(colorwayName)).toEqual([
+      "Mug",
+      "Runner – Black",
+      "Trail – Olive",
+      "Runner – White",
+      "Trail – Grey",
+      "Runner – Red",
+    ]);
+  });
+
+  it("keeps leftover colours together when nothing else remains to interleave", () => {
+    const cards = [...toColorways(mug), ...toColorways(runner)];
+
+    expect(spreadColorways(cards, byName).map(colorwayName)).toEqual([
+      "Mug",
+      "Runner – Black",
+      "Runner – White",
+      "Runner – Red",
+    ]);
+  });
+
+  it("leaves a single card alone", () => {
+    const cards = toColorways(mug);
+    expect(spreadColorways(cards, byName)).toEqual(cards);
   });
 });

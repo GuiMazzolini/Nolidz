@@ -98,3 +98,48 @@ export function colorwayName(colorway: Colorway): string {
     ? `${colorway.product.name} – ${colorway.color}`
     : colorway.product.name;
 }
+
+/**
+ * Lay colourways into a grid so two of the same shoe are not neighbours
+ * while another product still has a tile to show.
+ *
+ * A first pass takes one colour of each product, in `compare` order. That is
+ * how a first row of four becomes four shoes rather than four photos of one.
+ * Leftover colours fill later passes, still in admin entry order inside each
+ * shoe. When only one product remains, its colours sit together — there is
+ * nothing left to put between them.
+ */
+export function spreadColorways(
+  colorways: Colorway[],
+  compare: (a: Colorway, b: Colorway) => number
+): Colorway[] {
+  if (colorways.length < 2) return colorways;
+
+  const groups = new Map<string, Colorway[]>();
+  for (const colorway of colorways) {
+    const id = colorway.product.id;
+    const group = groups.get(id);
+    if (group) group.push(colorway);
+    else groups.set(id, [colorway]);
+  }
+
+  const queues = [...groups.values()].sort((a, b) => compare(a[0], b[0]));
+  const nextIndex = queues.map(() => 0);
+  const out: Colorway[] = [];
+
+  while (out.length < colorways.length) {
+    let placed = false;
+    for (let i = 0; i < queues.length; i++) {
+      const queue = queues[i];
+      const index = nextIndex[i];
+      if (index < queue.length) {
+        out.push(queue[index]);
+        nextIndex[i] = index + 1;
+        placed = true;
+      }
+    }
+    if (!placed) break;
+  }
+
+  return out;
+}

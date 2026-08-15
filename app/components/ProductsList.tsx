@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Product } from "../product-data";
-import { toColorways, type Colorway } from "../lib/colorways";
+import { spreadColorways, toColorways, type Colorway } from "../lib/colorways";
 import CartErrorBanner from "./CartErrorBanner";
 import ProductCard from "./ProductCard";
 
@@ -38,23 +38,31 @@ export default function ProductsList({ products }: { products: Product[] }) {
       );
     });
 
-    return [...next].sort((a, b) => {
-      switch (sort) {
-        case "price-asc":
-          return a.product.price - b.product.price;
-        case "price-desc":
-          return b.product.price - a.product.price;
-        case "stock-desc":
-          return b.stock - a.stock;
-        case "name-asc":
-        default:
-          // Colourways of one shoe stay adjacent, in the admin's entry order.
-          return (
-            a.product.name.localeCompare(b.product.name) ||
-            (a.color ?? "").localeCompare(b.color ?? "")
-          );
-      }
-    });
+    switch (sort) {
+      case "stock-desc":
+        // Per colourway, which is the number each tile shows. Spreading
+        // would hide a high-stock colour behind a sibling that has none.
+        return [...next].sort((a, b) => b.stock - a.stock);
+      case "price-asc":
+        return spreadColorways(
+          next,
+          (a, b) =>
+            a.product.price - b.product.price ||
+            a.product.name.localeCompare(b.product.name)
+        );
+      case "price-desc":
+        return spreadColorways(
+          next,
+          (a, b) =>
+            b.product.price - a.product.price ||
+            a.product.name.localeCompare(b.product.name)
+        );
+      case "name-asc":
+      default:
+        return spreadColorways(next, (a, b) =>
+          a.product.name.localeCompare(b.product.name)
+        );
+    }
   }, [colorways, query, sort]);
 
   return (

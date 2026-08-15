@@ -40,7 +40,20 @@ const soldOut: Product = {
   stock: 0,
 };
 
-const catalog = [runner, mug, soldOut];
+const trail: Product = {
+  id: "trail",
+  name: "Trail",
+  description: "A boot for mud",
+  imageUrl: "/trail.png",
+  price: 89.99,
+  stock: 4,
+  variants: [
+    { sku: "trail-eu42-olive", size: "42", color: "Olive", stock: 8 },
+    { sku: "trail-eu42-grey", size: "42", color: "Grey", stock: 1 },
+  ],
+};
+
+const catalog = [runner, mug, soldOut, trail];
 
 /** Full card titles, "Runner – Black" included, in grid order. */
 function headings() {
@@ -60,17 +73,23 @@ beforeEach(() => {
 });
 
 describe("the catalog grid", () => {
-  /** The runner comes in two colours, so it occupies two of the four tiles. */
-  it("renders one card per colourway, alphabetically by default", () => {
+  /**
+   * One tile per colourway, spread so a first pass is one colour of each
+   * shoe. Runner and Trail would otherwise occupy the first four tiles
+   * as two pairs of siblings.
+   */
+  it("renders one card per colourway, spreading siblings by default", () => {
     render(<ProductsList products={catalog} />);
 
     expect(headings()).toEqual([
       "Mug",
       "Pins",
       "Runner – Black",
+      "Trail – Olive",
       "Runner – White",
+      "Trail – Grey",
     ]);
-    expect(screen.getByText("4 of 4 items")).toBeVisible();
+    expect(screen.getByText("6 of 6 items")).toBeVisible();
   });
 
   it("filters on name and description", async () => {
@@ -80,7 +99,7 @@ describe("the catalog grid", () => {
     await user.type(screen.getByRole("searchbox"), "ceramic");
 
     expect(headings()).toEqual(["Mug"]);
-    expect(screen.getByText("1 of 4 items")).toBeVisible();
+    expect(screen.getByText("1 of 6 items")).toBeVisible();
   });
 
   /** Searching a colour returns that pair, not every colourway of the shoe. */
@@ -101,10 +120,10 @@ describe("the catalog grid", () => {
     expect(screen.getByText("No products match")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Reset filters" }));
-    expect(headings()).toHaveLength(4);
+    expect(headings()).toHaveLength(6);
   });
 
-  it("sorts by price, keeping a shoe's colourways together", async () => {
+  it("sorts by price, still spreading a shoe's colourways", async () => {
     const user = userEvent.setup();
     render(<ProductsList products={catalog} />);
 
@@ -113,11 +132,20 @@ describe("the catalog grid", () => {
       "Pins",
       "Mug",
       "Runner – Black",
+      "Trail – Olive",
       "Runner – White",
+      "Trail – Grey",
     ]);
 
     await user.selectOptions(screen.getByRole("combobox"), "price-desc");
-    expect(headings().slice(2)).toEqual(["Mug", "Pins"]);
+    expect(headings()).toEqual([
+      "Runner – Black",
+      "Trail – Olive",
+      "Mug",
+      "Pins",
+      "Runner – White",
+      "Trail – Grey",
+    ]);
   });
 
   /** Stock sorts on the colourway's own count, which is what its tile shows. */
@@ -127,9 +155,11 @@ describe("the catalog grid", () => {
 
     await user.selectOptions(screen.getByRole("combobox"), "stock-desc");
     expect(headings()).toEqual([
+      "Trail – Olive",
       "Mug",
       "Runner – Black",
       "Runner – White",
+      "Trail – Grey",
       "Pins",
     ]);
   });
