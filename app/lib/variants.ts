@@ -129,6 +129,28 @@ export function serializeVariants(
 }
 
 /**
+ * The variants a shopper can actually buy right now.
+ *
+ * Sold-out combinations are dropped rather than sent out with `stock: 0`: the
+ * public API describes what is for sale, and a size nothing can be added to a
+ * cart in is not. Note that this is an API-shaping concern only — the product
+ * page still renders sold-out sizes, struck through, because a shopper wants
+ * to know their size exists at all before giving up on the shoe.
+ *
+ * Returns undefined once the whole run has gone, matching serializeVariants:
+ * a product with nothing left to offer reads as a product without variants,
+ * not one advertising an empty size run.
+ */
+export function sellableVariants(
+  variants: ProductVariant[] | null | undefined
+): ProductVariant[] | undefined {
+  const serialized = serializeVariants(variants);
+  if (!serialized) return undefined;
+  const inStock = serialized.filter((variant) => variant.stock > 0);
+  return inStock.length > 0 ? inStock : undefined;
+}
+
+/**
  * A size as shown to a customer.
  *
  * The "EU" prefix belongs to numeric sizing only. Accessories are sized
