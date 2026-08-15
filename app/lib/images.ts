@@ -1,15 +1,17 @@
 const CLOUDINARY_TRANSFORM = "w_1200,q_auto,f_auto";
 
 /**
- * A product carries as many gallery photos as the admin uploads — no cap. How
- * many shots a listing needs is a per-product judgement (a technical runner
- * earns more angles than a beanie), so it is left to the person looking at the
- * photography. The page weight that would otherwise argue for a limit is
- * handled by lazy-loading everything past the first image; see ProductGallery.
- *
- * The main `imageUrl` is not part of the array. It stays the single canonical
- * thumbnail that cart lines, order rows, and OG tags read, so the gallery a
- * shopper sees is it plus these — see productGallery.
+ * Extra gallery shots besides the main `imageUrl`. The ticket asked for 4–5
+ * images; five is the ceiling on this array, so a listing is the hero plus at
+ * most five more. Lazy-loading past the first frame (see ProductGallery) is
+ * what keeps a full gallery from costing page weight, not an open-ended cap.
+ */
+export const MAX_PRODUCT_IMAGES = 5;
+
+/**
+ * The main `imageUrl` is not part of the extra-photos array. It stays the
+ * single canonical thumbnail that cart lines, order rows, and OG tags read,
+ * so the gallery a shopper sees is it plus these — see productGallery.
  */
 
 /**

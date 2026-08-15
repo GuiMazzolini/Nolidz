@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { connectToDB } from "@/app/api/db";
+import { connectToDB, unsetEmptyProductVariants } from "@/app/api/db";
 import type { ProductDoc } from "@/app/lib/db-collections";
 import { isDuplicateKeyError } from "@/app/lib/mongo-errors";
 import {
@@ -122,6 +122,40 @@ describe.skipIf(!mongoUri)("product indexes against a real MongoDB", () => {
 
     const count = await test.db.collection("products").countDocuments();
     expect(count).toBe(2);
+  });
+
+  /**
+   * The deploy-time worry: a unique index on `variants.sku` treats an empty
+   * array the same as a missing field (both index as null), so two products
+   * with `variants: []` would stop a *plain* unique index from building.
+   * The partial filter is what makes that a non-event — `variants.0` does
+   * not exist on an empty array, so those documents are not in the index.
+   * ensureIndexes also rewrites them to a missing field so the stored shape
+   * matches what the write path now produces.
+   */
+  it("still builds when products already persist variants as an empty array", async () => {
+    const col = test.db.collection("products");
+    await insert(product({ id: "mug", stock: 5, variants: [] }));
+    await insert(product({ id: "hat", stock: 5, variants: [] }));
+
+    await col.dropIndex("variants.sku_1");
+    await expect(
+      col.createIndex(
+        { "variants.sku": 1 },
+        { unique: true, partialFilterExpression: { "variants.0": { $exists: true } } }
+      )
+    ).resolves.toBe("variants.sku_1");
+  });
+
+  it("rewrites empty variant arrays to a missing field", async () => {
+    const col = test.db.collection("products");
+    await insert(product({ id: "mug", stock: 5, variants: [] }));
+    await insert(product({ id: "hat", stock: 5, variants: [] }));
+
+    await unsetEmptyProductVariants(test.db);
+
+    expect(await col.countDocuments({ variants: { $size: 0 } })).toBe(0);
+    expect(await col.countDocuments({ variants: { $exists: false } })).toBe(2);
   });
 
   it("still allows distinct SKUs across products", async () => {

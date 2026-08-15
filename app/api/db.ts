@@ -4,8 +4,24 @@ let cachedClient: MongoClient | null = null;
 let cachedDB: Db | null = null;
 let indexesEnsured = false;
 
+/**
+ * Older writes could persist `variants: []` instead of omitting the field.
+ * A unique index on `variants.sku` treats that empty array as null, so two
+ * such products would stop a *plain* unique index from building. The partial
+ * filter already excludes them; this rewrite makes the stored shape match
+ * what the write path now produces, so deploy does not depend on checking.
+ */
+export async function unsetEmptyProductVariants(db: Db) {
+  await db.collection("products").updateMany(
+    { variants: { $size: 0 } },
+    { $unset: { variants: "" } }
+  );
+}
+
 async function ensureIndexes(db: Db) {
   if (indexesEnsured) return;
+
+  await unsetEmptyProductVariants(db);
 
   await Promise.all([
     // Prevents duplicate orders when webhook + success page fulfill the same session.
@@ -32,8 +48,10 @@ async function ensureIndexes(db: Db) {
      * covers that case, and product-indexes.integration.test.ts pins both halves.
      *
      * Partial on `variants.0` rather than plain unique: a single-SKU product has
-     * no `variants` field at all, and every one of those would index the same
-     * missing value and collide with the next.
+     * no `variants` field at all (or, from older writes, `variants: []`), and
+     * every one of those would index the same missing value and collide with
+     * the next. `variants.0` exists only when the array has an element, so
+     * both the missing field and the empty array stay out of the index.
      */
     db
       .collection("products")

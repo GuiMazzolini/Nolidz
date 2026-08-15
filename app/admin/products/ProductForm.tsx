@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
+import { MAX_PRODUCT_IMAGES } from "@/app/lib/images";
 import {
   EU_SIZES,
   MAX_PRODUCT_VARIANTS,
@@ -152,6 +153,13 @@ export default function ProductForm({
     setGalleryImages((urls) => urls.filter((_, i) => i !== index));
   }
 
+  function addGallerySlot() {
+    setFieldErrors((prev) => ({ ...prev, images: undefined }));
+    setGalleryImages((urls) =>
+      urls.length >= MAX_PRODUCT_IMAGES ? urls : [...urls, ""]
+    );
+  }
+
   /** Reorder by one slot; the gallery renders in array order. */
   function moveGalleryImage(index: number, delta: number) {
     setGalleryImages((urls) => {
@@ -229,10 +237,13 @@ export default function ProductForm({
 
   /**
    * Blank rows are ignored rather than rejected: opening a slot and changing
-   * your mind is not an error, and submit drops them. There is no cap on how
-   * many photos a product may carry.
+   * your mind is not an error, and submit drops them. MAX_PRODUCT_IMAGES is
+   * the ceiling the ticket asked for (4–5 extra shots).
    */
   function validateGallery(): string | undefined {
+    if (filledGallery.length > MAX_PRODUCT_IMAGES) {
+      return `At most ${MAX_PRODUCT_IMAGES} extra photos.`;
+    }
     if (filledGallery.some((url) => !url.startsWith("http"))) {
       return "Each extra photo needs a Cloudinary URL (https://…).";
     }
@@ -548,8 +559,8 @@ export default function ProductForm({
           More photos
         </legend>
         <p className="mb-3 text-xs text-gray-500">
-          As many extra shots as the product needs — profile, three-quarter,
-          sole, detail. Shown after the main image, in this order.
+          Up to {MAX_PRODUCT_IMAGES} extra shots — profile, three-quarter, sole,
+          detail. Shown after the main image, in this order.
         </p>
 
         {galleryImages.length > 0 && (
@@ -624,8 +635,9 @@ export default function ProductForm({
 
         <button
           type="button"
-          onClick={() => setGalleryImages((urls) => [...urls, ""])}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          onClick={addGallerySlot}
+          disabled={galleryImages.length >= MAX_PRODUCT_IMAGES}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
         >
           Add photo
         </button>

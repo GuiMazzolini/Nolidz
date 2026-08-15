@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_CART_QUANTITY } from "@/app/lib/cart-limits";
+import { MAX_PRODUCT_IMAGES } from "@/app/lib/images";
 import {
   MAX_PRODUCT_VARIANTS,
   MAX_SKU_LENGTH,
@@ -165,14 +166,15 @@ export const colorImagesSchema = z
 /**
  * Extra gallery photos, in display order.
  *
- * Neither a floor nor a ceiling. No floor because every product created before
- * the gallery existed has none, and a minimum would reject them the first time
- * an admin edited anything else. No ceiling because how many angles a listing
- * needs is the admin's call, not this schema's. Duplicates pass too —
+ * No floor: every product created before the gallery existed has none, and a
+ * minimum would reject them the first time an admin edited anything else.
+ * Ceiling is MAX_PRODUCT_IMAGES (the ticket's 4–5). Duplicates pass —
  * productGallery collapses them, and failing a save over a repeated URL helps
  * nobody.
  */
-export const productImagesSchema = z.array(z.url().max(2000));
+export const productImagesSchema = z
+  .array(z.url().max(2000))
+  .max(MAX_PRODUCT_IMAGES);
 
 export const adminProductCreateSchema = z
   .object({

@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import ProductForm from "@/app/admin/products/ProductForm";
+import { MAX_PRODUCT_IMAGES } from "@/app/lib/images";
 
 const IMAGE = "https://res.cloudinary.com/demo/image/upload/runner.png";
 
@@ -116,18 +117,18 @@ describe("gallery photos", () => {
     expect(screen.getByText(/Each extra photo needs a Cloudinary URL/)).toBeVisible();
   });
 
-  it("keeps offering new slots however many are added", async () => {
+  it("stops offering new slots at the extra-photo cap", async () => {
     const user = userEvent.setup();
     render(<ProductForm mode="create" />);
 
     await fillBaseFields(user);
-    for (let i = 1; i <= 8; i++) {
+    for (let i = 1; i <= MAX_PRODUCT_IMAGES; i++) {
       await addPhoto(user, i, `${SOLE}?${i}`);
     }
-    await user.click(screen.getByRole("button", { name: "Create product" }));
 
-    expect(screen.getByRole("button", { name: "Add photo" })).toBeEnabled();
-    expect(lastPayload().images).toHaveLength(8);
+    expect(screen.getByRole("button", { name: "Add photo" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Create product" }));
+    expect(lastPayload().images).toHaveLength(MAX_PRODUCT_IMAGES);
   });
 
   it("opens an edit with the saved gallery and clears it on removal", async () => {

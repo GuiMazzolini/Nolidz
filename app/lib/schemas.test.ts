@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_PRODUCT_IMAGES } from "@/app/lib/images";
 import {
   adminProductCreateSchema,
   adminProductUpdateSchema,
@@ -158,14 +159,25 @@ describe("product gallery", () => {
     Array.from({ length: count }, (_, i) => photo(i));
 
   /**
-   * Deliberately uncapped: how many angles a listing needs is the admin's
-   * call. The count here is arbitrary and only has to be far past anything a
-   * fixed limit would have allowed.
+   * The ticket asked for 4–5 images. Five extra shots is the ceiling; the
+   * main image sits beside this array, not inside it.
    */
-  it("accepts as many photos as the admin uploads", () => {
+  it("accepts a gallery at the extra-photo cap", () => {
     expect(
-      adminProductCreateSchema.safeParse({ ...valid, images: gallery(40) }).success
+      adminProductCreateSchema.safeParse({
+        ...valid,
+        images: gallery(MAX_PRODUCT_IMAGES),
+      }).success
     ).toBe(true);
+  });
+
+  it("rejects one photo past the extra-photo cap", () => {
+    expect(
+      adminProductCreateSchema.safeParse({
+        ...valid,
+        images: gallery(MAX_PRODUCT_IMAGES + 1),
+      }).success
+    ).toBe(false);
   });
 
   it("rejects an entry that is not a URL", () => {
