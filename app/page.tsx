@@ -137,7 +137,7 @@ export default async function LandingPage() {
         <TornDivider fill="#ffffff" />
       </section>
 
-      <section className="bg-white border-b-2 border-ink/10">
+      <section className="hidden sm:block bg-white border-b-2 border-ink/10">
         <div className="container mx-auto px-4 py-12 lg:py-16">
           <p className="text-cardboard-dark font-display font-semibold uppercase tracking-[0.28em] text-sm mb-6 text-center">
             Shop by

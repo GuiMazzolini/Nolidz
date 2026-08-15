@@ -227,7 +227,7 @@ export default function ProductDetail({
                               // may not even stock.
                               setSelectedSku(null);
                             }}
-                            className={`border-2 px-4 py-2 text-sm font-medium transition-colors ${
+              className={`border-2 px-4 py-2.5 min-h-11 text-sm font-medium transition-colors touch-manipulation ${
                               option === color
                                 ? "border-ink bg-ink text-paper"
                                 : "border-ink/15 text-ink/80 hover:border-cardboard-dark"
@@ -254,7 +254,7 @@ export default function ProductDetail({
                             aria-pressed={isSelected}
                             onClick={() => setSelectedSku(variant.sku)}
                             title={`${variant.stock} available`}
-                            className={`border-2 py-2 text-sm font-medium transition-colors ${
+                            className={`min-h-11 border-2 py-2.5 text-sm font-medium transition-colors touch-manipulation ${
                               isSelected
                                 ? "border-ink bg-ink text-paper"
                                 : "border-ink/15 text-ink hover:border-cardboard-dark"

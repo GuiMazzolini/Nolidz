@@ -40,6 +40,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Phone/LAN testing hits the machine by IP (e.g. 192.168.0.29), not
+  // localhost. Without this, Next blocks JS/HMR chunks and size/gallery
+  // buttons never hydrate — so taps look broken on mobile.
+  allowedDevOrigins: ["192.168.0.29"],
   images: {
     remotePatterns: [
       {

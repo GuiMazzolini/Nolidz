@@ -146,7 +146,7 @@ export default function ProductsList({
           </div>
         </div>
 
-        <div className="mb-8 flex flex-wrap gap-2">
+        <div className="mb-8 hidden sm:flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => selectCategory("all")}
