@@ -6,7 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { getImageSrc, productGallery } from "../lib/images";
 import { colorwayStock, type Colorway } from "../lib/colorways";
 import { useCartStore } from "../lib/store/cartStore";
-import { imageForColor, sizesAvailableLabel, variantsForColor } from "../lib/variants";
+import { colorwayPrice, imageForColor, sizesAvailableLabel, variantsForColor } from "../lib/variants";
 
 /** Swatches past this are summarised as "+N", as the strip has finite width. */
 const MAX_SWATCHES = 5;
@@ -76,6 +76,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
     : null;
 
   const stock = colorwayStock(product, activeColor);
+  const displayPrice = colorwayPrice(product, activeColor);
   const outOfStock = stock < 1;
 
   const entry = isVariantProduct
@@ -238,7 +239,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
 
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-2xl font-bold text-blue-600">
-              ${product.price.toFixed(2)}
+              ${displayPrice.toFixed(2)}
             </span>
             {!outOfStock && (
               <span className="text-xs text-gray-500">{stock} left</span>

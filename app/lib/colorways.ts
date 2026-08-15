@@ -2,6 +2,7 @@ import { getAvailableStock } from "@/app/lib/cart-limits";
 import { productGallery } from "@/app/lib/images";
 import type { Product } from "@/app/product-data";
 import {
+  colorwayPrice,
   hasVariants,
   imageForColor,
   listColors,
@@ -31,6 +32,8 @@ export type Colorway = {
   otherColors: string[];
   /** Units available in this colourway alone, not across the product. */
   stock: number;
+  /** What this colourway costs. Siblings may differ; the product price is the fallback. */
+  price: number;
 };
 
 /** Every card a single product contributes to the grid. */
@@ -44,6 +47,7 @@ export function toColorways(product: Product): Colorway[] {
         images: productGallery(product),
         otherColors: [],
         stock: getAvailableStock(product.stock),
+        price: colorwayPrice(product, null),
       },
     ];
   }
@@ -63,6 +67,7 @@ export function toColorways(product: Product): Colorway[] {
     }),
     otherColors: colors.filter((other) => other !== color),
     stock: colorwayStock(product, color),
+    price: colorwayPrice(product, color),
   }));
 }
 
@@ -142,4 +147,25 @@ export function spreadColorways(
   }
 
   return out;
+}
+
+/**
+ * Rank tiles by what each colourway costs, then spread siblings that share
+ * a price. A premium colour of an otherwise cheap shoe belongs with the
+ * expensive tiles, not next to its sibling.
+ */
+export function orderColorwaysByPrice(
+  colorways: Colorway[],
+  direction: "asc" | "desc"
+): Colorway[] {
+  const sign = direction === "asc" ? 1 : -1;
+  const prices = [...new Set(colorways.map((colorway) => colorway.price))].sort(
+    (a, b) => (a - b) * sign
+  );
+  return prices.flatMap((price) =>
+    spreadColorways(
+      colorways.filter((colorway) => colorway.price === price),
+      (a, b) => a.product.name.localeCompare(b.product.name)
+    )
+  );
 }

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 import { connectToDB } from "@/app/api/db";
 import { carts, products } from "@/app/lib/db-collections";
-import { findVariant, hasVariants, resolveLineStock } from "@/app/lib/variants";
+import { findVariant, hasVariants, resolveLinePrice, resolveLineStock } from "@/app/lib/variants";
 import ShoppingCartList from "./ShoppingCartList";
 import type { Product } from "@/app/product-data";
 
@@ -44,7 +44,7 @@ export default async function CartPage() {
         return {
           id: product.id,
           name: product.name,
-          price: product.price,
+          price: resolveLinePrice(product, item.variantSku),
           description: product.description,
           imageUrl: product.imageUrl,
           stock: resolveLineStock(product, item.variantSku),

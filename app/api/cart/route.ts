@@ -9,7 +9,7 @@ import {
   cartPatchSchema,
   cartPostSchema,
 } from "@/app/lib/schemas";
-import { findVariant, hasVariants, resolveLineStock } from "@/app/lib/variants";
+import { findVariant, hasVariants, resolveLinePrice, resolveLineStock } from "@/app/lib/variants";
 import type { Db, Filter } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -58,7 +58,7 @@ function serializeCartProduct(
   return {
     id: product.id,
     name: product.name,
-    price: product.price,
+    price: resolveLinePrice(product, item.variantSku),
     description: product.description,
     imageUrl: product.imageUrl,
     stock: resolveLineStock(product, item.variantSku),

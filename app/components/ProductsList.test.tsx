@@ -141,10 +141,10 @@ describe("the catalog grid", () => {
     expect(headings()).toEqual([
       "Runner – Black",
       "Trail – Olive",
-      "Mug",
-      "Pins",
       "Runner – White",
       "Trail – Grey",
+      "Mug",
+      "Pins",
     ]);
   });
 
@@ -161,6 +161,27 @@ describe("the catalog grid", () => {
       "Runner – White",
       "Trail – Grey",
       "Pins",
+    ]);
+  });
+
+  it("ranks a premium colour with other expensive tiles, not its sibling", async () => {
+    const user = userEvent.setup();
+    const premium: Product = {
+      ...runner,
+      variants: runner.variants!.map((variant) =>
+        variant.color === "White" ? { ...variant, price: 129.99 } : variant
+      ),
+    };
+    render(<ProductsList products={[premium, mug, soldOut, trail]} />);
+
+    await user.selectOptions(screen.getByRole("combobox"), "price-asc");
+    expect(headings()).toEqual([
+      "Pins",
+      "Mug",
+      "Runner – Black",
+      "Trail – Olive",
+      "Trail – Grey",
+      "Runner – White",
     ]);
   });
 

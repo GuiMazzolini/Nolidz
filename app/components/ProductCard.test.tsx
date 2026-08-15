@@ -23,7 +23,7 @@ const runner: Product = {
   variants: [
     { sku: "r-42-black", size: "42", color: "Black", stock: 3 },
     { sku: "r-43-black", size: "43", color: "Black", stock: 2 },
-    { sku: "r-42-white", size: "42", color: "White", stock: 5 },
+    { sku: "r-42-white", size: "42", color: "White", stock: 5, price: 109.99 },
     { sku: "r-42-red", size: "42", color: "Red", stock: 1 },
   ],
   colorImages: [
@@ -212,6 +212,15 @@ describe("previewing a sibling colourway", () => {
     expect(screen.getByText("5 left")).toBeVisible();
     await user.hover(swatch("Red"));
     expect(screen.getByText("1 left")).toBeVisible();
+  });
+
+  it("shows the previewed colour's price, not its own", async () => {
+    const user = userEvent.setup();
+    render(<ProductCard colorway={cardFor("Black")} />);
+
+    expect(screen.getByText("$89.99")).toBeVisible();
+    await user.hover(swatch("White"));
+    expect(screen.getByText("$109.99")).toBeVisible();
   });
 
   it("carries the previewed colour into the links", async () => {

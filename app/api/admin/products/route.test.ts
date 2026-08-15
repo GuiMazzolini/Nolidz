@@ -166,6 +166,21 @@ describe("POST /api/admin/products", () => {
     expect(body.error).toContain("res.cloudinary.com");
   });
 
+  it("stores a price per colourway", async () => {
+    await POST(
+      jsonRequest("POST", {
+        ...validBody,
+        id: "priced",
+        variants: [
+          { size: "42", color: "Black", stock: 1, price: 89.99 },
+          { size: "42", color: "White", stock: 1, price: 109.99 },
+        ],
+      })
+    );
+
+    expect(stored("priced")?.variants?.map((v) => v.price)).toEqual([89.99, 109.99]);
+  });
+
   it("ignores a stock count sent alongside variants", async () => {
     const { body } = await readResponse<AdminProduct>(
       await POST(

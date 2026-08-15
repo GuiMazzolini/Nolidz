@@ -13,9 +13,11 @@ import { adminProductCreateSchema, resolveVariants } from "@/app/lib/schemas";
 import {
   buildVariantSku,
   cartLineKey,
+  colorwayPrice,
   formatSize,
   listColors,
   lineItemName,
+  resolveLinePrice,
   resolveLineStock,
   sellableVariants,
   sizesLeftLabel,
@@ -173,6 +175,32 @@ describe("variant stock", () => {
   });
 });
 
+describe("variant price", () => {
+  it("falls back to the product price when a colour has none of its own", () => {
+    expect(resolveLinePrice(runner, "runner-eu42-black")).toBe(89.99);
+    expect(colorwayPrice(runner, "Black")).toBe(89.99);
+  });
+
+  it("charges the colourway's price at checkout, not the product's", () => {
+    const priced = {
+      ...runner,
+      variants: RUNNER_VARIANTS.map((variant) =>
+        variant.color === "White" ? { ...variant, price: 109.99 } : variant
+      ),
+    };
+
+    expect(resolveLinePrice(priced, "runner-eu41-5-white")).toBe(109.99);
+    expect(resolveLinePrice(priced, "runner-eu42-black")).toBe(89.99);
+    expect(colorwayPrice(priced, "White")).toBe(109.99);
+    expect(colorwayPrice(priced, "Black")).toBe(89.99);
+  });
+
+  it("prices a single-SKU product from the product itself", () => {
+    expect(resolveLinePrice({ price: 14.99, stock: 4 })).toBe(14.99);
+    expect(colorwayPrice({ price: 14.99 }, null)).toBe(14.99);
+  });
+});
+
 describe("variants offered by the public API", () => {
   it("drops the sold-out combinations", () => {
     expect(sellableVariants(RUNNER_VARIANTS)?.map((v) => v.sku)).toEqual([
@@ -238,7 +266,14 @@ describe("checkout stock validation with variants", () => {
     ).toBe("Please choose a size and colour for Runner");
   });
 
-  it("attaches the chosen size and colour to the checkout line", () => {
+  it("attaches the chosen size, colour, and that colour's price", () => {
+    const priced = {
+      ...runner,
+      variants: RUNNER_VARIANTS.map((variant) =>
+        variant.color === "White" ? { ...variant, price: 109.99 } : variant
+      ),
+    };
+
     expect(
       attachQuantitiesToProducts(
         [{ productId: "runner", quantity: 2, variantSku: "runner-eu42-black" }],
@@ -258,6 +293,13 @@ describe("checkout stock validation with variants", () => {
         variantColor: "Black",
       },
     ]);
+
+    expect(
+      attachQuantitiesToProducts(
+        [{ productId: "runner", quantity: 1, variantSku: "runner-eu41-5-white" }],
+        [priced]
+      )[0].price
+    ).toBe(109.99);
   });
 });
 

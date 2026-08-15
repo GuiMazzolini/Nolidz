@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   colorwayHref,
   colorwayName,
+  orderColorwaysByPrice,
   spreadColorways,
   toColorways,
 } from "@/app/lib/colorways";
@@ -170,5 +171,24 @@ describe("spreadColorways", () => {
   it("leaves a single card alone", () => {
     const cards = toColorways(mug);
     expect(spreadColorways(cards, byName)).toEqual(cards);
+  });
+
+  it("ranks a premium colour with other expensive tiles, not its sibling", () => {
+    const premium: Product = {
+      ...runner,
+      variants: runner.variants!.map((variant) =>
+        variant.color === "White" ? { ...variant, price: 129.99 } : variant
+      ),
+    };
+    const cards = [...toColorways(premium), ...toColorways(mug)];
+
+    expect(
+      orderColorwaysByPrice(cards, "asc").map((c) => `${colorwayName(c)}:${c.price}`)
+    ).toEqual([
+      "Mug:14.99",
+      "Runner – Black:89.99",
+      "Runner – Red:89.99",
+      "Runner – White:129.99",
+    ]);
   });
 });

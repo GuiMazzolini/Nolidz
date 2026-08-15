@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Product } from "../product-data";
-import { spreadColorways, toColorways, type Colorway } from "../lib/colorways";
+import { orderColorwaysByPrice, spreadColorways, toColorways, type Colorway } from "../lib/colorways";
 import CartErrorBanner from "./CartErrorBanner";
 import ProductCard from "./ProductCard";
 
@@ -44,19 +44,9 @@ export default function ProductsList({ products }: { products: Product[] }) {
         // would hide a high-stock colour behind a sibling that has none.
         return [...next].sort((a, b) => b.stock - a.stock);
       case "price-asc":
-        return spreadColorways(
-          next,
-          (a, b) =>
-            a.product.price - b.product.price ||
-            a.product.name.localeCompare(b.product.name)
-        );
+        return orderColorwaysByPrice(next, "asc");
       case "price-desc":
-        return spreadColorways(
-          next,
-          (a, b) =>
-            b.product.price - a.product.price ||
-            a.product.name.localeCompare(b.product.name)
-        );
+        return orderColorwaysByPrice(next, "desc");
       case "name-asc":
       default:
         return spreadColorways(next, (a, b) =>
