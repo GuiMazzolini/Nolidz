@@ -67,6 +67,16 @@ describe("guest checkout", () => {
     expect(args.client_reference_id).toBeUndefined();
   });
 
+  it("expires the session so an abandoned checkout stops being payable", async () => {
+    const before = Math.floor(Date.now() / 1000);
+    await POST(
+      jsonRequest("POST", { items: [{ productId: "mug", quantity: 1 }] })
+    );
+
+    // Stripe rejects anything under 30 minutes out, so this is the floor.
+    expect(lastSessionArgs().expires_at).toBeGreaterThanOrEqual(before + 30 * 60);
+  });
+
   it("names the line item with its EU size and colour", async () => {
     await POST(
       jsonRequest("POST", {

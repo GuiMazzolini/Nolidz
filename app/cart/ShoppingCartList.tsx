@@ -157,6 +157,11 @@ export default function ShoppingCartList({ initialCartProducts }: { initialCartP
                 shipping and email are collected there.
               </p>
 
+              <p className="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                Popular sizes go quickly — your basket doesn&apos;t hold them.
+                They&apos;re yours once payment goes through.
+              </p>
+
               <Link
                 href="/products"
                 className="block w-full text-center bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors"

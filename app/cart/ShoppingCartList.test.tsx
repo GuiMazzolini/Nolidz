@@ -83,6 +83,15 @@ describe("ShoppingCartList", () => {
     expect(screen.getByText(/Add \$30\.00 more for free shipping/)).toBeVisible();
   });
 
+  it("tells the shopper the basket does not hold their size", () => {
+    useCartStore.setState({ cartProducts: [black42] });
+    render(<ShoppingCartList initialCartProducts={[black42]} />);
+
+    expect(
+      screen.getByText(/basket doesn't hold them/i)
+    ).toBeVisible();
+  });
+
   it("shows the empty state with nothing in the cart", () => {
     render(<ShoppingCartList initialCartProducts={[]} />);
 

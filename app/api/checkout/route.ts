@@ -9,6 +9,7 @@ import { buildCartMetadata } from "@/app/lib/cart-metadata";
 import { lineItemName } from "@/app/lib/variants";
 import { MAX_CART_LINE_ITEMS } from "@/app/lib/schemas";
 import { enforceRateLimit, RATE_LIMITS } from "@/app/lib/rate-limit";
+import { checkoutSessionExpiresAt } from "@/app/lib/reservations";
 import {
   attachQuantitiesToProducts,
   getCartStockError,
@@ -149,6 +150,9 @@ export async function POST(req: NextRequest) {
           },
         },
       ],
+      // Bounds how long an abandoned checkout stays payable. Once stock is
+      // held against this session, it also bounds how long that hold lasts.
+      expires_at: checkoutSessionExpiresAt(),
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       // Cancelling returns to the cart, which is now the only review step.
       cancel_url: `${origin}/cart`,
