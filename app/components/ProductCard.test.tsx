@@ -67,6 +67,16 @@ function swatchColors(): string[] {
   );
 }
 
+function colorPreview(): HTMLElement {
+  const node = document.querySelector("[data-color-preview]");
+  if (!node) throw new Error("no colour preview");
+  return node as HTMLElement;
+}
+
+function previewShowsOnHover(): boolean {
+  return colorPreview().className.includes("group-hover:opacity-100");
+}
+
 /** next/image rewrites src; the filename is what identifies the photo. */
 function photoName(img: HTMLImageElement) {
   return decodeURIComponent(img.src).split("/").pop();
@@ -156,6 +166,25 @@ describe("paging through a card's photos", () => {
 
     expect(screen.queryByRole("button", { name: /Next photo/ })).toBeNull();
     expect(screen.getByAltText("Runner – Black")).toBeInTheDocument();
+  });
+
+  /**
+   * The colour strip covers the photo. Paging hides it so the shot is clear;
+   * leaving the card and coming back offers it again.
+   */
+  it("hides the colour preview while paging, and shows it again after leaving", async () => {
+    const user = userEvent.setup();
+    render(<ProductCard colorway={cardFor("Black")} />);
+
+    expect(previewShowsOnHover()).toBe(true);
+
+    await user.click(
+      screen.getByRole("button", { name: "Next photo of Runner – Black" })
+    );
+    expect(previewShowsOnHover()).toBe(false);
+
+    await user.unhover(screen.getByRole("heading", { level: 2 }));
+    expect(previewShowsOnHover()).toBe(true);
   });
 });
 
@@ -261,6 +290,9 @@ describe("previewing a sibling colourway", () => {
     );
     expect(photoName(hero())).toBe("sole.png");
 
+    // Paging hid the strip; leaving the card brings it back so a sibling
+    // can be previewed from whatever shot they were on.
+    await user.unhover(screen.getByRole("heading", { level: 2 }));
     await user.hover(swatch("White"));
     expect(photoName(hero())).toBe("runner-white.png");
   });

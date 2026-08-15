@@ -31,6 +31,12 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
    * colourway each tile is actually for.
    */
   const [previewColor, setPreviewColor] = useState<string | null>(null);
+  /**
+   * The colour strip sits over the photo. Once a shopper pages the gallery
+   * it is in the way, so it stays down until they leave the card. Coming
+   * back shows it again — they can still preview a sibling if they want to.
+   */
+  const [browsingPhotos, setBrowsingPhotos] = useState(false);
   const activeColor = previewColor ?? color;
 
   // Previewing a sibling shows that colour's photos, so the gallery follows it.
@@ -59,11 +65,13 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
 
   const count = activeImages.length;
   const step = useCallback(
-    (delta: number) =>
+    (delta: number) => {
+      setBrowsingPhotos(true);
       setPosition({
         color: activeColor,
         index: (active + delta + count) % count,
-      }),
+      });
+    },
     [activeColor, active, count]
   );
   const current = activeImages[Math.min(active, count - 1)];
@@ -111,8 +119,12 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
     <div
       className="group flex h-full flex-col"
       // Leaving the card drops the preview, so the grid returns to its resting
-      // colourway rather than keeping whichever swatch was last brushed.
-      onMouseLeave={() => setPreviewColor(null)}
+      // colourway rather than keeping whichever swatch was last brushed. It
+      // also brings the strip back on the next hover, in case they want it.
+      onMouseLeave={() => {
+        setPreviewColor(null);
+        setBrowsingPhotos(false);
+      }}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-2 border-ink/10 bg-white transition-colors duration-300 group-hover:border-cardboard">
         <div className="relative aspect-square w-full shrink-0 bg-paper">
@@ -177,7 +189,12 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
              */
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 bottom-0 z-20 translate-y-2 bg-white/95 px-3 py-2 opacity-0 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100"
+              data-color-preview
+              className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 translate-y-2 bg-white/95 px-3 py-2 opacity-0 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-200 ${
+                browsingPhotos
+                  ? ""
+                  : "group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100"
+              }`}
             >
               {sizesLabel && (
                 <p className="mb-1.5 truncate text-[11px] font-medium text-ink/70">

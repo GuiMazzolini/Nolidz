@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { formatMoney } from "@/app/lib/money";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -50,8 +51,9 @@ describe("CartItem", () => {
 
   it("prices the line by quantity and shows the unit price", () => {
     render(<CartItem product={line} />);
-    expect(screen.getByText(/179\.98/)).toBeVisible();
-    expect(screen.getByText(/89\.99 each/)).toBeVisible();
+    // Line total and unit share one element, so this is a substring match.
+    expect(screen.getByText(new RegExp(formatMoney(179.98)))).toBeVisible();
+    expect(screen.getByText(new RegExp(`${formatMoney(89.99)} each`))).toBeVisible();
   });
 
   it("sends the SKU when changing quantity", async () => {
