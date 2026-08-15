@@ -11,6 +11,7 @@ import {
   cartLineKey,
   findVariant,
   hasVariants,
+  resolveLinePrice,
   resolveLineStock,
 } from "@/app/lib/variants";
 import { parseBody } from "@/app/lib/api-request";
@@ -37,7 +38,7 @@ async function buildCartProducts(db: Db, items: CartItemDoc[]) {
       return {
         id: product.id,
         name: product.name,
-        price: product.price,
+        price: resolveLinePrice(product, item.variantSku),
         description: product.description,
         imageUrl: product.imageUrl,
         stock: resolveLineStock(product, item.variantSku),

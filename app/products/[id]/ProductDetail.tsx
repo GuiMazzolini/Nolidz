@@ -7,11 +7,13 @@ import { productGallery } from "@/app/lib/images";
 import { useCartStore } from "@/app/lib/store/cartStore";
 import { useCheckout } from "@/app/lib/use-checkout";
 import {
+  colorwayPrice,
   formatSize,
   hasVariants,
   imageForColor,
   isNumericSize,
   listColors,
+  resolveLinePrice,
   variantsForColor,
   type ProductVariant,
 } from "@/app/lib/variants";
@@ -80,6 +82,7 @@ export default function ProductDetail({
     : product.stock < 1;
 
   const sku = selected?.sku;
+  const displayPrice = colorwayPrice(product, color || null);
   const inCart = cartProducts.some(
     (p) => p.id === product.id && (p.variantSku ?? undefined) === sku
   );
@@ -90,6 +93,7 @@ export default function ProductDetail({
     if (!selected) return product;
     return {
       ...product,
+      price: resolveLinePrice(product, selected.sku),
       stock: selected.stock,
       variantSku: selected.sku,
       variantSize: selected.size,
@@ -190,7 +194,7 @@ export default function ProductDetail({
                 </h1>
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-bold text-blue-600">
-                    ${product.price.toFixed(2)}
+                    ${displayPrice.toFixed(2)}
                   </span>
                   <span className="text-gray-500 text-sm">USD</span>
                 </div>

@@ -22,6 +22,7 @@ import { ADMIN, BUYER, catalog } from "@/app/test/fixtures";
 import { jsonRequest, readResponse } from "@/app/test/http";
 import { testDb } from "@/app/test/mongo-double";
 import { setMockSession } from "@/app/test/session";
+import { MAX_PRODUCT_IMAGES } from "@/app/lib/images";
 import type { ProductDoc } from "@/app/lib/db-collections";
 import type { ProductVariant } from "@/app/lib/variants";
 import { commitHold, holdStock, releaseHold } from "@/app/lib/stock-hold";
@@ -165,6 +166,21 @@ describe("POST /api/admin/products", () => {
     expect(body.error).toContain("res.cloudinary.com");
   });
 
+  it("stores a price per colourway", async () => {
+    await POST(
+      jsonRequest("POST", {
+        ...validBody,
+        id: "priced",
+        variants: [
+          { size: "42", color: "Black", stock: 1, price: 89.99 },
+          { size: "42", color: "White", stock: 1, price: 109.99 },
+        ],
+      })
+    );
+
+    expect(stored("priced")?.variants?.map((v) => v.price)).toEqual([89.99, 109.99]);
+  });
+
   it("ignores a stock count sent alongside variants", async () => {
     const { body } = await readResponse<AdminProduct>(
       await POST(
@@ -253,9 +269,9 @@ describe("POST /api/admin/products", () => {
     expect(body.error).toContain("res.cloudinary.com");
   });
 
-  it("stores as many gallery photos as are sent", async () => {
+  it("stores a gallery at the extra-photo cap", async () => {
     const many = Array.from(
-      { length: 40 },
+      { length: MAX_PRODUCT_IMAGES },
       (_, i) => `https://res.cloudinary.com/demo/image/upload/p${i}.png`
     );
 
@@ -266,7 +282,23 @@ describe("POST /api/admin/products", () => {
     );
 
     expect(status).toBe(201);
-    expect(stored("many")?.images).toHaveLength(40);
+    expect(stored("many")?.images).toHaveLength(MAX_PRODUCT_IMAGES);
+  });
+
+  it("rejects a gallery past the extra-photo cap", async () => {
+    const tooMany = Array.from(
+      { length: MAX_PRODUCT_IMAGES + 1 },
+      (_, i) => `https://res.cloudinary.com/demo/image/upload/p${i}.png`
+    );
+
+    const { status } = await readResponse(
+      await POST(
+        jsonRequest("POST", { ...validBody, id: "too-many", stock: 1, images: tooMany })
+      )
+    );
+
+    expect(status).toBe(400);
+    expect(stored("too-many")).toBeUndefined();
   });
 
   it("stores no gallery key when none is sent", async () => {

@@ -47,12 +47,26 @@ function variantsFor(
   );
 }
 
-type SeedInput = Omit<Product, 'stock' | 'variants' | 'colorImages'> & {
+type SeedInput = Omit<
+  Product,
+  'stock' | 'variants' | 'colorImages' | 'images'
+> & {
   colors: string[];
   sizes: string[];
   /** One photo per colourway, in the same order as `colors`. */
   colorPhotos: string[];
 };
+
+/**
+ * The extra gallery shots for a product, named uniformly by
+ * scripts/fetch-gallery-photos.py so they need no per-product wiring here.
+ */
+const GALLERY_PER_PRODUCT = 3;
+const gallery = (id: string): string[] =>
+  Array.from(
+    { length: GALLERY_PER_PRODUCT },
+    (_, index) => `/products/gallery/${id}-g${index + 1}.jpg`,
+  );
 
 function toProduct({ colors, sizes, colorPhotos, ...rest }: SeedInput): Product {
   const variants = variantsFor(rest.id, colors, sizes);
@@ -62,7 +76,13 @@ function toProduct({ colors, sizes, colorPhotos, ...rest }: SeedInput): Product 
     imageUrl: colorPhotos[index] ?? rest.imageUrl,
   }));
   // The product-level count mirrors the variant total, as the admin API does.
-  return { ...rest, variants, colorImages, stock: totalVariantStock(variants) };
+  return {
+    ...rest,
+    variants,
+    colorImages,
+    images: gallery(rest.id),
+    stock: totalVariantStock(variants),
+  };
 }
 
 /**
@@ -74,6 +94,11 @@ function toProduct({ colors, sizes, colorPhotos, ...rest }: SeedInput): Product 
  * These are stock photos of real Nike shoes, used as development placeholders.
  * A shop that does not sell Nike should not ship them — swap them for your own
  * photography from the admin product form before this goes anywhere public.
+ *
+ * The same warning covers the gallery shots in `public/products/gallery`, which
+ * are freely-licensed photos of other makers' shoes rather than more angles on
+ * the same one. They exist so the detail-page gallery has something to show;
+ * see that directory's CREDITS.md for per-file licences and attribution.
  */
 const PHOTO = (name: string) => `/products/${name}.jpg`;
 

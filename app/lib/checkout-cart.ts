@@ -2,6 +2,7 @@ import { guestCheckoutSchema } from "@/app/lib/schemas";
 import {
   findVariant,
   hasVariants,
+  resolveLinePrice,
   resolveLineStock,
   variantLabel,
   type ProductVariant,
@@ -105,7 +106,7 @@ export function attachQuantitiesToProducts(
     result.push({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: resolveLinePrice(product, item.variantSku),
       description: product.description,
       imageUrl: product.imageUrl,
       stock: resolveLineStock(product, item.variantSku),

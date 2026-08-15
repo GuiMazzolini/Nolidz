@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
+import { MAX_PRODUCT_IMAGES } from "@/app/lib/images";
 import {
   EU_SIZES,
   MAX_PRODUCT_VARIANTS,
@@ -110,6 +111,17 @@ export default function ProductForm({
       (initial?.colorImages ?? []).map((entry) => [entry.color, entry.imageUrl])
     )
   );
+  /** Price per colourway. Empty means inherit the product price. */
+  const [colorPrices, setColorPrices] = useState<Record<string, string>>(() => {
+    const out: Record<string, string> = {};
+    for (const variant of initial?.variants ?? []) {
+      if (out[variant.color] !== undefined) continue;
+      if (typeof variant.price === "number" && Number.isFinite(variant.price)) {
+        out[variant.color] = String(variant.price);
+      }
+    }
+    return out;
+  });
 
   /** Colours currently present in the variant rows, in entry order. */
   const variantColors = useMemo(
@@ -150,6 +162,13 @@ export default function ProductForm({
   function removeGalleryImage(index: number) {
     setFieldErrors((prev) => ({ ...prev, images: undefined }));
     setGalleryImages((urls) => urls.filter((_, i) => i !== index));
+  }
+
+  function addGallerySlot() {
+    setFieldErrors((prev) => ({ ...prev, images: undefined }));
+    setGalleryImages((urls) =>
+      urls.length >= MAX_PRODUCT_IMAGES ? urls : [...urls, ""]
+    );
   }
 
   /** Reorder by one slot; the gallery renders in array order. */
@@ -229,10 +248,13 @@ export default function ProductForm({
 
   /**
    * Blank rows are ignored rather than rejected: opening a slot and changing
-   * your mind is not an error, and submit drops them. There is no cap on how
-   * many photos a product may carry.
+   * your mind is not an error, and submit drops them. MAX_PRODUCT_IMAGES is
+   * the ceiling the ticket asked for (4–5 extra shots).
    */
   function validateGallery(): string | undefined {
+    if (filledGallery.length > MAX_PRODUCT_IMAGES) {
+      return `At most ${MAX_PRODUCT_IMAGES} extra photos.`;
+    }
     if (filledGallery.some((url) => !url.startsWith("http"))) {
       return "Each extra photo needs a Cloudinary URL (https://…).";
     }
@@ -262,6 +284,15 @@ export default function ProductForm({
         return `EU ${row.size} / ${row.color} is listed twice.`;
       }
       combos.add(combo);
+    }
+
+    for (const color of [...new Set(variantRows.map((row) => row.color.trim()).filter(Boolean))]) {
+      const raw = colorPrices[color];
+      if (raw === undefined || raw.trim() === "") continue;
+      const value = Number(raw);
+      if (!Number.isFinite(value) || value < 0) {
+        return `Price for ${color} must be a valid non-negative number.`;
+      }
     }
     return undefined;
   }
@@ -355,12 +386,17 @@ export default function ProductForm({
               .filter((color) => colorPhotos[color]?.trim())
               .map((color) => ({ color, imageUrl: colorPhotos[color].trim() })),
             // The server derives the product-level stock from these rows.
-            variants: variantRows.map((row) => ({
-              ...(row.sku ? { sku: row.sku } : {}),
-              size: row.size.trim(),
-              color: row.color.trim(),
-              stock: Number(row.stock),
-            })),
+            variants: variantRows.map((row) => {
+              const colour = row.color.trim();
+              const colourPrice = Number(colorPrices[colour] || price);
+              return {
+                ...(row.sku ? { sku: row.sku } : {}),
+                size: row.size.trim(),
+                color: colour,
+                stock: Number(row.stock),
+                ...(Number.isFinite(colourPrice) ? { price: colourPrice } : {}),
+              };
+            }),
           }
         : {
             stock: Number(stock),
@@ -548,8 +584,8 @@ export default function ProductForm({
           More photos
         </legend>
         <p className="mb-3 text-xs text-gray-500">
-          As many extra shots as the product needs — profile, three-quarter,
-          sole, detail. Shown after the main image, in this order.
+          Up to {MAX_PRODUCT_IMAGES} extra shots — profile, three-quarter, sole,
+          detail. Shown after the main image, in this order.
         </p>
 
         {galleryImages.length > 0 && (
@@ -624,8 +660,9 @@ export default function ProductForm({
 
         <button
           type="button"
-          onClick={() => setGalleryImages((urls) => [...urls, ""])}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          onClick={addGallerySlot}
+          disabled={galleryImages.length >= MAX_PRODUCT_IMAGES}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
         >
           Add photo
         </button>
@@ -658,6 +695,11 @@ export default function ProductForm({
           />
           {fieldErrors.price && (
             <p className="mt-1 text-sm text-red-600">{fieldErrors.price}</p>
+          )}
+          {useVariants && (
+            <p className="mt-1 text-xs text-gray-500">
+              Fallback for any colour without its own price below.
+            </p>
           )}
         </div>
         <div>
@@ -715,8 +757,9 @@ export default function ProductForm({
           <span className="text-sm text-gray-700">
             Sell this product by EU size and colour
             <span className="mt-0.5 block text-xs text-gray-500">
-              Each size/colour combination gets its own SKU and stock count.
-              Turning this off sells the product as a single SKU.
+              Each size/colour combination gets its own SKU and stock.
+              Sizes are per colour — Black can stock 42 while White does not.
+              Price is per colour too. Turning this off sells a single SKU.
             </span>
           </span>
         </label>
@@ -726,6 +769,10 @@ export default function ProductForm({
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
               <p className="mb-2 text-sm font-medium text-gray-700">
                 Add a size run
+              </p>
+              <p className="mb-2 text-xs text-gray-500">
+                Adds sizes for this colour only. White can skip 46 even if
+                Black has it.
               </p>
               <div className="flex flex-wrap items-end gap-3">
                 <label className="block">
@@ -842,10 +889,11 @@ export default function ProductForm({
 
             {variantColors.length > 0 && (
               <div className="rounded-lg border border-gray-200 p-3">
-                <p className="text-sm font-medium text-gray-700">Colour photos</p>
+                <p className="text-sm font-medium text-gray-700">Colour photos and prices</p>
                 <p className="mt-0.5 mb-3 text-xs text-gray-500">
-                  Shown when a shopper hovers that colour on the catalog. Leave
-                  one blank to fall back to the main product image.
+                  Price is per colour — a limited run can cost more than the
+                  standard colour. Leave a price blank to use the default
+                  above. Leave a photo blank to fall back to the main image.
                 </p>
 
                 <div className="space-y-2">
@@ -862,9 +910,24 @@ export default function ProductForm({
                         )}
                       </div>
 
-                      <span className="w-32 shrink-0 truncate text-sm text-gray-700">
+                      <span className="w-28 shrink-0 truncate text-sm text-gray-700">
                         {color}
                       </span>
+
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={colorPrices[color] ?? price}
+                        onChange={(e) =>
+                          setColorPrices((prev) => ({
+                            ...prev,
+                            [color]: e.target.value,
+                          }))
+                        }
+                        aria-label={`Price for ${color}`}
+                        className="w-24 shrink-0 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                      />
 
                       <input
                         value={colorPhotos[color] ?? ""}

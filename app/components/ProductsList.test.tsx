@@ -40,13 +40,26 @@ const soldOut: Product = {
   stock: 0,
 };
 
-const catalog = [runner, mug, soldOut];
+const trail: Product = {
+  id: "trail",
+  name: "Trail",
+  description: "A boot for mud",
+  imageUrl: "/trail.png",
+  price: 89.99,
+  stock: 4,
+  variants: [
+    { sku: "trail-eu42-olive", size: "42", color: "Olive", stock: 8 },
+    { sku: "trail-eu42-grey", size: "42", color: "Grey", stock: 1 },
+  ],
+};
 
+const catalog = [runner, mug, soldOut, trail];
+
+/** Full card titles, "Runner – Black" included, in grid order. */
 function headings() {
   return screen
     .getAllByRole("heading", { level: 2 })
-    // A variant card appends " – Colour" to the name.
-    .map((node) => node.textContent!.split("–")[0].trim());
+    .map((node) => node.textContent!.replace(/\s+/g, " ").trim());
 }
 
 beforeEach(() => {
@@ -60,11 +73,23 @@ beforeEach(() => {
 });
 
 describe("the catalog grid", () => {
-  it("renders one card per product, alphabetically by default", () => {
+  /**
+   * One tile per colourway, spread so a first pass is one colour of each
+   * shoe. Runner and Trail would otherwise occupy the first four tiles
+   * as two pairs of siblings.
+   */
+  it("renders one card per colourway, spreading siblings by default", () => {
     render(<ProductsList products={catalog} />);
 
-    expect(headings()).toEqual(["Mug", "Pins", "Runner"]);
-    expect(screen.getByText("3 of 3 products")).toBeVisible();
+    expect(headings()).toEqual([
+      "Mug",
+      "Pins",
+      "Runner – Black",
+      "Trail – Olive",
+      "Runner – White",
+      "Trail – Grey",
+    ]);
+    expect(screen.getByText("6 of 6 items")).toBeVisible();
   });
 
   it("filters on name and description", async () => {
@@ -74,7 +99,17 @@ describe("the catalog grid", () => {
     await user.type(screen.getByRole("searchbox"), "ceramic");
 
     expect(headings()).toEqual(["Mug"]);
-    expect(screen.getByText("1 of 3 products")).toBeVisible();
+    expect(screen.getByText("1 of 6 items")).toBeVisible();
+  });
+
+  /** Searching a colour returns that pair, not every colourway of the shoe. */
+  it("filters on colour", async () => {
+    const user = userEvent.setup();
+    render(<ProductsList products={catalog} />);
+
+    await user.type(screen.getByRole("searchbox"), "white");
+
+    expect(headings()).toEqual(["Runner – White"]);
   });
 
   it("offers a reset when nothing matches", async () => {
@@ -85,26 +120,69 @@ describe("the catalog grid", () => {
     expect(screen.getByText("No products match")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Reset filters" }));
-    expect(headings()).toEqual(["Mug", "Pins", "Runner"]);
+    expect(headings()).toHaveLength(6);
   });
 
-  it("sorts by price", async () => {
+  it("sorts by price, still spreading a shoe's colourways", async () => {
     const user = userEvent.setup();
     render(<ProductsList products={catalog} />);
 
     await user.selectOptions(screen.getByRole("combobox"), "price-asc");
-    expect(headings()).toEqual(["Pins", "Mug", "Runner"]);
+    expect(headings()).toEqual([
+      "Pins",
+      "Mug",
+      "Runner – Black",
+      "Trail – Olive",
+      "Runner – White",
+      "Trail – Grey",
+    ]);
 
     await user.selectOptions(screen.getByRole("combobox"), "price-desc");
-    expect(headings()).toEqual(["Runner", "Mug", "Pins"]);
+    expect(headings()).toEqual([
+      "Runner – Black",
+      "Trail – Olive",
+      "Runner – White",
+      "Trail – Grey",
+      "Mug",
+      "Pins",
+    ]);
   });
 
+  /** Stock sorts on the colourway's own count, which is what its tile shows. */
   it("sorts by stock", async () => {
     const user = userEvent.setup();
     render(<ProductsList products={catalog} />);
 
     await user.selectOptions(screen.getByRole("combobox"), "stock-desc");
-    expect(headings()).toEqual(["Runner", "Mug", "Pins"]);
+    expect(headings()).toEqual([
+      "Trail – Olive",
+      "Mug",
+      "Runner – Black",
+      "Runner – White",
+      "Trail – Grey",
+      "Pins",
+    ]);
+  });
+
+  it("ranks a premium colour with other expensive tiles, not its sibling", async () => {
+    const user = userEvent.setup();
+    const premium: Product = {
+      ...runner,
+      variants: runner.variants!.map((variant) =>
+        variant.color === "White" ? { ...variant, price: 129.99 } : variant
+      ),
+    };
+    render(<ProductsList products={[premium, mug, soldOut, trail]} />);
+
+    await user.selectOptions(screen.getByRole("combobox"), "price-asc");
+    expect(headings()).toEqual([
+      "Pins",
+      "Mug",
+      "Runner – Black",
+      "Trail – Olive",
+      "Trail – Grey",
+      "Runner – White",
+    ]);
   });
 
   it("surfaces a cart error above the grid", () => {

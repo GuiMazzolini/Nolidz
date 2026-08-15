@@ -16,6 +16,12 @@ export type ProductVariant = {
   size: string;
   color: string;
   stock: number;
+  /**
+   * Price for this colourway. Absent on older documents and on sizes that
+   * inherit the product's price. All sizes of one colour share a price;
+   * discounts are a separate concern.
+   */
+  price?: number;
 };
 
 /** Common EU sneaker sizes, offered as quick-add buttons in the admin form. */
@@ -83,6 +89,46 @@ export function totalVariantStock(variants: ProductVariant[]): number {
   );
 }
 
+function finitePrice(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined;
+}
+
+/**
+ * Price of one cart line.
+ *
+ * A colourway can cost more than its siblings. The SKU is what checkout
+ * charges; missing variant prices (every product predating this field) fall
+ * back to the product price so old documents keep selling.
+ */
+export function resolveLinePrice(
+  product: { price: number; variants?: ProductVariant[] | null },
+  variantSku?: string | null
+): number {
+  const fallback = finitePrice(product.price) ?? 0;
+  if (!hasVariants(product)) return fallback;
+  const variant = findVariant(product.variants, variantSku);
+  return finitePrice(variant?.price) ?? fallback;
+}
+
+/**
+ * Price shown for a colourway: the first sized row of that colour that
+ * carries a price, otherwise the product's. Sizes of one colour share a
+ * price; the admin stamps it onto every row of the run.
+ */
+export function colorwayPrice(
+  product: { price: number; variants?: ProductVariant[] | null },
+  color: string | null
+): number {
+  const fallback = finitePrice(product.price) ?? 0;
+  if (!color) return fallback;
+  const priced = variantsForColor(product.variants ?? [], color).find(
+    (variant) => finitePrice(variant.price) !== undefined
+  );
+  return finitePrice(priced?.price) ?? fallback;
+}
+
 /**
  * Stock backing one cart line.
  *
@@ -115,17 +161,21 @@ export function serializeVariants(
   variants: ProductVariant[] | null | undefined
 ): ProductVariant[] | undefined {
   if (!Array.isArray(variants) || variants.length === 0) return undefined;
-  return variants.map((variant) => ({
-    sku: variant.sku,
-    size: variant.size,
-    color: variant.color,
-    stock:
-      typeof variant.stock === "number" &&
-      Number.isFinite(variant.stock) &&
-      variant.stock > 0
-        ? Math.floor(variant.stock)
-        : 0,
-  }));
+  return variants.map((variant) => {
+    const price = finitePrice(variant.price);
+    return {
+      sku: variant.sku,
+      size: variant.size,
+      color: variant.color,
+      stock:
+        typeof variant.stock === "number" &&
+        Number.isFinite(variant.stock) &&
+        variant.stock > 0
+          ? Math.floor(variant.stock)
+          : 0,
+      ...(price !== undefined ? { price } : {}),
+    };
+  });
 }
 
 /**

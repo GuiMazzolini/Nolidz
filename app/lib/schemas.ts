@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_CART_QUANTITY } from "@/app/lib/cart-limits";
+import { MAX_PRODUCT_IMAGES } from "@/app/lib/images";
 import {
   MAX_PRODUCT_VARIANTS,
   MAX_SKU_LENGTH,
@@ -107,6 +108,9 @@ export const productVariantInputSchema = z.object({
   size: z.string().trim().min(1).max(10),
   color: z.string().trim().min(1).max(40),
   stock: z.number().int().nonnegative().max(1_000_000),
+  // Per colourway. Omitted rows inherit the product price, which is how
+  // every document predating this field keeps selling at the old number.
+  price: z.number().finite().nonnegative().max(1_000_000).optional(),
 });
 
 /**
@@ -136,7 +140,7 @@ export const productVariantsSchema = z
 export function resolveVariants(
   productId: string,
   variants: z.infer<typeof productVariantsSchema>
-): { sku: string; size: string; color: string; stock: number }[] {
+): { sku: string; size: string; color: string; stock: number; price?: number }[] {
   const used = new Set<string>();
   return variants.map((variant) => {
     const base = variant.sku ?? buildVariantSku(productId, variant.size, variant.color);
@@ -148,7 +152,17 @@ export function resolveVariants(
       sku = `${base.slice(0, MAX_SKU_LENGTH - 3)}-${suffix++}`;
     }
     used.add(sku);
-    return { sku, size: variant.size, color: variant.color, stock: variant.stock };
+    const price =
+      typeof variant.price === "number" && Number.isFinite(variant.price)
+        ? variant.price
+        : undefined;
+    return {
+      sku,
+      size: variant.size,
+      color: variant.color,
+      stock: variant.stock,
+      ...(price !== undefined ? { price } : {}),
+    };
   });
 }
 
@@ -165,14 +179,15 @@ export const colorImagesSchema = z
 /**
  * Extra gallery photos, in display order.
  *
- * Neither a floor nor a ceiling. No floor because every product created before
- * the gallery existed has none, and a minimum would reject them the first time
- * an admin edited anything else. No ceiling because how many angles a listing
- * needs is the admin's call, not this schema's. Duplicates pass too —
+ * No floor: every product created before the gallery existed has none, and a
+ * minimum would reject them the first time an admin edited anything else.
+ * Ceiling is MAX_PRODUCT_IMAGES (the ticket's 4–5). Duplicates pass —
  * productGallery collapses them, and failing a save over a repeated URL helps
  * nobody.
  */
-export const productImagesSchema = z.array(z.url().max(2000));
+export const productImagesSchema = z
+  .array(z.url().max(2000))
+  .max(MAX_PRODUCT_IMAGES);
 
 export const adminProductCreateSchema = z
   .object({

@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import ProductForm from "@/app/admin/products/ProductForm";
+import { MAX_PRODUCT_IMAGES } from "@/app/lib/images";
 
 const IMAGE = "https://res.cloudinary.com/demo/image/upload/runner.png";
 
@@ -22,7 +23,7 @@ type Payload = {
   name: string;
   price: number;
   stock?: number;
-  variants?: { sku?: string; size: string; color: string; stock: number }[];
+  variants?: { sku?: string; size: string; color: string; stock: number; price?: number }[];
   colorImages?: { color: string; imageUrl: string }[];
   images?: string[];
 };
@@ -116,18 +117,18 @@ describe("gallery photos", () => {
     expect(screen.getByText(/Each extra photo needs a Cloudinary URL/)).toBeVisible();
   });
 
-  it("keeps offering new slots however many are added", async () => {
+  it("stops offering new slots at the extra-photo cap", async () => {
     const user = userEvent.setup();
     render(<ProductForm mode="create" />);
 
     await fillBaseFields(user);
-    for (let i = 1; i <= 8; i++) {
+    for (let i = 1; i <= MAX_PRODUCT_IMAGES; i++) {
       await addPhoto(user, i, `${SOLE}?${i}`);
     }
-    await user.click(screen.getByRole("button", { name: "Create product" }));
 
-    expect(screen.getByRole("button", { name: "Add photo" })).toBeEnabled();
-    expect(lastPayload().images).toHaveLength(8);
+    expect(screen.getByRole("button", { name: "Add photo" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Create product" }));
+    expect(lastPayload().images).toHaveLength(MAX_PRODUCT_IMAGES);
   });
 
   it("opens an edit with the saved gallery and clears it on removal", async () => {
@@ -339,7 +340,9 @@ describe("the size run builder", () => {
     await user.click(screen.getByRole("button", { name: "Create product" }));
 
     const payload = lastPayload();
-    expect(payload.variants).toEqual([{ size: "42", color: "Black", stock: 2 }]);
+    expect(payload.variants).toEqual([
+      { size: "42", color: "Black", stock: 2, price: 89.99 },
+    ]);
     // The server derives the total; sending one too would let them disagree.
     expect(payload.stock).toBeUndefined();
   });
@@ -383,6 +386,30 @@ describe("the size run builder", () => {
     expect(screen.getByLabelText("Photo URL for Black")).toBeVisible();
     expect(screen.getByLabelText("Photo URL for White")).toBeVisible();
     expect(screen.queryByLabelText("Photo URL for ")).toBeNull();
+  });
+
+  it("stamps a different price onto each colourway", async () => {
+    const user = userEvent.setup();
+    render(<ProductForm mode="create" />);
+
+    await fillBaseFields(user);
+    await enableVariants(user);
+    const colour = screen.getByLabelText("Colour");
+    await user.type(colour, "Black");
+    await user.click(sizeChip("42"));
+    await user.clear(colour);
+    await user.type(colour, "White");
+    await user.click(sizeChip("42"));
+
+    const whitePrice = screen.getByLabelText("Price for White");
+    await user.clear(whitePrice);
+    await user.type(whitePrice, "109.99");
+    await user.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(lastPayload().variants).toEqual([
+      { size: "42", color: "Black", stock: 3, price: 89.99 },
+      { size: "42", color: "White", stock: 3, price: 109.99 },
+    ]);
   });
 
   it("refuses to submit with variants on and no rows", async () => {
@@ -488,8 +515,8 @@ describe("editing an existing variant product", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(lastPayload().variants).toEqual([
-      { sku: "runner-eu42-black", size: "42", color: "Black", stock: 9 },
-      { sku: "runner-eu43-black", size: "43", color: "Black", stock: 2 },
+      { sku: "runner-eu42-black", size: "42", color: "Black", stock: 9, price: 89.99 },
+      { sku: "runner-eu43-black", size: "43", color: "Black", stock: 2, price: 89.99 },
     ]);
   });
 

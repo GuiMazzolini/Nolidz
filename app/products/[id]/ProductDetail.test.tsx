@@ -28,7 +28,7 @@ const runner: Product = {
   variants: [
     { sku: "runner-eu42-black", size: "42", color: "Black", stock: 3 },
     { sku: "runner-eu43-black", size: "43", color: "Black", stock: 0 },
-    { sku: "runner-eu41-white", size: "41", color: "White", stock: 2 },
+    { sku: "runner-eu41-white", size: "41", color: "White", stock: 2, price: 109.99 },
     { sku: "runner-eu42-white", size: "42", color: "White", stock: 0 },
   ],
 };
@@ -100,6 +100,15 @@ describe("variant selection", () => {
     expect(sizeButton("42")).toBeDisabled();
     expect(screen.queryByRole("button", { name: "43" })).toBeNull();
     expect(screen.getByRole("button", { name: /Select a Size/i })).toBeDisabled();
+  });
+
+  it("shows the chosen colour's price", async () => {
+    const user = userEvent.setup();
+    render(<ProductDetail product={runner} />);
+
+    expect(screen.getByText("$89.99")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /^White/ }));
+    expect(screen.getByText("$109.99")).toBeVisible();
   });
 
   it("marks a fully sold-out colourway in the picker", () => {
