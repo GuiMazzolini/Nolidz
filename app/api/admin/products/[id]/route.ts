@@ -62,11 +62,12 @@ export async function PATCH(
     updatedAt: new Date(),
   };
 
-  const { name, description, imageUrl, price, stock, variants, colorImages, images } =
+  const { name, description, imageUrl, price, stock, category, variants, colorImages, images } =
     parsed.data;
   if (name !== undefined) updates.name = name;
   if (description !== undefined) updates.description = description;
   if (price !== undefined) updates.price = price;
+  if (category !== undefined) updates.category = category;
   if (imageUrl !== undefined) {
     try {
       updates.imageUrl = normalizeProductImageUrl(imageUrl);

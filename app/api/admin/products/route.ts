@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = await parseBody(req, adminProductCreateSchema);
   if (!parsed.ok) return parsed.response;
-  const { name, description, price } = parsed.data;
+  const { name, description, price, category } = parsed.data;
 
   // Every photo goes through the same host allowlist as the main image.
   let imageUrl: string;
@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
     description,
     imageUrl,
     price,
+    category,
     stock,
     ...(variants ? { variants } : {}),
     ...(colorImages ? { colorImages } : {}),

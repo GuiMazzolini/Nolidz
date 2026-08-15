@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { formatMoney } from "@/app/lib/money";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const { startCheckoutMock } = vi.hoisted(() => ({ startCheckoutMock: vi.fn() }));
@@ -69,12 +70,11 @@ describe("variant selection", () => {
     expect(screen.getByText(/Select a size to see availability/i)).toBeVisible();
   });
 
-  it("disables a sold-out size and enables one with stock", () => {
+  it("hides a sold-out size and shows one with stock", () => {
     render(<ProductDetail product={runner} />);
 
     expect(sizeButton("42")).toBeEnabled();
-    expect(sizeButton("43")).toBeDisabled();
-    expect(sizeButton("43")).toHaveAttribute("title", "Sold out");
+    expect(screen.queryByRole("button", { name: "43" })).toBeNull();
   });
 
   it("shows the count for the chosen size, not the product total", async () => {
@@ -95,9 +95,10 @@ describe("variant selection", () => {
     await user.click(sizeButton("42"));
     await user.click(screen.getByRole("button", { name: /^White/ }));
 
-    // White stocks EU 41 and 42; the previously chosen size is deselected.
+    // White only has EU 41 in stock; sold-out 42 is hidden, and the
+    // previously chosen size is deselected.
     expect(sizeButton("41")).toBeEnabled();
-    expect(sizeButton("42")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "42" })).toBeNull();
     expect(screen.queryByRole("button", { name: "43" })).toBeNull();
     expect(screen.getByRole("button", { name: /Select a Size/i })).toBeDisabled();
   });
@@ -106,12 +107,12 @@ describe("variant selection", () => {
     const user = userEvent.setup();
     render(<ProductDetail product={runner} />);
 
-    expect(screen.getByText("$89.99")).toBeVisible();
+    expect(screen.getByText(formatMoney(89.99))).toBeVisible();
     await user.click(screen.getByRole("button", { name: /^White/ }));
-    expect(screen.getByText("$109.99")).toBeVisible();
+    expect(screen.getByText(formatMoney(109.99))).toBeVisible();
   });
 
-  it("marks a fully sold-out colourway in the picker", () => {
+  it("hides a fully sold-out colourway from the picker", () => {
     render(
       <ProductDetail
         product={{
@@ -124,8 +125,8 @@ describe("variant selection", () => {
       />
     );
 
-    const white = screen.getByRole("button", { name: /White/ });
-    expect(within(white).getByText("(sold out)")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /White/ })).toBeNull();
+    expect(screen.queryByText("Colour:")).toBeNull();
   });
 });
 
@@ -212,10 +213,12 @@ describe("a product with every size sold out", () => {
     variants: runner.variants!.map((v) => ({ ...v, stock: 0 })),
   };
 
-  it("says so and disables both actions", () => {
+  it("says so, hides the pickers, and disables both actions", () => {
     render(<ProductDetail product={soldOut} />);
 
     expect(screen.getByText("Out of stock in every size")).toBeVisible();
+    expect(screen.queryByText("EU size")).toBeNull();
+    expect(screen.queryByText("Colour:")).toBeNull();
     expect(screen.getByRole("button", { name: "Out of Stock" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Buy Now" })).toBeDisabled();
   });

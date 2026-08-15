@@ -53,6 +53,7 @@ const validBody = {
   description: "Fresh",
   imageUrl: IMAGE,
   price: 100,
+  category: "men",
 };
 
 beforeEach(() => {

@@ -356,6 +356,7 @@ describe("admin variant input", () => {
     description: "A shoe",
     imageUrl: "https://res.cloudinary.com/demo/image/upload/runner.png",
     price: 89.99,
+    category: "men",
   };
 
   it("accepts a size run and derives SKUs from the product id", () => {

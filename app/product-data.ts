@@ -1,4 +1,5 @@
 import type { ColorImage, ProductVariant } from "./lib/variants";
+import type { ProductCategory } from "./lib/categories";
 
 export interface Product {
   id: string;
@@ -11,6 +12,8 @@ export interface Product {
    * every variant's stock, maintained by the server.
    */
   stock: number;
+  /** Who the shoe is listed for. Absent on older documents. */
+  category?: ProductCategory;
   /** Sellable size/colour combinations. Absent on single-SKU products. */
   variants?: ProductVariant[];
   /** Per-colourway photography, keyed by colour name. */

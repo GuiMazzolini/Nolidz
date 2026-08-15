@@ -32,30 +32,30 @@ export default async function CheckoutSuccessPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-paper py-12">
       <ClearCartOnSuccess paid={paid} />
       <div className="container mx-auto px-4 max-w-lg">
-        <div className="bg-white rounded-2xl shadow-lg p-10 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+        <div className="bg-white border-2 border-ink/10 p-10 text-center">
+          <h1 className="font-display italic font-extrabold text-3xl text-ink mb-4">
             {paid ? "Thank you!" : "Payment status"}
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="text-ink/60 mb-8">
             {paid
-              ? "Your order was received. A StyleShop confirmation email is on its way (plus Stripe's receipt)."
+              ? "Your order was received. A nolidz confirmation email is on its way (plus Stripe's receipt)."
               : session_id
                 ? "We could not confirm this payment. If you were charged, contact support with your session details."
                 : "Return to the store to complete a purchase."}
           </p>
           <Link
             href="/products"
-            className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            className="inline-block bg-ink text-paper px-8 py-3 font-semibold hover:bg-ink/85 transition-colors"
           >
             Continue shopping
           </Link>
           <div className="mt-4">
             <Link
               href={lookupHref}
-              className="font-semibold text-blue-600 hover:text-blue-700"
+              className="font-semibold text-cardboard-dark hover:text-ink"
             >
               Look up this order
             </Link>

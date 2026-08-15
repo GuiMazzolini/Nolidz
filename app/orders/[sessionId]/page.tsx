@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { formatMoney } from "@/app/lib/money";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
@@ -36,7 +37,7 @@ export default async function OrderDetailPage({
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12">
+      <div className="min-h-screen bg-paper py-12">
         <div className="container mx-auto px-4 max-w-3xl">
           <div className="bg-white rounded-2xl shadow-lg p-10 text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">
@@ -68,7 +69,7 @@ export default async function OrderDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-paper py-12">
       <div className="container mx-auto px-4 max-w-3xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -98,7 +99,7 @@ export default async function OrderDetailPage({
               <OrderStatusBadge order={order} />
               <p className="text-sm text-gray-500">Total paid</p>
               <p className="text-xl font-bold text-blue-600">
-                ${order.total.toFixed(2)}
+                {formatMoney(order.total)}
               </p>
             </div>
           </div>

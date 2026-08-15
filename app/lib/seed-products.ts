@@ -18,6 +18,7 @@ import {
 const MENS = ['40', '41', '42', '42.5', '43', '44', '45', '46'];
 const WOMENS = ['36', '36.5', '37', '38', '38.5', '39', '40', '41'];
 const UNISEX = ['38', '39', '40', '41', '42', '43', '44', '45'];
+const KIDS = ['28', '29', '30', '31', '32', '33', '34', '35'];
 
 /**
  * Stock counts derived from the SKU rather than Math.random, so re-seeding
@@ -105,6 +106,7 @@ const PHOTO = (name: string) => `/products/${name}.jpg`;
 const CATALOG: SeedInput[] = [
   {
     id: 'runner-low',
+    category: 'men',
     name: 'Outlet Runner Low',
     price: 89.99,
     description:
@@ -116,6 +118,7 @@ const CATALOG: SeedInput[] = [
   },
   {
     id: 'court-classic',
+    category: 'women',
     name: 'Court Classic Leather',
     price: 74.99,
     description:
@@ -127,6 +130,7 @@ const CATALOG: SeedInput[] = [
   },
   {
     id: 'trail-gtx',
+    category: 'men',
     name: 'Trail Runner GTX',
     price: 129.99,
     description:
@@ -138,6 +142,7 @@ const CATALOG: SeedInput[] = [
   },
   {
     id: 'skate-mid',
+    category: 'men',
     name: 'Skate Mid Canvas',
     price: 64.99,
     description:
@@ -149,6 +154,7 @@ const CATALOG: SeedInput[] = [
   },
   {
     id: 'retro-88',
+    category: 'men',
     name: 'Retro 88 Trainer',
     price: 99.99,
     description:
@@ -160,6 +166,7 @@ const CATALOG: SeedInput[] = [
   },
   {
     id: 'deck-slip-on',
+    category: 'women',
     name: 'Deck Slip-On',
     price: 54.99,
     description:
@@ -171,6 +178,7 @@ const CATALOG: SeedInput[] = [
   },
   {
     id: 'chunky-dad',
+    category: 'men',
     name: 'Chunky Dad Sneaker',
     price: 109.99,
     description:
@@ -182,6 +190,7 @@ const CATALOG: SeedInput[] = [
   },
   {
     id: 'hiker-boot',
+    category: 'men',
     name: 'All-Weather Hiker Boot',
     price: 149.99,
     description:
@@ -193,6 +202,7 @@ const CATALOG: SeedInput[] = [
   },
   {
     id: 'knit-runner',
+    category: 'women',
     name: 'Knit Runner Lite',
     price: 79.99,
     description:
@@ -204,6 +214,7 @@ const CATALOG: SeedInput[] = [
   },
   {
     id: 'lo-pro-tennis',
+    category: 'kids',
     name: 'Lo-Pro Tennis',
     price: 69.99,
     description:
@@ -211,7 +222,7 @@ const CATALOG: SeedInput[] = [
     imageUrl: PHOTO('tennis-white'),
     colors: ['White', 'Black', 'Red'],
     colorPhotos: [PHOTO('tennis-white'), PHOTO('tennis-black'), PHOTO('tennis-red')],
-    sizes: UNISEX,
+    sizes: KIDS,
   },
 ];
 

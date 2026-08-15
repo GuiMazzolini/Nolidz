@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { formatMoney } from "@/app/lib/money";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -67,20 +68,26 @@ describe("ShoppingCartList", () => {
   });
 
   it("totals across sizes and waives shipping over the threshold", () => {
-    render(<ShoppingCartList initialCartProducts={[black42, white43]} />);
+    const bigOrder = [
+      { ...black42, price: 40, quantity: 1 },
+      { ...white43, price: 40, quantity: 2 },
+    ];
+    render(<ShoppingCartList initialCartProducts={bigOrder} />);
 
-    // 1 × $20 + 2 × $20 = $60, over the $50 free-shipping threshold, so
-    // subtotal and total are both $60 and shipping is free.
+    // 1 × €40 + 2 × €40 = €120, over the €100 free-shipping threshold, so
+    // subtotal and total are both €120 and shipping is free.
     expect(screen.getByText("Subtotal (3 items)")).toBeVisible();
-    expect(screen.getAllByText("$60.00")).toHaveLength(2);
+    expect(screen.getAllByText(formatMoney(120))).toHaveLength(2);
     expect(screen.getByText("FREE")).toBeVisible();
   });
 
   it("charges shipping and nudges toward the threshold on a small cart", () => {
     render(<ShoppingCartList initialCartProducts={[black42]} />);
 
-    expect(screen.getByText("$5.00")).toBeVisible();
-    expect(screen.getByText(/Add \$30\.00 more for free shipping/)).toBeVisible();
+    expect(screen.getByText(formatMoney(5))).toBeVisible();
+    expect(
+      screen.getByText(`Add ${formatMoney(80)} more for free shipping.`)
+    ).toBeVisible();
   });
 
   it("tells the shopper the basket does not hold their size", () => {

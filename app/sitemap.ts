@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { connectToDB } from "@/app/api/db";
 import { getAppUrl } from "@/app/lib/stripe";
 import { products as productsCollection } from "@/app/lib/db-collections";
+import { isSellableForPublic } from "@/app/lib/public-products";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getAppUrl();
@@ -16,16 +17,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const { db } = await connectToDB();
     const products = await productsCollection(db)
-      .find({}, { projection: { id: 1 } })
+      .find({}, { projection: { id: 1, stock: 1, variants: 1 } })
       .toArray();
 
-    const productRoutes: MetadataRoute.Sitemap = products.map(
-      (doc) => ({
+    const productRoutes: MetadataRoute.Sitemap = products
+      .filter(isSellableForPublic)
+      .map((doc) => ({
         url: `${base}/products/${doc.id}`,
         changeFrequency: "weekly" as const,
         priority: 0.8,
-      })
-    );
+      }));
 
     return [...staticRoutes, ...productRoutes];
   } catch {

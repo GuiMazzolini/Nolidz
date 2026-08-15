@@ -48,7 +48,7 @@ function paidSession(metadata: Record<string, string>) {
     customer_email: null,
     amount_subtotal: 8999,
     amount_total: 8999,
-    currency: "usd",
+    currency: "eur",
     total_details: { amount_shipping: 0 },
     collected_information: null,
     line_items: {

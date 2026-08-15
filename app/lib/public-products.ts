@@ -3,6 +3,22 @@ import type { ProductDoc } from "@/app/lib/db-collections";
 import { listColors, sellableVariants } from "@/app/lib/variants";
 
 /**
+ * Whether the storefront should list or open this product.
+ *
+ * Fully sold-out pairs stay in the database for admin (restock / delete) but
+ * are hidden from the catalog, PDP, and public API — outlet finds rarely
+ * come back once gone.
+ */
+export function isSellableForPublic(
+  doc: Pick<ProductDoc, "stock" | "variants">
+): boolean {
+  if (doc.variants?.length) {
+    return sellableVariants(doc.variants) !== undefined;
+  }
+  return getAvailableStock(doc.stock) > 0;
+}
+
+/**
  * Products as the public API returns them.
  *
  * Built field by field rather than spread from the document, so `_id` and
@@ -23,6 +39,7 @@ export function serializePublicProduct(doc: ProductDoc) {
     description: doc.description,
     imageUrl: doc.imageUrl,
     stock: getAvailableStock(doc.stock),
+    category: doc.category,
     variants,
     colorImages: publicColorImages(doc, variants),
     // Undefined rather than [] so a product with no gallery has no key at all,

@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3eadb;
+  --foreground: #0a0a0a;
 }
 
 @theme inline {
@@ -16,10 +16,6 @@
   --font-display: var(--font-barlow);
 }
 
-/*
- * The shop UI is light-only on inner pages. The landing and nav are dark.
- * Keep the browser chrome light so form controls stay readable.
- */
 :root {
   color-scheme: light;
 }

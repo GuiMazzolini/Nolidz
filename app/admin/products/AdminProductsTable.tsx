@@ -1,9 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import { formatMoney } from "@/app/lib/money";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { CATEGORY_LABELS } from "@/app/lib/categories";
 import { getImageSrc } from "@/app/lib/images";
+import type { ProductCategory } from "@/app/lib/categories";
 import type { ProductVariant } from "@/app/lib/variants";
 import DeleteProductButton from "./DeleteProductButton";
 
@@ -18,6 +21,7 @@ export type AdminProduct = {
    * read higher than what the storefront currently offers.
    */
   stock: number;
+  category?: ProductCategory;
   variants?: ProductVariant[];
   /** Of `stock`, how many are spoken for by a checkout that has not paid. */
   heldForCheckout: number;
@@ -90,7 +94,7 @@ export default function AdminProductsTable({
   return (
     <div className="space-y-6">
       {(lowStockCount > 0 || outOfStockCount > 0) && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="border-2 border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <p className="font-semibold">Inventory attention needed</p>
           <p className="mt-1">
             {outOfStockCount > 0 && (
@@ -111,7 +115,7 @@ export default function AdminProductsTable({
 
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-gray-700">
+          <span className="mb-1 block text-sm font-medium text-ink/70">
             Search
           </span>
           <input
@@ -119,18 +123,18 @@ export default function AdminProductsTable({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Name or id"
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            className="w-full border-2 border-ink/15 bg-white px-3 py-2 text-sm outline-none focus:border-cardboard"
           />
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-gray-700">
+          <span className="mb-1 block text-sm font-medium text-ink/70">
             Stock filter
           </span>
           <select
             value={stockFilter}
             onChange={(e) => setStockFilter(e.target.value as StockFilter)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            className="w-full border-2 border-ink/15 bg-white px-3 py-2 text-sm outline-none focus:border-cardboard"
           >
             <option value="all">All products</option>
             <option value="in-stock">Healthy stock</option>
@@ -140,13 +144,13 @@ export default function AdminProductsTable({
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-gray-700">
+          <span className="mb-1 block text-sm font-medium text-ink/70">
             Sort
           </span>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortOption)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            className="w-full border-2 border-ink/15 bg-white px-3 py-2 text-sm outline-none focus:border-cardboard"
           >
             <option value="name-asc">Name A–Z</option>
             <option value="price-asc">Price: low to high</option>
@@ -156,24 +160,25 @@ export default function AdminProductsTable({
         </label>
       </div>
 
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-ink/60">
         Showing {filteredProducts.length} of {products.length} products
       </p>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50 text-left text-gray-600">
+      <div className="overflow-hidden border-2 border-ink/10 bg-white">
+        <table className="min-w-full divide-y divide-ink/10 text-sm">
+          <thead className="bg-paper text-left text-ink/60">
             <tr>
               <th className="px-4 py-3 font-semibold">Product</th>
+              <th className="px-4 py-3 font-semibold">Category</th>
               <th className="px-4 py-3 font-semibold">Price</th>
               <th className="px-4 py-3 font-semibold">Stock</th>
               <th className="px-4 py-3 font-semibold text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-ink/10">
             {filteredProducts.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-gray-500">
+                <td colSpan={5} className="px-4 py-10 text-center text-ink/45">
                   No products match these filters.
                 </td>
               </tr>
@@ -182,7 +187,7 @@ export default function AdminProductsTable({
                 <tr key={product.id}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden border border-ink/10 bg-paper">
                         <Image
                           src={getImageSrc(product.imageUrl)}
                           alt=""
@@ -193,13 +198,18 @@ export default function AdminProductsTable({
                         />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{product.name}</p>
-                        <p className="text-xs text-gray-500">{product.id}</p>
+                        <p className="font-medium text-ink">{product.name}</p>
+                        <p className="text-xs text-ink/45">{product.id}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    ${product.price.toFixed(2)}
+                  <td className="px-4 py-3 text-ink/70">
+                    {product.category
+                      ? CATEGORY_LABELS[product.category]
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 font-display italic font-bold text-cardboard-dark">
+                    {formatMoney(product.price)}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -208,7 +218,7 @@ export default function AdminProductsTable({
                           ? "font-semibold text-red-600"
                           : product.stock <= LOW_STOCK_THRESHOLD
                             ? "font-semibold text-amber-600"
-                            : "text-gray-700"
+                            : "text-ink/80"
                       }
                     >
                       {product.stock}
@@ -219,14 +229,14 @@ export default function AdminProductsTable({
                           : ""}
                     </span>
                     {product.variants && product.variants.length > 0 && (
-                      <p className="mt-0.5 text-xs text-gray-500">
+                      <p className="mt-0.5 text-xs text-ink/45">
                         {variantSummary(product.variants)}
                       </p>
                     )}
                     {product.heldForCheckout > 0 && (
                       // Otherwise this column reads higher than what the shop
                       // will actually sell, with nothing to explain the gap.
-                      <p className="mt-0.5 text-xs text-blue-700">
+                      <p className="mt-0.5 text-xs text-cardboard-dark">
                         {product.heldForCheckout} held in checkout
                       </p>
                     )}
@@ -235,7 +245,7 @@ export default function AdminProductsTable({
                     <div className="flex items-center justify-end gap-3">
                       <Link
                         href={`/admin/products/${product.id}/edit`}
-                        className="font-medium text-blue-600 hover:text-blue-800"
+                        className="font-medium text-cardboard-dark hover:text-ink"
                       >
                         Edit
                       </Link>

@@ -37,7 +37,7 @@ async function fillBaseFields(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Name"), "Runner Low");
   await user.type(screen.getByLabelText("Description"), "A shoe");
   await user.type(screen.getByLabelText("Product image"), IMAGE);
-  await user.type(screen.getByLabelText("Price (USD)"), "89.99");
+  await user.type(screen.getByLabelText("Price (EUR)"), "89.99");
 }
 
 /** The size chips in the run builder, which share labels with nothing else. */
@@ -194,7 +194,7 @@ describe("single-SKU products", () => {
     await user.type(screen.getByLabelText("Name"), "Runner Low");
     await user.type(screen.getByLabelText("Description"), "A shoe");
     await user.type(screen.getByLabelText("Product image"), "not-a-url");
-    await user.type(screen.getByLabelText("Price (USD)"), "10");
+    await user.type(screen.getByLabelText("Price (EUR)"), "10");
     await user.click(screen.getByRole("button", { name: "Create product" }));
 
     expect(screen.getByText(/Upload an image or paste a Cloudinary URL/)).toBeVisible();

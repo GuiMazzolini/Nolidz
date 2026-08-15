@@ -1,4 +1,5 @@
 import type { Db } from "mongodb";
+import type { ProductCategory } from "@/app/lib/categories";
 import type { Order } from "@/app/lib/orders";
 import type { ReservationDoc } from "@/app/lib/reservations";
 import type { ColorImage, ProductVariant } from "@/app/lib/variants";
@@ -20,6 +21,8 @@ export type ProductDoc = {
   price: number;
   /** Mirror of the variant total when `variants` is set; see lib/variants. */
   stock: number;
+  /** Audience listing. Absent on products created before categories existed. */
+  category?: ProductCategory;
   /** Absent on single-SKU products, which sell straight off `stock`. */
   variants?: ProductVariant[];
   /** Optional per-colourway photos; the main `imageUrl` is the fallback. */

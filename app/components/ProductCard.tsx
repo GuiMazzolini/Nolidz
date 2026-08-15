@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { formatMoney } from "@/app/lib/money";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { getImageSrc, productGallery } from "../lib/images";
@@ -116,7 +117,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
 
   return (
     <div
-      className="group"
+      className="group flex h-full flex-col"
       // Leaving the card drops the preview, so the grid returns to its resting
       // colourway rather than keeping whichever swatch was last brushed. It
       // also brings the strip back on the next hover, in case they want it.
@@ -125,8 +126,8 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
         setBrowsingPhotos(false);
       }}
     >
-      <div className="overflow-hidden rounded-xl bg-white shadow-md transition-all duration-300 hover:shadow-xl group-hover:-translate-y-1">
-        <div className="relative aspect-square w-full bg-gray-100">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-2 border-ink/10 bg-white transition-colors duration-300 group-hover:border-cardboard">
+        <div className="relative aspect-square w-full shrink-0 bg-paper">
           <Image
             key={current}
             src={current}
@@ -160,7 +161,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
                 type="button"
                 onClick={() => step(-1)}
                 aria-label={`Previous photo of ${label}`}
-                className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/85 p-1.5 text-gray-800 opacity-0 shadow transition-opacity hover:bg-white focus:outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-blue-600 group-hover:opacity-100"
+                className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/90 p-1.5 text-ink opacity-0 shadow transition-opacity hover:bg-white focus:outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-cardboard group-hover:opacity-100"
               >
                 <Chevron direction="left" />
               </button>
@@ -168,7 +169,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
                 type="button"
                 onClick={() => step(1)}
                 aria-label={`Next photo of ${label}`}
-                className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/85 p-1.5 text-gray-800 opacity-0 shadow transition-opacity hover:bg-white focus:outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-blue-600 group-hover:opacity-100"
+                className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/90 p-1.5 text-ink opacity-0 shadow transition-opacity hover:bg-white focus:outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-cardboard group-hover:opacity-100"
               >
                 <Chevron direction="right" />
               </button>
@@ -196,7 +197,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
               }`}
             >
               {sizesLabel && (
-                <p className="mb-1.5 truncate text-[11px] font-medium text-gray-700">
+                <p className="mb-1.5 truncate text-[11px] font-medium text-ink/70">
                   {sizesLabel}
                 </p>
               )}
@@ -216,10 +217,10 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
                       data-color={other}
                       title={soldOut ? `${other} — sold out` : other}
                       onMouseEnter={() => setPreviewColor(other)}
-                      className={`relative block h-9 w-9 shrink-0 overflow-hidden rounded-md border bg-gray-100 transition-colors ${
+                      className={`relative block h-9 w-9 shrink-0 overflow-hidden border bg-paper transition-colors ${
                         previewing
-                          ? "border-gray-900"
-                          : "border-gray-200 hover:border-gray-400"
+                          ? "border-ink"
+                          : "border-ink/15 hover:border-cardboard-dark"
                       } ${soldOut ? "opacity-40" : ""}`}
                     >
                       <Image
@@ -235,7 +236,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
                 })}
 
                 {otherColors.length > MAX_SWATCHES && (
-                  <span className="px-1 text-xs font-medium text-gray-600">
+                  <span className="px-1 text-xs font-medium text-ink/55">
                     +{otherColors.length - MAX_SWATCHES}
                   </span>
                 )}
@@ -244,96 +245,98 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
           )}
         </div>
 
-        <div className="p-4">
-          <h2 className="mb-2 text-lg font-semibold transition-colors group-hover:text-blue-600">
-            <Link href={href}>
+        <div className="flex flex-1 flex-col p-4 border-t-2 border-ink/10">
+          <h2 className="mb-2 line-clamp-2 h-14 text-lg font-semibold leading-snug transition-colors group-hover:text-cardboard-dark">
+            <Link href={href} title={label}>
               {product.name}
               {activeColor && (
-                <span className="font-normal text-gray-600"> – {activeColor}</span>
+                <span className="font-normal text-ink/55"> – {activeColor}</span>
               )}
             </Link>
           </h2>
 
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-2xl font-bold text-blue-600">
-              ${displayPrice.toFixed(2)}
+          <div className="mt-auto flex items-baseline justify-between gap-2">
+            <span className="font-display italic text-2xl font-bold text-cardboard-dark">
+              {formatMoney(displayPrice)}
             </span>
             {!outOfStock && (
-              <span className="text-xs text-gray-500">{stock} left</span>
+              <span className="text-xs text-ink/45">{stock} left</span>
             )}
           </div>
         </div>
       </div>
 
-      {isVariantProduct ? (
-        <Link
-          href={href}
-          className={`mt-3 block w-full rounded-lg py-2 text-center font-semibold transition-all duration-200 ${
-            outOfStock
-              ? "cursor-not-allowed bg-gray-200 text-gray-500"
-              : "bg-blue-600 text-white hover:bg-blue-700"
-          }`}
-          aria-disabled={outOfStock}
-        >
-          {outOfStock
-            ? "Out of Stock"
-            : unitsInCart > 0
-              ? `In cart (${unitsInCart}) · Add size`
-              : "Choose Size"}
-        </Link>
-      ) : inCart ? (
-        <div className="mt-3 flex items-center justify-between overflow-hidden rounded-lg border border-gray-300">
-          <button
-            onClick={() => updateQuantity(product.id, quantity - 1)}
-            disabled={loading}
-            aria-label={quantity <= 1 ? "Remove from cart" : "Decrease quantity"}
-            className="flex items-center justify-center px-4 py-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+      <div className="mt-3 shrink-0">
+        {isVariantProduct ? (
+          <Link
+            href={href}
+            className={`block w-full py-2.5 text-center font-semibold transition-colors duration-200 ${
+              outOfStock
+                ? "cursor-not-allowed bg-ink/10 text-ink/40"
+                : "bg-ink text-paper hover:bg-ink/85"
+            }`}
+            aria-disabled={outOfStock}
           >
-            {quantity <= 1 ? (
-              <svg
-                className="h-4 w-4 text-red-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-            ) : (
-              "−"
-            )}
-          </button>
+            {outOfStock
+              ? "Out of Stock"
+              : unitsInCart > 0
+                ? `In cart (${unitsInCart}) · Add size`
+                : "Choose Size"}
+          </Link>
+        ) : inCart ? (
+          <div className="flex items-center justify-between overflow-hidden border-2 border-ink/15 bg-white">
+            <button
+              onClick={() => updateQuantity(product.id, quantity - 1)}
+              disabled={loading}
+              aria-label={quantity <= 1 ? "Remove from cart" : "Decrease quantity"}
+              className="flex items-center justify-center px-4 py-2 transition-colors hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {quantity <= 1 ? (
+                <svg
+                  className="h-4 w-4 text-red-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              ) : (
+                "−"
+              )}
+            </button>
 
-          <span className="min-w-8 text-center font-semibold">
-            {loading ? "..." : quantity}
-          </span>
+            <span className="min-w-8 text-center font-semibold">
+              {loading ? "..." : quantity}
+            </span>
 
+            <button
+              onClick={() => updateQuantity(product.id, quantity + 1)}
+              disabled={loading || atStockLimit}
+              aria-label="Increase quantity"
+              className="px-4 py-2 transition-colors hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              +
+            </button>
+          </div>
+        ) : (
           <button
-            onClick={() => updateQuantity(product.id, quantity + 1)}
-            disabled={loading || atStockLimit}
-            aria-label="Increase quantity"
-            className="px-4 py-2 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => addToCart(product)}
+            disabled={loading || outOfStock}
+            className={`w-full py-2.5 font-semibold transition-colors duration-200 ${
+              outOfStock
+                ? "cursor-not-allowed bg-ink/10 text-ink/40"
+                : "bg-ink text-paper hover:bg-ink/85"
+            } ${loading && "cursor-not-allowed opacity-50"}`}
           >
-            +
+            {loading ? "Adding..." : outOfStock ? "Out of Stock" : "Add to Cart"}
           </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => addToCart(product)}
-          disabled={loading || outOfStock}
-          className={`mt-3 w-full rounded-lg py-2 font-semibold transition-all duration-200 ${
-            outOfStock
-              ? "cursor-not-allowed bg-gray-200 text-gray-500"
-              : "bg-blue-600 text-white hover:bg-blue-700"
-          } ${loading && "cursor-not-allowed opacity-50"}`}
-        >
-          {loading ? "Adding..." : outOfStock ? "Out of Stock" : "Add to Cart"}
-        </button>
-      )}
+        )}
+      </div>
     </div>
   );
 }

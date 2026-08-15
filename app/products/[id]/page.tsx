@@ -4,6 +4,7 @@ import { connectToDB } from "@/app/api/db";
 import { productGallery } from "@/app/lib/images";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products } from "@/app/lib/db-collections";
+import { isSellableForPublic } from "@/app/lib/public-products";
 import {
   serializeVariants,
   type ColorImage,
@@ -31,7 +32,8 @@ type DBProduct = {
 async function getProduct(id: string): Promise<DBProduct | null> {
   const { db } = await connectToDB();
   const product = await products(db).findOne({ id });
-  if (!product) return null;
+  // Sold-out pairs stay in admin only — shoppers get a 404, not an empty PDP.
+  if (!product || !isSellableForPublic(product)) return null;
 
   return {
     id: product.id,

@@ -11,8 +11,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-linear-to-b from-blue-50 to-white flex items-center justify-center">
-          <div className="h-10 w-48 rounded-lg bg-gray-200 animate-pulse" />
+        <div className="min-h-screen bg-paper flex items-center justify-center">
+          <div className="h-10 w-48 bg-ink/10 animate-pulse" />
         </div>
       }
     >

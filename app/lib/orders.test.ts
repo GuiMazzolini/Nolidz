@@ -14,7 +14,7 @@ function fakeSession(
     object: "checkout.session",
     amount_subtotal: 2500,
     amount_total: 3000,
-    currency: "usd",
+    currency: "eur",
     customer_details: {
       email: "guest@example.com",
       name: "Guest Buyer",

@@ -20,10 +20,10 @@ export default function CartButton({ active }: { active: boolean }) {
     <Link
       href="/cart"
       aria-label={count > 0 ? `Cart, ${count} items` : "Cart"}
-      className={`relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
+      className={`relative flex h-10 w-10 items-center justify-center transition-colors ${
         active
-          ? "text-cardboard bg-white/10"
-          : "text-white/70 hover:text-white hover:bg-white/10"
+          ? "text-cardboard-dark bg-cardboard/25"
+          : "text-ink/65 hover:text-ink hover:bg-ink/5"
       }`}
     >
       <svg
@@ -44,7 +44,7 @@ export default function CartButton({ active }: { active: boolean }) {
       {count > 0 && (
         <span
           aria-hidden="true"
-          className="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-cardboard px-1 text-xs font-semibold text-ink"
+          className="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1 text-xs font-semibold text-paper"
         >
           {count > 99 ? "99+" : count}
         </span>
