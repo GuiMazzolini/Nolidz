@@ -8,6 +8,7 @@ import CartItem from "../components/CartItem";
 import CartErrorBanner from "../components/CartErrorBanner";
 import { useCartStore } from "../lib/store/cartStore";
 import { cartLineKey } from "../lib/variants";
+import { CHECKOUT_HOLD_MINUTES } from "../lib/reservations";
 import { useCheckout } from "../lib/use-checkout";
 import {
   FREE_SHIPPING_THRESHOLD,
@@ -159,7 +160,8 @@ export default function ShoppingCartList({ initialCartProducts }: { initialCartP
 
               <p className="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
                 Popular sizes go quickly — your basket doesn&apos;t hold them.
-                They&apos;re yours once payment goes through.
+                We&apos;ll set your size aside for {CHECKOUT_HOLD_MINUTES}{" "}
+                minutes once you continue to payment.
               </p>
 
               <Link

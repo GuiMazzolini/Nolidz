@@ -43,8 +43,12 @@ export function parseGuestCheckoutItems(body: unknown): CartItem[] | null {
 }
 
 /** "Runner Low (EU 42 · Black)" — used in stock errors. */
-function describe(product: CatalogProduct, item: CartItem): string {
-  const variant = findVariant(product.variants, item.variantSku);
+export function describeCartLine(
+  product: CatalogProduct | undefined,
+  variantSku?: string
+): string {
+  if (!product) return "That item";
+  const variant = findVariant(product.variants, variantSku);
   const label = variant ? variantLabel(variant.size, variant.color) : "";
   return label ? `${product.name} (${label})` : product.name;
 }
@@ -69,7 +73,7 @@ export function getCartStockError(
 
     const stock = resolveLineStock(product, item.variantSku);
     if (item.quantity > stock) {
-      const label = describe(product, item);
+      const label = describeCartLine(product, item.variantSku);
       return stock < 1
         ? `${label} is out of stock`
         : `Only ${stock} of ${label} left in stock`;

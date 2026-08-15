@@ -6,7 +6,44 @@
  * everyone else. The hold starts when the customer commits to paying, and it
  * has to expire — an abandoned checkout that held stock forever would trade
  * overselling for slowly strangling the catalog.
+ *
+ * This module stays free of server imports so the cart page can quote the hold
+ * duration without pulling the Mongo driver into the client bundle. The
+ * database side lives in `lib/stock-hold`.
  */
+
+/** One line of a cart, as held against inventory. */
+export type ReservationLine = {
+  productId: string;
+  quantity: number;
+  variantSku?: string;
+};
+
+/**
+ * `held` owns stock. `committed` was paid for — the stock is gone for good.
+ * `released` gave it back. Only `held` may transition, which is what keeps a
+ * webhook retry from returning the same stock twice.
+ */
+export type ReservationStatus = "held" | "committed" | "released";
+
+export type ReservationDoc = {
+  reservationId: string;
+  stripeSessionId: string | null;
+  /** Null for a guest checkout, which has no account to attribute it to. */
+  userId: string | null;
+  lines: ReservationLine[];
+  /**
+   * The lines whose stock was actually taken. Releasing gives back only these,
+   * so a hold abandoned halfway through cannot return stock it never took.
+   */
+  applied: ReservationLine[];
+  status: ReservationStatus;
+  expiresAt: Date;
+  createdAt: Date;
+  committedAt?: Date;
+  releasedAt?: Date;
+  releaseReason?: string;
+};
 
 /**
  * How long a checkout may stay open. Stripe rejects an `expires_at` less than
@@ -32,4 +69,9 @@ export function reservationExpiresAt(now: Date = new Date()): Date {
   return new Date(
     now.getTime() + (CHECKOUT_HOLD_MINUTES + HOLD_GRACE_MINUTES) * MINUTE_MS
   );
+}
+
+/** "runner/runner-eu42-black", for logs. */
+export function describeLineRef(line: ReservationLine): string {
+  return line.variantSku ? `${line.productId}/${line.variantSku}` : line.productId;
 }

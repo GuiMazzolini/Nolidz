@@ -89,6 +89,39 @@ If you would rather not run a database locally, create a free cluster at
 `MONGODB_URI` instead. Everything else in `.env.local` (Stripe, Cloudinary,
 auth) is documented in `.env.example`.
 
+## How stock is held
+
+A size sells out for good the moment someone starts paying for it, not when
+the payment clears. Putting a shoe in the basket holds nothing — a basket can
+sit for weeks, and holding stock for one would take the last pair of a size out
+of sale for everyone else. The cart page says so.
+
+Starting checkout takes a **hold**: `stock` on the product drops immediately,
+so `stock` means *available*, not what is on the shelf. Because the stock is
+already gone by the time the customer reaches Stripe, a successful payment
+moves no counters at all — it flips the hold to `committed`, and there is no
+window for a second buyer to race through.
+
+A hold that is never paid for has to come back:
+
+- it expires 35 minutes after it is taken, five minutes after the Stripe
+  session it belongs to;
+- `checkout.session.expired` and `async_payment_failed` release it as soon as
+  Stripe reports them;
+- every checkout sweeps expired holds before reading stock, which is what
+  actually keeps the catalog honest — nothing listens for webhooks in local
+  development, and they can be missed anywhere.
+
+The cost of this design is phantom stock: a size can look sold out for up to 35
+minutes because of a checkout nobody completed. That is the deliberate trade
+against overselling the last pair.
+
+Holds live in the `reservations` collection, one document per checkout, keeping
+`held` / `committed` / `released` and the lines whose stock was actually taken.
+Nothing deletes them, so a disputed order can be traced. `app/lib/stock-hold.ts`
+has the details, and `stock-hold.integration.test.ts` fires overlapping writes
+at a real MongoDB to prove only one buyer can win the last pair.
+
 ## Checks
 
 ```bash

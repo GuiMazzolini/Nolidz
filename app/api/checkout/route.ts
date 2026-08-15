@@ -11,11 +11,19 @@ import { MAX_CART_LINE_ITEMS } from "@/app/lib/schemas";
 import { enforceRateLimit, RATE_LIMITS } from "@/app/lib/rate-limit";
 import { checkoutSessionExpiresAt } from "@/app/lib/reservations";
 import {
+  attachSessionToHold,
+  holdStock,
+  releaseHold,
+  sweepExpiredHolds,
+} from "@/app/lib/stock-hold";
+import {
   attachQuantitiesToProducts,
+  describeCartLine,
   getCartStockError,
   parseGuestCheckoutItems,
   type CartItem,
 } from "@/app/lib/checkout-cart";
+import { randomUUID } from "crypto";
 
 export async function POST(req: NextRequest) {
   const limited = await enforceRateLimit(
@@ -69,11 +77,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Before anything reads stock. Holds from checkouts nobody paid for still
+  // own their sizes, so sweeping after the read would show this customer a
+  // sold-out message for stock that is about to come back on sale.
+  try {
+    await sweepExpiredHolds(db);
+  } catch (err) {
+    // A failed sweep must never stop a customer paying; the next one retries.
+    console.error("Expired-hold sweep failed:", err);
+  }
+
   const productIds = items.map((i) => i.productId);
   const productDocs = await products(db)
     .find({ id: { $in: productIds } })
     .toArray();
 
+  // A read-only pass, kept for the message it produces: it can say "only 2 of
+  // Runner (EU 42 · Black) left" and can catch a variant product with no size
+  // chosen. It is not what makes checkout safe — the hold below is. Two
+  // customers can both pass this check on the same last pair.
   const stockError = getCartStockError(items, productDocs);
   if (stockError) {
     return NextResponse.json({ error: stockError }, { status: 409 });
@@ -130,6 +152,32 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // From here the stock is ours. Every path out of this function either hands
+  // the customer a payable session or gives the stock back.
+  const reservationId = randomUUID();
+  const hold = await holdStock(db, {
+    reservationId,
+    lines: cartProducts.map((p) => ({
+      productId: p.id,
+      quantity: p.quantity,
+      ...(p.variantSku ? { variantSku: p.variantSku } : {}),
+    })),
+    userId: email,
+  });
+
+  if (!hold.ok) {
+    const label = describeCartLine(
+      productDocs.find((p) => p.id === hold.failed.productId),
+      hold.failed.variantSku
+    );
+    return NextResponse.json(
+      {
+        error: `${label} sold out while you were checking out. Please update your basket.`,
+      },
+      { status: 409 }
+    );
+  }
+
   let checkoutSession;
   try {
     checkoutSession = await stripe.checkout.sessions.create({
@@ -165,14 +213,15 @@ export async function POST(req: NextRequest) {
             ...(stripeCustomerId
               ? { customer: stripeCustomerId }
               : { customer_email: email }),
-            metadata: { userId: email, ...cartMetadata },
+            metadata: { userId: email, reservationId, ...cartMetadata },
           }
         : {
-            metadata: { isGuest: "true", ...cartMetadata },
+            metadata: { isGuest: "true", reservationId, ...cartMetadata },
           }),
     });
   } catch (err) {
     console.error("Stripe checkout session creation failed:", err);
+    await releaseHold(db, reservationId, "session-create-failed");
     return NextResponse.json(
       { error: "Payment provider is unavailable. Please try again." },
       { status: 502 }
@@ -180,8 +229,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (!checkoutSession.url) {
+    await releaseHold(db, reservationId, "session-unusable");
     return NextResponse.json({ error: "Could not create checkout session" }, { status: 500 });
   }
+
+  // Not what fulfillment keys on — that reads reservationId straight from the
+  // session metadata, so there is no window where a payment could arrive
+  // before this write lands. Stored for support and admin lookups.
+  await attachSessionToHold(db, reservationId, checkoutSession.id);
 
   return NextResponse.json({ url: checkoutSession.url });
 }

@@ -1,4 +1,4 @@
-import { fulfillCheckoutSession } from "@/app/lib/orders";
+import { fulfillCheckoutSession, releaseHoldForSession } from "@/app/lib/orders";
 import { getStripe } from "@/app/lib/stripe";
 import { NextResponse } from "next/server";
 
@@ -24,6 +24,13 @@ export async function POST(req: Request) {
 
   if (event.type === "checkout.session.completed") {
     await fulfillCheckoutSession(event.data.object.id);
+  } else if (
+    event.type === "checkout.session.expired" ||
+    event.type === "checkout.session.async_payment_failed"
+  ) {
+    // The stock this checkout was holding goes back on sale. The expiry sweep
+    // would catch it eventually; this returns it as soon as Stripe tells us.
+    await releaseHoldForSession(event.data.object, event.type);
   }
 
   return NextResponse.json({ received: true });
