@@ -196,7 +196,7 @@ describe("variant price", () => {
   });
 
   it("prices a single-SKU product from the product itself", () => {
-    expect(resolveLinePrice({ price: 14.99, stock: 4 })).toBe(14.99);
+    expect(resolveLinePrice({ price: 14.99 })).toBe(14.99);
     expect(colorwayPrice({ price: 14.99 }, null)).toBe(14.99);
   });
 });
