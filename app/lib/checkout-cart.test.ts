@@ -95,7 +95,7 @@ describe("stripe cart metadata round-trip", () => {
 
 describe("shipping", () => {
   it("applies free shipping at the threshold", () => {
-    expect(getShippingCost(49.99)).toBe(5);
-    expect(getShippingCost(50)).toBe(0);
+    expect(getShippingCost(99.99)).toBe(5);
+    expect(getShippingCost(100)).toBe(0);
   });
 });

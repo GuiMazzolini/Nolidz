@@ -125,6 +125,7 @@ describe("adminProductSchema", () => {
     imageUrl: "https://res.cloudinary.com/demo/image/upload/v1/hat.jpg",
     price: 24.99,
     stock: 10,
+    category: "men",
   };
 
   it("accepts a well-formed product", () => {
@@ -150,6 +151,7 @@ describe("product gallery", () => {
     imageUrl: "https://res.cloudinary.com/demo/image/upload/v1/hat.jpg",
     price: 24.99,
     stock: 10,
+    category: "men",
   };
 
   const photo = (n: number) =>

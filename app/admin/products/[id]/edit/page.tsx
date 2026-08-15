@@ -24,8 +24,10 @@ export default async function EditProductPage({
   if (!product) notFound();
 
   return (
-    <div>
-      <h2 className="mb-6 text-2xl font-bold text-gray-900">Edit {product.name}</h2>
+    <div className="mx-auto max-w-2xl">
+      <h2 className="font-display italic font-extrabold text-3xl text-ink tracking-tight mb-6 text-center">
+        Edit {product.name}
+      </h2>
       <ProductForm
         mode="edit"
         initial={{
@@ -38,6 +40,7 @@ export default async function EditProductPage({
           variants: serializeVariants(product.variants),
           colorImages: product.colorImages,
           images: product.images,
+          category: product.category,
         }}
       />
     </div>

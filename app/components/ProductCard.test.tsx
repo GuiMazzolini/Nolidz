@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
+import { formatMoney } from "@/app/lib/money";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -218,9 +219,9 @@ describe("previewing a sibling colourway", () => {
     const user = userEvent.setup();
     render(<ProductCard colorway={cardFor("Black")} />);
 
-    expect(screen.getByText("$89.99")).toBeVisible();
+    expect(screen.getByText(formatMoney(89.99))).toBeVisible();
     await user.hover(swatch("White"));
-    expect(screen.getByText("$109.99")).toBeVisible();
+    expect(screen.getByText(formatMoney(109.99))).toBeVisible();
   });
 
   it("carries the previewed colour into the links", async () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
@@ -83,30 +84,34 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-blue-50 to-white py-12 px-4">
+    <div className="min-h-screen bg-paper py-12 px-4">
       <div className="mx-auto w-full max-w-md">
         <div className="mb-8 text-center">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-blue-600 to-purple-600 text-white font-bold text-lg shadow-sm">
-              S
-            </span>
-            <span className="text-xl font-bold text-gray-900 tracking-tight">
-              Style<span className="text-blue-600">Shop</span>
+          <Link href="/" className="inline-flex items-center gap-3 mb-6">
+            <Image
+              src="/nolidz.jpeg"
+              alt="nolidz"
+              width={40}
+              height={40}
+              className="h-10 w-10 rounded-md object-cover border border-ink/10"
+            />
+            <span className="font-display italic font-extrabold text-2xl text-ink lowercase">
+              nolidz
             </span>
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-          <p className="mt-2 text-gray-600">{subtitle}</p>
+          <h1 className="font-display italic font-extrabold text-3xl text-ink">{title}</h1>
+          <p className="mt-2 text-ink/60">{subtitle}</p>
         </div>
 
-        <div className="rounded-2xl bg-white p-6 shadow-xl border border-gray-100">
-          <div className="mb-6 grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1">
+        <div className="border-2 border-ink/10 bg-white p-6">
+          <div className="mb-6 grid grid-cols-2 gap-1 bg-paper p-1">
             <button
               type="button"
               onClick={() => switchMode("login")}
-              className={`rounded-md py-2 text-sm font-semibold transition-colors ${
+              className={`py-2 text-sm font-semibold transition-colors ${
                 mode === "login"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
+                  ? "bg-white text-ink shadow-sm"
+                  : "text-ink/55 hover:text-ink"
               }`}
             >
               Log in
@@ -114,10 +119,10 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => switchMode("signup")}
-              className={`rounded-md py-2 text-sm font-semibold transition-colors ${
+              className={`py-2 text-sm font-semibold transition-colors ${
                 mode === "signup"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
+                  ? "bg-white text-ink shadow-sm"
+                  : "text-ink/55 hover:text-ink"
               }`}
             >
               Sign up
@@ -127,7 +132,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "signup" && (
               <div>
-                <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-gray-700">
+                <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-ink/70">
                   Name
                 </label>
                 <input
@@ -137,14 +142,14 @@ export default function LoginPage() {
                   autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="w-full border-2 border-ink/15 px-3 py-2.5 text-ink outline-none focus:border-cardboard"
                   placeholder="Your name"
                 />
               </div>
             )}
 
             <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-ink/70">
                 Email
               </label>
               <input
@@ -154,13 +159,13 @@ export default function LoginPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="w-full border-2 border-ink/15 px-3 py-2.5 text-ink outline-none focus:border-cardboard"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-ink/70">
                 Password
               </label>
               <input
@@ -171,13 +176,13 @@ export default function LoginPage() {
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="w-full border-2 border-ink/15 px-3 py-2.5 text-ink outline-none focus:border-cardboard"
                 placeholder={mode === "signup" ? "At least 8 characters" : "Your password"}
               />
             </div>
 
             {error && (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <p className="border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}
               </p>
             )}
@@ -185,38 +190,38 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full bg-ink py-3 text-sm font-semibold text-paper hover:bg-ink/85 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Please wait..." : mode === "login" ? "Log in" : "Create account"}
             </button>
           </form>
 
           <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-gray-200" />
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">or</span>
-            <div className="h-px flex-1 bg-gray-200" />
+            <div className="h-px flex-1 bg-ink/10" />
+            <span className="text-xs font-medium uppercase tracking-wide text-ink/40">or</span>
+            <div className="h-px flex-1 bg-ink/10" />
           </div>
 
           <div className="space-y-3">
             <button
               type="button"
               onClick={() => signIn("github", { callbackUrl })}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+              className="flex w-full items-center justify-center gap-2 border-2 border-ink/15 bg-white py-2.5 text-sm font-semibold text-ink hover:border-cardboard transition-colors"
             >
               Continue with GitHub
             </button>
             <button
               type="button"
               onClick={() => signIn("google", { callbackUrl })}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+              className="flex w-full items-center justify-center gap-2 border-2 border-ink/15 bg-white py-2.5 text-sm font-semibold text-ink hover:border-cardboard transition-colors"
             >
               Continue with Google
             </button>
           </div>
         </div>
 
-        <p className="mt-6 text-center text-sm text-gray-500">
-          <Link href="/products" className="font-medium text-blue-600 hover:text-blue-700">
+        <p className="mt-6 text-center text-sm text-ink/50">
+          <Link href="/products" className="font-medium text-cardboard-dark hover:text-ink">
             Continue shopping
           </Link>
           {" without an account"}

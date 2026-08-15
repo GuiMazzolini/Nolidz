@@ -22,7 +22,13 @@ export default async function AdminProductsPage() {
 
   return (
     <div>
-      <p className="mb-6 text-gray-600">
+      <p className="text-cardboard-dark font-display font-semibold uppercase tracking-[0.28em] text-sm mb-2">
+        Catalog
+      </p>
+      <h2 className="font-display italic font-extrabold text-3xl text-ink tracking-tight mb-2">
+        Products
+      </h2>
+      <p className="mb-6 text-ink/60">
         Manage catalog inventory, pricing, and product images.
       </p>
       <AdminProductsTable products={products} />

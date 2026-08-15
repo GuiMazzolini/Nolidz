@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { formatMoney } from "@/app/lib/money";
 import CartErrorBanner from "@/app/components/CartErrorBanner";
 import ProductGallery from "./ProductGallery";
 import { productGallery } from "@/app/lib/images";
@@ -40,7 +41,14 @@ export default function ProductDetail({
 
   const variants = useMemo(() => product.variants ?? [], [product.variants]);
   const isVariantProduct = hasVariants(product);
-  const colors = useMemo(() => listColors(variants), [variants]);
+  // Only colourways that still have at least one size to sell.
+  const colors = useMemo(
+    () =>
+      listColors(variants).filter((c) =>
+        variantsForColor(variants, c).some((v) => v.stock > 0)
+      ),
+    [variants]
+  );
 
   // Opens on the first colourway that has something to sell, so the common
   // case needs one click (a size) rather than two.
@@ -48,19 +56,16 @@ export default function ProductDetail({
     const requested = colors.find(
       (c) => c.trim().toLowerCase() === initialColor?.trim().toLowerCase()
     );
-    return (
-      requested ??
-      colors.find((c) =>
-        variantsForColor(variants, c).some((v) => v.stock > 0)
-      ) ??
-      colors[0] ??
-      ""
-    );
+    return requested ?? colors[0] ?? "";
   });
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
 
+  // Sold-out sizes stay off the grid — shoppers only see what they can buy.
   const sizesForColor = useMemo(
-    () => (color ? variantsForColor(variants, color) : []),
+    () =>
+      color
+        ? variantsForColor(variants, color).filter((v) => v.stock > 0)
+        : [],
     [variants, color]
   );
 
@@ -168,12 +173,12 @@ export default function ProductDetail({
         : "text-gray-600";
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-paper py-12">
       <div className="container mx-auto px-4 max-w-6xl">
         <CartErrorBanner />
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-white border-2 border-ink/10 overflow-hidden">
           <div className="flex flex-col lg:flex-row">
-            <div className="lg:w-1/2 p-8 bg-gray-100 flex items-center justify-center">
+            <div className="lg:w-1/2 p-8 bg-paper flex items-center justify-center">
               <ProductGallery
                 // Remounting on a colour change resets the gallery to that
                 // colourway's hero, rather than leaving a shopper on the third
@@ -186,92 +191,73 @@ export default function ProductDetail({
 
             <div className="lg:w-1/2 p-8 lg:p-12 flex flex-col justify-center">
               <div className="mb-6">
-                <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+                <h1 className="font-display italic font-extrabold text-4xl lg:text-5xl text-ink mb-4 tracking-tight">
                   {product.name}
                   {color && (
-                    <span className="font-normal text-gray-500"> – {color}</span>
+                    <span className="font-normal not-italic text-ink/50"> – {color}</span>
                   )}
                 </h1>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-blue-600">
-                    ${displayPrice.toFixed(2)}
+                  <span className="font-display italic text-4xl font-bold text-cardboard-dark">
+                    {formatMoney(displayPrice)}
                   </span>
-                  <span className="text-gray-500 text-sm">USD</span>
                 </div>
                 <p className={`mt-3 text-sm font-medium ${stockToneClass}`}>
                   {stockMessage()}
                 </p>
               </div>
 
-              {isVariantProduct && (
+              {isVariantProduct && colors.length > 0 && (
                 <div className="mb-8 space-y-6">
                   {colors.length > 1 && (
                     <div>
-                      <p className="mb-2 text-sm font-semibold text-gray-900">
+                      <p className="mb-2 text-sm font-semibold text-ink">
                         Colour:{" "}
-                        <span className="font-normal text-gray-600">{color}</span>
+                        <span className="font-normal text-ink/60">{color}</span>
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {colors.map((option) => {
-                          const soldOut = variantsForColor(variants, option).every(
-                            (v) => v.stock < 1
-                          );
-                          return (
-                            <button
-                              key={option}
-                              type="button"
-                              onClick={() => {
-                                setColor(option);
-                                // Sizes are per colourway; keeping the old SKU
-                                // would leave a size selected that this colour
-                                // may not even stock.
-                                setSelectedSku(null);
-                              }}
-                              className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                                option === color
-                                  ? "border-blue-600 bg-blue-50 text-blue-700"
-                                  : "border-gray-300 text-gray-700 hover:border-gray-400"
-                              } ${soldOut ? "opacity-50" : ""}`}
-                            >
-                              {option}
-                              {soldOut && (
-                                <span className="ml-1 text-xs text-gray-500">
-                                  (sold out)
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
+                        {colors.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => {
+                              setColor(option);
+                              // Sizes are per colourway; keeping the old SKU
+                              // would leave a size selected that this colour
+                              // may not even stock.
+                              setSelectedSku(null);
+                            }}
+                            className={`border-2 px-4 py-2 text-sm font-medium transition-colors ${
+                              option === color
+                                ? "border-ink bg-ink text-paper"
+                                : "border-ink/15 text-ink/80 hover:border-cardboard-dark"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   )}
 
                   <div>
-                    <p className="mb-2 text-sm font-semibold text-gray-900">
+                    <p className="mb-2 text-sm font-semibold text-ink">
                       {sizeHeading}
                     </p>
                     <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                       {sizesForColor.map((variant) => {
-                        const soldOut = variant.stock < 1;
                         const isSelected = variant.sku === selectedSku;
                         return (
                           <button
                             key={variant.sku}
                             type="button"
-                            disabled={soldOut}
                             aria-pressed={isSelected}
                             onClick={() => setSelectedSku(variant.sku)}
-                            title={
-                              soldOut
-                                ? "Sold out"
-                                : `${variant.stock} available`
-                            }
-                            className={`rounded-lg border py-2 text-sm font-medium transition-colors ${
+                            title={`${variant.stock} available`}
+                            className={`border-2 py-2 text-sm font-medium transition-colors ${
                               isSelected
-                                ? "border-blue-600 bg-blue-600 text-white"
-                                : soldOut
-                                  ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400 line-through"
-                                  : "border-gray-300 text-gray-800 hover:border-gray-500"
+                                ? "border-ink bg-ink text-paper"
+                                : "border-ink/15 text-ink hover:border-cardboard-dark"
                             }`}
                           >
                             {variant.size}
@@ -279,8 +265,8 @@ export default function ProductDetail({
                         );
                       })}
                     </div>
-                    {needsSelection && !outOfStock && (
-                      <p className="mt-2 text-sm text-gray-500">
+                    {needsSelection && (
+                      <p className="mt-2 text-sm text-ink/50">
                         Choose your size to add this to the cart.
                       </p>
                     )}
@@ -288,11 +274,11 @@ export default function ProductDetail({
                 </div>
               )}
 
-              <div className="border-t border-gray-200 pt-6 mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-3">
+              <div className="border-t-2 border-ink/10 pt-6 mb-8">
+                <h2 className="font-display italic font-bold text-xl text-ink mb-3">
                   Description
                 </h2>
-                <p className="text-gray-700 leading-relaxed text-lg">
+                <p className="text-ink/70 leading-relaxed text-lg">
                   {product.description}
                 </p>
               </div>
@@ -304,11 +290,11 @@ export default function ProductDetail({
                   disabled={
                     loading || (!inCart && (outOfStock || needsSelection || availableStock < 1))
                   }
-                  className={`flex-1 font-semibold py-4 px-8 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed
+                  className={`flex-1 font-semibold py-4 px-8 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed
                     ${
                       inCart
                         ? "bg-red-100 text-red-700 hover:bg-red-200"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
+                        : "bg-ink text-paper hover:bg-ink/85"
                     }`}
                 >
                   {loading
@@ -332,25 +318,25 @@ export default function ProductDetail({
                     needsSelection ||
                     availableStock < 1
                   }
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-4 px-8 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 border-2 border-ink/15 bg-white hover:border-cardboard-dark text-ink font-semibold py-4 px-8 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {buyingNow || checkoutLoading ? "Processing..." : "Buy Now"}
                 </button>
               </div>
 
-              <div className="mt-8 pt-8 border-t border-gray-200">
-                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+              <div className="mt-8 pt-8 border-t-2 border-ink/10">
+                <div className="grid grid-cols-2 gap-4 text-sm text-ink/60">
                   <div>
-                    <span className="block font-semibold text-gray-900">
+                    <span className="block font-semibold text-ink">
                       Free Shipping
                     </span>
-                    <span>On orders over $50</span>
+                    <span>On orders over €100</span>
                   </div>
                   <div>
-                    <span className="block font-semibold text-gray-900">
+                    <span className="block font-semibold text-ink">
                       Easy Returns
                     </span>
-                    <span>30-day return policy</span>
+                    <span>15-day return policy</span>
                   </div>
                 </div>
               </div>

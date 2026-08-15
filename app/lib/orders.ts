@@ -59,7 +59,7 @@ export function toOrder(doc: Record<string, unknown>): Order {
     subtotal: Number(doc.subtotal),
     shippingCost: Number(doc.shippingCost),
     total: Number(doc.total),
-    currency: String(doc.currency ?? "usd"),
+    currency: String(doc.currency ?? "eur"),
     shippingAddress: (doc.shippingAddress as ShippingAddress | null) ?? null,
     status,
     trackingNumber: doc.trackingNumber ? String(doc.trackingNumber) : null,
@@ -95,7 +95,7 @@ export function buildOrderFromStripeSession(
     subtotal: centsToDollars(session.amount_subtotal),
     shippingCost: centsToDollars(session.total_details?.amount_shipping),
     total: centsToDollars(session.amount_total),
-    currency: session.currency ?? "usd",
+    currency: session.currency ?? "eur",
     shippingAddress: shipping
       ? {
           name: shippingDetails?.name ?? null,

@@ -18,31 +18,33 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="border-b border-gray-200 bg-white">
+    <div className="min-h-screen bg-paper">
+      <div className="border-b-2 border-ink/10 bg-white">
         <div className="container mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+            <p className="text-xs font-display font-semibold uppercase tracking-[0.2em] text-cardboard-dark">
               Admin
             </p>
-            <h1 className="text-xl font-bold text-gray-900">Shop management</h1>
+            <h1 className="font-display italic font-extrabold text-xl text-ink tracking-tight">
+              Shop management
+            </h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/admin/orders"
-              className="text-sm font-medium text-gray-600 hover:text-gray-900"
+              className="text-sm font-medium text-ink/60 hover:text-ink"
             >
               Orders
             </Link>
             <Link
               href="/admin/products"
-              className="text-sm font-medium text-gray-600 hover:text-gray-900"
+              className="text-sm font-medium text-ink/60 hover:text-ink"
             >
               Products
             </Link>
             <Link
               href="/admin/products/new"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              className="bg-ink px-4 py-2 text-sm font-semibold text-paper hover:bg-ink/85"
             >
               Add product
             </Link>

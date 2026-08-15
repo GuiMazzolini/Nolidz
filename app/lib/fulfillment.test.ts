@@ -78,7 +78,7 @@ describe("fulfillCheckoutSession", () => {
       customer_email: null,
       amount_subtotal: 4000,
       amount_total: 4500,
-      currency: "usd",
+      currency: "eur",
       total_details: { amount_shipping: 500 },
       collected_information: null,
       line_items: {

@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import AuthButton from "./AuthButton";
 import CartButton from "./CartButton";
 
@@ -22,10 +23,10 @@ function NavLink({
   return (
     <Link
       href={href}
-      className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+      className={`block px-3 py-2 text-sm font-medium transition-colors ${
         active
-          ? "text-cardboard bg-white/10"
-          : "text-white/70 hover:text-white hover:bg-white/10"
+          ? "text-cardboard-dark bg-cardboard/25"
+          : "text-ink/65 hover:text-ink hover:bg-ink/5"
       }`}
     >
       {label}
@@ -33,13 +34,45 @@ function NavLink({
   );
 }
 
-export default function NavBar() {
+function NavLinks() {
   const pathname = usePathname();
-  const shopActive =
-    pathname === "/products" || pathname.startsWith("/products/");
+  const searchParams = useSearchParams();
+  const category = searchParams.get("category");
+  const onShop = pathname === "/products";
 
   return (
-    <nav className="sticky top-0 z-50 bg-ink/90 backdrop-blur-md border-b border-white/10">
+    <div className="flex items-center gap-0.5 sm:gap-1">
+      <NavLink
+        href="/products?category=women"
+        label="Women"
+        active={onShop && category === "women"}
+      />
+      <NavLink
+        href="/products?category=men"
+        label="Men"
+        active={onShop && category === "men"}
+      />
+      <NavLink
+        href="/products?category=kids"
+        label="Kids"
+        active={onShop && category === "kids"}
+      />
+      <span className="hidden sm:block mx-1 h-4 w-px bg-ink/15" aria-hidden />
+      <NavLink
+        href="/products"
+        label="All"
+        active={onShop && !category}
+      />
+      <CartButton active={pathname === "/cart"} />
+    </div>
+  );
+}
+
+export default function NavBar() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="sticky top-0 z-50 bg-paper/90 backdrop-blur-md border-b-2 border-ink/10">
       <div className="container mx-auto px-4 h-[4.5rem] flex items-center justify-between gap-3 sm:gap-4">
         <Link href="/" className="flex items-center gap-3 group shrink-0">
           <Image
@@ -47,18 +80,24 @@ export default function NavBar() {
             alt="nolidz"
             width={48}
             height={48}
-            className="h-12 w-12 rounded-md object-cover"
+            className="h-12 w-12 rounded-md object-cover border border-ink/10"
             priority
           />
-          <span className="hidden sm:inline font-display italic font-extrabold text-2xl tracking-tight text-white lowercase">
+          <span className="hidden sm:inline font-display italic font-extrabold text-2xl tracking-tight text-ink lowercase">
             nolidz
           </span>
         </Link>
 
-        <div className="flex items-center gap-1">
-          <NavLink href="/products" label="Shop" active={shopActive} />
-          <CartButton active={pathname === "/cart"} />
-        </div>
+        <Suspense
+          fallback={
+            <div className="flex items-center gap-1">
+              <div className="h-9 w-40 bg-ink/5 animate-pulse" />
+              <CartButton active={pathname === "/cart"} />
+            </div>
+          }
+        >
+          <NavLinks />
+        </Suspense>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Remounting on navigation is what closes the account menu. */}

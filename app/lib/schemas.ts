@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_CART_QUANTITY } from "@/app/lib/cart-limits";
+import { PRODUCT_CATEGORIES } from "@/app/lib/categories";
 import { MAX_PRODUCT_IMAGES } from "@/app/lib/images";
 import {
   MAX_PRODUCT_VARIANTS,
@@ -189,6 +190,8 @@ export const productImagesSchema = z
   .array(z.url().max(2000))
   .max(MAX_PRODUCT_IMAGES);
 
+export const productCategorySchema = z.enum(PRODUCT_CATEGORIES);
+
 export const adminProductCreateSchema = z
   .object({
     id: productIdSchema.optional(),
@@ -196,6 +199,7 @@ export const adminProductCreateSchema = z
     description: z.string().trim().min(1).max(5000),
     imageUrl: z.url().max(2000),
     price: z.number().finite().nonnegative().max(1_000_000),
+    category: productCategorySchema,
     // Optional because a product with variants derives its total from them.
     stock: z.number().int().nonnegative().max(1_000_000).optional(),
     variants: productVariantsSchema.optional(),
@@ -214,6 +218,7 @@ export const adminProductUpdateSchema = z
     description: z.string().trim().min(1).max(5000),
     imageUrl: z.url().max(2000),
     price: z.number().finite().nonnegative().max(1_000_000),
+    category: productCategorySchema,
     stock: z.number().int().nonnegative().max(1_000_000),
     // An empty array clears the variants and returns the product to a single SKU.
     variants: productVariantsSchema,

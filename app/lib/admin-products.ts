@@ -21,6 +21,7 @@ export function serializeAdminProduct(doc: ProductDoc, held?: HeldStock) {
     description: doc.description,
     imageUrl: doc.imageUrl,
     stock: getAvailableStock(doc.stock) + (held?.total ?? 0),
+    category: doc.category,
     variants:
       variants?.map((variant) => ({
         ...variant,

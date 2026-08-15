@@ -12,6 +12,7 @@ import {
   sendOrderConfirmationEmail,
   sendShippingNotificationEmail,
 } from "@/app/lib/email";
+import { formatMoney } from "@/app/lib/money";
 import type { Order } from "@/app/lib/orders";
 
 const order: Order = {
@@ -25,7 +26,7 @@ const order: Order = {
   subtotal: 194.97,
   shippingCost: 0,
   total: 194.97,
-  currency: "usd",
+  currency: "eur",
   shippingAddress: {
     name: "Buyer",
     line1: "1 Main St",
@@ -65,8 +66,8 @@ describe("order confirmation email", () => {
     const email = sentEmail();
     expect(email.to).toBe("buyer@example.com");
     expect(email.html).toContain("Runner — EU 42 · Black");
-    expect(email.html).toContain("$179.98");
-    expect(email.subject).toContain("$194.97");
+    expect(email.html).toContain(formatMoney(179.98));
+    expect(email.subject).toContain(formatMoney(194.97));
   });
 
   it("includes the shipping address when there is one", async () => {

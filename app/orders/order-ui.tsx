@@ -1,7 +1,8 @@
 import type { Order, OrderItem, ShippingAddress } from "@/app/lib/orders";
+import { formatMoney } from "@/app/lib/money";
 
 export function formatOrderDate(date: Date | string): string {
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("de-DE", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(date));
@@ -30,7 +31,7 @@ export function OrderItems({ order }: { order: Order }) {
             {item.name} <span className="text-gray-500">× {item.quantity}</span>
           </span>
           <span className="font-medium text-gray-900">
-            ${(item.unitAmount * item.quantity).toFixed(2)}
+            {formatMoney(item.unitAmount * item.quantity)}
           </span>
         </li>
       ))}
@@ -43,17 +44,17 @@ export function OrderTotals({ order }: { order: Order }) {
     <div className="border-t border-gray-100 pt-4 space-y-1 text-sm text-gray-600">
       <div className="flex justify-between">
         <span>Subtotal</span>
-        <span>${order.subtotal.toFixed(2)}</span>
+        <span>{formatMoney(order.subtotal)}</span>
       </div>
       <div className="flex justify-between">
         <span>Shipping</span>
         <span>
-          {order.shippingCost === 0 ? "FREE" : `$${order.shippingCost.toFixed(2)}`}
+          {order.shippingCost === 0 ? "FREE" : formatMoney(order.shippingCost)}
         </span>
       </div>
       <div className="flex justify-between pt-2 text-base font-semibold text-gray-900">
         <span>Total</span>
-        <span>${order.total.toFixed(2)}</span>
+        <span>{formatMoney(order.total)}</span>
       </div>
     </div>
   );

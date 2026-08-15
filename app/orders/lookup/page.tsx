@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { formatMoney } from "@/app/lib/money";
 import Link from "next/link";
 import { getAccessibleOrder } from "@/app/lib/orders";
 import {
@@ -38,7 +39,7 @@ export default async function GuestOrderLookupPage({ searchParams }: Props) {
       : null;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-paper py-12">
       <div className="container mx-auto px-4 max-w-3xl space-y-8">
         <div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
@@ -114,7 +115,7 @@ export default async function GuestOrderLookupPage({ searchParams }: Props) {
               <div className="text-right">
                 <p className="text-sm text-gray-500">Total</p>
                 <p className="text-xl font-bold text-blue-600">
-                  ${result.total.toFixed(2)}
+                  {formatMoney(result.total)}
                 </p>
               </div>
             </div>

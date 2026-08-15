@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { formatMoney } from "@/app/lib/money";
 import Link from "next/link";
 import { getAllOrders } from "@/app/lib/orders";
 import { formatOrderDate } from "@/app/orders/order-ui";
@@ -16,7 +17,13 @@ export default async function AdminOrdersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-gray-600">
+        <p className="text-cardboard-dark font-display font-semibold uppercase tracking-[0.28em] text-sm mb-2">
+          Fulfillment
+        </p>
+        <h2 className="font-display italic font-extrabold text-3xl text-ink tracking-tight mb-2">
+          Orders
+        </h2>
+        <p className="text-ink/60">
           {orders.length} order{orders.length === 1 ? "" : "s"}
           {awaitingShipment > 0
             ? ` · ${awaitingShipment} awaiting shipment`
@@ -27,7 +34,7 @@ export default async function AdminOrdersPage() {
       </div>
 
       {orders.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-500">
+        <div className="border-2 border-dashed border-ink/20 bg-white p-10 text-center text-ink/45">
           No orders yet. Complete a test checkout to see fulfillment here.
         </div>
       ) : (
@@ -35,34 +42,34 @@ export default async function AdminOrdersPage() {
           {orders.map((order) => (
             <article
               key={order.stripeSessionId}
-              className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+              className="overflow-hidden border-2 border-ink/10 bg-white"
             >
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 bg-gray-50 px-5 py-4">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b-2 border-ink/10 bg-paper px-5 py-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={
                         order.status === "shipped"
-                          ? "rounded-md bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800"
-                          : "rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
+                          ? "bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800"
+                          : "bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900"
                       }
                     >
                       {order.status === "shipped" ? "Shipped" : "Paid — pack & ship"}
                     </span>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-ink/45">
                       {formatOrderDate(order.createdAt)}
                     </p>
                   </div>
-                  <p className="mt-1 font-medium text-gray-900">
+                  <p className="mt-1 font-medium text-ink">
                     {order.customerEmail ?? order.userId}
                   </p>
-                  <p className="font-mono text-xs text-gray-500">
+                  <p className="font-mono text-xs text-ink/45">
                     {order.stripeSessionId}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-blue-600">
-                    ${order.total.toFixed(2)}
+                  <p className="font-display italic text-lg font-bold text-cardboard-dark">
+                    {formatMoney(order.total)}
                   </p>
                   <Link
                     href={`/orders/${encodeURIComponent(order.stripeSessionId)}${
@@ -70,7 +77,7 @@ export default async function AdminOrdersPage() {
                         ? `?email=${encodeURIComponent(order.customerEmail)}`
                         : ""
                     }`}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                    className="text-sm font-medium text-cardboard-dark hover:text-ink"
                   >
                     Customer view
                   </Link>
@@ -79,8 +86,8 @@ export default async function AdminOrdersPage() {
 
               <div className="grid gap-5 px-5 py-4 lg:grid-cols-2">
                 <div>
-                  <p className="mb-2 text-sm font-semibold text-gray-900">Items</p>
-                  <ul className="space-y-1 text-sm text-gray-700">
+                  <p className="mb-2 text-sm font-semibold text-ink">Items</p>
+                  <ul className="space-y-1 text-sm text-ink/75">
                     {order.items.map((item, i) => (
                       <li key={`${order.stripeSessionId}-${i}`}>
                         {item.name} × {item.quantity}
@@ -89,10 +96,10 @@ export default async function AdminOrdersPage() {
                   </ul>
                   {order.shippingAddress && (
                     <div className="mt-4">
-                      <p className="mb-1 text-sm font-semibold text-gray-900">
+                      <p className="mb-1 text-sm font-semibold text-ink">
                         Ship to
                       </p>
-                      <p className="text-sm text-gray-600 whitespace-pre-line">
+                      <p className="text-sm text-ink/60 whitespace-pre-line">
                         {[
                           order.shippingAddress.name,
                           order.shippingAddress.line1,
@@ -112,7 +119,7 @@ export default async function AdminOrdersPage() {
                     </div>
                   )}
                   {order.status === "shipped" && order.trackingNumber && (
-                    <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
+                    <div className="mt-4 border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
                       <p className="font-semibold">
                         Tracking: {order.trackingNumber}
                       </p>

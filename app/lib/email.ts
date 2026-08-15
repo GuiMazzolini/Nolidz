@@ -1,13 +1,7 @@
 import { Resend } from "resend";
 import type { Order } from "@/app/lib/orders";
+import { formatMoney } from "@/app/lib/money";
 import { getAppUrl } from "@/app/lib/stripe";
-
-function formatMoney(amount: number, currency: string) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-  }).format(amount);
-}
 
 function formatAddress(order: Order): string | null {
   const a = order.shippingAddress;

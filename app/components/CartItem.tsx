@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatMoney } from "@/app/lib/money";
 import Image from "next/image";
 import { Product } from "../product-data";
 import { MAX_CART_QUANTITY } from "../lib/cart-limits";
@@ -24,11 +25,11 @@ export default function CartItem({ product }: CartItemProps) {
   const atLimit = quantity >= Math.min(MAX_CART_QUANTITY, stock);
 
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+    <div className="bg-white border-2 border-ink/10 overflow-hidden hover:border-cardboard transition-colors">
       <div className="flex flex-col sm:flex-row">
         <Link
           href={`/products/${product.id}`}
-          className="sm:w-48 h-48 sm:h-auto relative bg-gray-100 shrink-0"
+          className="sm:w-48 h-48 sm:h-auto relative bg-paper shrink-0"
         >
           <Image
             src={getImageSrc(product.imageUrl)}
@@ -42,18 +43,18 @@ export default function CartItem({ product }: CartItemProps) {
         <div className="flex-1 p-6 flex flex-col justify-between">
           <div>
             <Link href={`/products/${product.id}`} className="block">
-              <h3 className="text-xl font-semibold text-gray-900 hover:text-blue-600 transition-colors mb-2">
+              <h3 className="text-xl font-semibold text-ink hover:text-cardboard-dark transition-colors mb-2">
                 {product.name}
               </h3>
             </Link>
 
             {label && (
-              <p className="mb-2 inline-block rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+              <p className="mb-2 inline-block bg-paper px-2 py-1 text-xs font-medium text-ink/70">
                 {label}
               </p>
             )}
 
-            <p className="text-gray-600 text-sm line-clamp-2 mb-2">
+            <p className="text-ink/60 text-sm line-clamp-2 mb-2">
               {product.description}
             </p>
             {typeof product.stock === "number" && (
@@ -63,7 +64,7 @@ export default function CartItem({ product }: CartItemProps) {
                     ? "text-red-600"
                     : quantity > product.stock
                       ? "text-amber-600"
-                      : "text-gray-500"
+                      : "text-ink/45"
                 }`}
               >
                 {product.stock < 1
@@ -74,18 +75,18 @@ export default function CartItem({ product }: CartItemProps) {
           </div>
 
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="text-2xl font-bold text-blue-600">
-              ${(product.price * quantity).toFixed(2)}
+            <div className="font-display italic text-2xl font-bold text-cardboard-dark">
+              {formatMoney(product.price * quantity)}
 
               {quantity > 1 && (
-                <span className="text-sm text-gray-500 ml-2">
-                  (${product.price.toFixed(2)} each)
+                <span className="text-sm text-ink/45 ml-2 not-italic font-sans font-normal">
+                  ({formatMoney(product.price)} each)
                 </span>
               )}
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="flex items-center border border-gray-300 rounded-lg">
+              <div className="flex items-center border-2 border-ink/15">
                 {quantity <= 1 ? (
                   <button
                     onClick={() => removeFromCart(product.id, sku)}
@@ -112,7 +113,7 @@ export default function CartItem({ product }: CartItemProps) {
                     onClick={() => updateQuantity(product.id, quantity - 1, sku)}
                     disabled={loading}
                     aria-label="Decrease quantity"
-                    className="px-3 py-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-3 py-2 hover:bg-paper disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     −
                   </button>
@@ -126,7 +127,7 @@ export default function CartItem({ product }: CartItemProps) {
                   onClick={() => updateQuantity(product.id, quantity + 1, sku)}
                   disabled={loading || atLimit}
                   aria-label="Increase quantity"
-                  className="px-3 py-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-2 hover:bg-paper disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   +
                 </button>

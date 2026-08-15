@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+}));
 
 import ProductsList from "@/app/components/ProductsList";
 import { useCartStore } from "@/app/lib/store/cartStore";
@@ -83,13 +87,12 @@ describe("the catalog grid", () => {
 
     expect(headings()).toEqual([
       "Mug",
-      "Pins",
       "Runner – Black",
       "Trail – Olive",
       "Runner – White",
       "Trail – Grey",
     ]);
-    expect(screen.getByText("6 of 6 items")).toBeVisible();
+    expect(screen.getByText("5 of 5 items")).toBeVisible();
   });
 
   it("filters on name and description", async () => {
@@ -99,7 +102,7 @@ describe("the catalog grid", () => {
     await user.type(screen.getByRole("searchbox"), "ceramic");
 
     expect(headings()).toEqual(["Mug"]);
-    expect(screen.getByText("1 of 6 items")).toBeVisible();
+    expect(screen.getByText("1 of 5 items")).toBeVisible();
   });
 
   /** Searching a colour returns that pair, not every colourway of the shoe. */
@@ -120,7 +123,7 @@ describe("the catalog grid", () => {
     expect(screen.getByText("No products match")).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Reset filters" }));
-    expect(headings()).toHaveLength(6);
+    expect(headings()).toHaveLength(5);
   });
 
   it("sorts by price, still spreading a shoe's colourways", async () => {
@@ -129,7 +132,6 @@ describe("the catalog grid", () => {
 
     await user.selectOptions(screen.getByRole("combobox"), "price-asc");
     expect(headings()).toEqual([
-      "Pins",
       "Mug",
       "Runner – Black",
       "Trail – Olive",
@@ -144,7 +146,6 @@ describe("the catalog grid", () => {
       "Runner – White",
       "Trail – Grey",
       "Mug",
-      "Pins",
     ]);
   });
 
@@ -160,7 +161,6 @@ describe("the catalog grid", () => {
       "Runner – Black",
       "Runner – White",
       "Trail – Grey",
-      "Pins",
     ]);
   });
 
@@ -176,13 +176,18 @@ describe("the catalog grid", () => {
 
     await user.selectOptions(screen.getByRole("combobox"), "price-asc");
     expect(headings()).toEqual([
-      "Pins",
       "Mug",
       "Runner – Black",
       "Trail – Olive",
       "Trail – Grey",
       "Runner – White",
     ]);
+  });
+
+  it("hides fully sold-out products from the grid", () => {
+    render(<ProductsList products={catalog} />);
+
+    expect(screen.queryByRole("heading", { name: "Pins" })).toBeNull();
   });
 
   it("surfaces a cart error above the grid", () => {

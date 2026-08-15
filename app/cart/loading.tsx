@@ -2,7 +2,7 @@ import { Skeleton } from "../components/Skeleton";
 
 export default function CartLoading() {
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-paper py-12">
       <div className="container mx-auto px-4 max-w-6xl">
         <Skeleton className="h-10 w-56 mb-8" />
 

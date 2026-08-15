@@ -8,8 +8,10 @@ export const metadata: Metadata = {
 
 export default function NewProductPage() {
   return (
-    <div>
-      <h2 className="mb-6 text-2xl font-bold text-gray-900">Add product</h2>
+    <div className="mx-auto max-w-2xl">
+      <h2 className="font-display italic font-extrabold text-3xl text-ink tracking-tight mb-6 text-center">
+        Add product
+      </h2>
       <ProductForm mode="create" />
     </div>
   );

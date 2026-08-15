@@ -64,18 +64,18 @@ export default function ShipOrderForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-      <p className="text-sm font-semibold text-gray-900">
+    <form onSubmit={onSubmit} className="space-y-3 border-2 border-ink/10 bg-paper p-4">
+      <p className="text-sm font-semibold text-ink">
         {alreadyShipped ? "Update shipment" : "Mark as shipped"}
       </p>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-ink/50">
         After you drop the parcel at DHL (or another carrier), paste the tracking
         number here.
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm">
-          <span className="mb-1 block font-medium text-gray-700">
+          <span className="mb-1 block font-medium text-ink/70">
             Tracking number
           </span>
           <input
@@ -83,12 +83,12 @@ export default function ShipOrderForm({
             onChange={(e) => setTrackingNumber(e.target.value)}
             required
             placeholder="e.g. JD014600003456789012"
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            className="w-full border-2 border-ink/15 bg-white px-3 py-2 text-sm outline-none focus:border-cardboard"
           />
         </label>
 
         <label className="block text-sm">
-          <span className="mb-1 block font-medium text-gray-700">
+          <span className="mb-1 block font-medium text-ink/70">
             Carrier (optional)
           </span>
           <input
@@ -96,7 +96,7 @@ export default function ShipOrderForm({
             value={carrier}
             onChange={(e) => setCarrier(e.target.value)}
             placeholder="DHL, CTT…"
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            className="w-full border-2 border-ink/15 bg-white px-3 py-2 text-sm outline-none focus:border-cardboard"
           />
           <datalist id={`carriers-${sessionId}`}>
             {CARRIER_SUGGESTIONS.map((name) => (
@@ -106,23 +106,23 @@ export default function ShipOrderForm({
         </label>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-gray-700">
+      <label className="flex items-center gap-2 text-sm text-ink/75">
         <input
           type="checkbox"
           checked={sendEmail}
           onChange={(e) => setSendEmail(e.target.checked)}
-          className="rounded border-gray-300"
+          className="border-ink/30"
         />
         Email the customer with tracking details
       </label>
 
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+        <p className="border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
           {error}
         </p>
       )}
       {success && (
-        <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <p className="border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
           {success}
         </p>
       )}
@@ -130,7 +130,7 @@ export default function ShipOrderForm({
       <button
         type="submit"
         disabled={loading || !trackingNumber.trim()}
-        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+        className="bg-ink px-4 py-2 text-sm font-semibold text-paper hover:bg-ink/85 disabled:opacity-60"
       >
         {loading
           ? "Saving…"

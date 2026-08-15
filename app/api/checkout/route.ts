@@ -3,6 +3,7 @@ import { authOptions } from "@/app/lib/auth";
 import { carts, products, users } from "@/app/lib/db-collections";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
+import { STORE_CURRENCY } from "@/app/lib/money";
 import { getAppUrl, getStripe } from "@/app/lib/stripe";
 import { getShippingCost } from "@/app/lib/shipping";
 import { buildCartMetadata } from "@/app/lib/cart-metadata";
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
     return {
       quantity: p.quantity,
       price_data: {
-        currency: "usd",
+        currency: STORE_CURRENCY,
         unit_amount: Math.round(p.price * 100),
         product_data: {
           // The size and colour ride along in the name, so they appear on the
@@ -203,7 +204,7 @@ export async function POST(req: NextRequest) {
       mode: "payment",
       line_items,
       shipping_address_collection: {
-        allowed_countries: ["US", "CA", "GB", "BR", "PT", "DE", "FR", "ES", "IT", "NL"],
+        allowed_countries: ["DE", "AT", "CH", "NL", "BE", "FR", "LU", "PL", "CZ", "DK"],
       },
       shipping_options: [
         {
@@ -212,7 +213,7 @@ export async function POST(req: NextRequest) {
             display_name: shippingCost === 0 ? "Free shipping" : "Standard shipping",
             fixed_amount: {
               amount: Math.round(shippingCost * 100),
-              currency: "usd",
+              currency: STORE_CURRENCY,
             },
           },
         },

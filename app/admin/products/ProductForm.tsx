@@ -2,6 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
+import {
+  CATEGORY_LABELS,
+  PRODUCT_CATEGORIES,
+  type ProductCategory,
+} from "@/app/lib/categories";
 import { MAX_PRODUCT_IMAGES } from "@/app/lib/images";
 import {
   EU_SIZES,
@@ -19,6 +24,7 @@ export type ProductFormValues = {
   imageUrl: string;
   price: number;
   stock: number;
+  category?: ProductCategory;
   variants?: ProductVariant[];
   colorImages?: ColorImage[];
   images?: string[];
@@ -77,6 +83,9 @@ export default function ProductForm({
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [price, setPrice] = useState(initial?.price?.toString() ?? "");
   const [stock, setStock] = useState(initial?.stock?.toString() ?? "10");
+  const [category, setCategory] = useState<ProductCategory>(
+    initial?.category ?? "men"
+  );
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
@@ -376,6 +385,7 @@ export default function ProductForm({
       description: description.trim(),
       imageUrl: imageUrl.trim(),
       price: Number(price),
+      category,
       // Always sent: an empty array is how editing clears an existing gallery.
       images: filledGallery,
       ...(useVariants
@@ -436,11 +446,11 @@ export default function ProductForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="max-w-2xl space-y-5 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+      className="mx-auto max-w-2xl space-y-5 border-2 border-ink/10 bg-white p-6"
       noValidate
     >
       <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
+        <label htmlFor="name" className="mb-1 block text-sm font-medium text-ink/80">
           Name
         </label>
         <input
@@ -452,8 +462,8 @@ export default function ProductForm({
           }}
           required
           aria-invalid={!!fieldErrors.name}
-          className={`w-full rounded-lg border px-3 py-2 ${
-            fieldErrors.name ? "border-red-400" : "border-gray-300"
+          className={`w-full border-2 px-3 py-2 ${
+            fieldErrors.name ? "border-red-400" : "border-ink/15"
           }`}
         />
         {fieldErrors.name && (
@@ -463,7 +473,7 @@ export default function ProductForm({
 
       {mode === "create" && (
         <div>
-          <label htmlFor="id" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="id" className="mb-1 block text-sm font-medium text-ink/80">
             ID (optional)
           </label>
           <input
@@ -471,15 +481,37 @@ export default function ProductForm({
             value={id}
             onChange={(e) => setId(e.target.value)}
             placeholder="Auto-generated from name if empty"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            className="w-full border-2 border-ink/15 px-3 py-2"
           />
         </div>
       )}
 
       <div>
+        <span className="mb-1 block text-sm font-medium text-ink/80">
+          Category
+        </span>
+        <div className="grid grid-cols-3 gap-2">
+          {PRODUCT_CATEGORIES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setCategory(option)}
+              className={`border-2 py-2 text-sm font-semibold transition-colors ${
+                category === option
+                  ? "border-ink bg-ink text-paper"
+                  : "border-ink/15 text-ink/80 hover:border-cardboard-dark"
+              }`}
+            >
+              {CATEGORY_LABELS[option]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
         <label
           htmlFor="description"
-          className="mb-1 block text-sm font-medium text-gray-700"
+          className="mb-1 block text-sm font-medium text-ink/80"
         >
           Description
         </label>
@@ -493,8 +525,8 @@ export default function ProductForm({
           required
           rows={4}
           aria-invalid={!!fieldErrors.description}
-          className={`w-full rounded-lg border px-3 py-2 ${
-            fieldErrors.description ? "border-red-400" : "border-gray-300"
+          className={`w-full border-2 px-3 py-2 ${
+            fieldErrors.description ? "border-red-400" : "border-ink/15"
           }`}
         />
         {fieldErrors.description && (
@@ -505,7 +537,7 @@ export default function ProductForm({
       <div>
         <label
           htmlFor="imageUrl"
-          className="mb-1 block text-sm font-medium text-gray-700"
+          className="mb-1 block text-sm font-medium text-ink/80"
         >
           Product image
         </label>
@@ -520,12 +552,12 @@ export default function ProductForm({
           required
           placeholder="https://res.cloudinary.com/…"
           aria-invalid={!!fieldErrors.imageUrl}
-          className={`w-full rounded-lg border px-3 py-2 ${
-            fieldErrors.imageUrl ? "border-red-400" : "border-gray-300"
+          className={`w-full border-2 px-3 py-2 ${
+            fieldErrors.imageUrl ? "border-red-400" : "border-ink/15"
           }`}
         />
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+          <label className="inline-flex cursor-pointer items-center justify-center border-2 border-ink/15 bg-white px-4 py-2 text-sm font-medium text-ink/80 hover:bg-paper">
             {uploading ? "Uploading…" : "Upload image"}
             <input
               type="file"
@@ -541,7 +573,7 @@ export default function ProductForm({
               }}
             />
           </label>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ink/45">
             Upload to Cloudinary, or paste a Cloudinary URL.
           </p>
         </div>
@@ -549,7 +581,7 @@ export default function ProductForm({
           <p className="mt-1 text-sm text-red-600">{fieldErrors.imageUrl}</p>
         )}
 
-        <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
+        <div className="mt-4 border-2 border-ink/10 bg-paper p-3">
           {previewSrc ? (
             <div className="flex items-center gap-4">
               {/* eslint-disable-next-line @next/next/no-img-element -- admin preview of arbitrary remote URLs */}
@@ -557,13 +589,13 @@ export default function ProductForm({
                 key={previewSrc}
                 src={previewSrc}
                 alt={name || "Product preview"}
-                className="h-28 w-28 shrink-0 rounded-lg object-cover bg-white ring-1 ring-gray-200"
+                className="h-28 w-28 shrink-0 object-cover bg-white ring-1 ring-ink/10"
                 onError={() => setPreviewBroken(true)}
                 onLoad={() => setPreviewBroken(false)}
               />
               <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-900">Image preview</p>
-                <p className="mt-1 truncate text-xs text-gray-500">{imageUrl}</p>
+                <p className="text-sm font-medium text-ink">Image preview</p>
+                <p className="mt-1 truncate text-xs text-ink/45">{imageUrl}</p>
                 {previewBroken && (
                   <p className="mt-2 text-sm text-red-600">
                     Couldn’t load this image — check the URL.
@@ -572,18 +604,18 @@ export default function ProductForm({
               </div>
             </div>
           ) : (
-            <div className="flex h-28 items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white text-sm text-gray-500">
+            <div className="flex h-28 items-center justify-center border border-dashed border-ink/20 bg-white text-sm text-ink/45">
               No image yet — upload one to see a preview
             </div>
           )}
         </div>
       </div>
 
-      <fieldset className="rounded-xl border border-gray-200 p-4">
-        <legend className="px-1 text-sm font-medium text-gray-700">
+      <fieldset className="border-2 border-ink/10 p-4">
+        <legend className="px-1 text-sm font-medium text-ink/80">
           More photos
         </legend>
-        <p className="mb-3 text-xs text-gray-500">
+        <p className="mb-3 text-xs text-ink/45">
           Up to {MAX_PRODUCT_IMAGES} extra shots — profile, three-quarter, sole,
           detail. Shown after the main image, in this order.
         </p>
@@ -592,7 +624,7 @@ export default function ProductForm({
           <div className="mb-3 space-y-2">
             {galleryImages.map((url, index) => (
               <div key={index} className="flex items-center gap-3">
-                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden border border-ink/10 bg-paper">
                   {url.trim().startsWith("http") && (
                     /* eslint-disable-next-line @next/next/no-img-element -- admin preview of arbitrary remote URLs */
                     <img src={url.trim()} alt="" className="h-full w-full object-cover" />
@@ -604,10 +636,10 @@ export default function ProductForm({
                   onChange={(e) => updateGalleryImage(index, e.target.value)}
                   placeholder="https://res.cloudinary.com/…"
                   aria-label={`Extra photo ${index + 1} URL`}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                  className="w-full border-2 border-ink/15 px-3 py-1.5 text-sm"
                 />
 
-                <label className="shrink-0 cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                <label className="shrink-0 cursor-pointer border-2 border-ink/15 px-3 py-1.5 text-xs font-medium text-ink/80 hover:bg-paper">
                   Upload
                   <input
                     type="file"
@@ -633,7 +665,7 @@ export default function ProductForm({
                   onClick={() => moveGalleryImage(index, -1)}
                   disabled={index === 0}
                   aria-label={`Move photo ${index + 1} up`}
-                  className="shrink-0 rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                  className="shrink-0 border-2 border-ink/15 px-2 py-1.5 text-xs text-ink/80 hover:bg-paper disabled:opacity-40"
                 >
                   ↑
                 </button>
@@ -642,7 +674,7 @@ export default function ProductForm({
                   onClick={() => moveGalleryImage(index, 1)}
                   disabled={index === galleryImages.length - 1}
                   aria-label={`Move photo ${index + 1} down`}
-                  className="shrink-0 rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                  className="shrink-0 border-2 border-ink/15 px-2 py-1.5 text-xs text-ink/80 hover:bg-paper disabled:opacity-40"
                 >
                   ↓
                 </button>
@@ -662,7 +694,7 @@ export default function ProductForm({
           type="button"
           onClick={addGallerySlot}
           disabled={galleryImages.length >= MAX_PRODUCT_IMAGES}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+          className="border-2 border-ink/15 px-3 py-2 text-sm font-medium text-ink/80 hover:bg-paper disabled:opacity-40"
         >
           Add photo
         </button>
@@ -674,8 +706,8 @@ export default function ProductForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="price" className="mb-1 block text-sm font-medium text-gray-700">
-            Price (USD)
+          <label htmlFor="price" className="mb-1 block text-sm font-medium text-ink/80">
+            Price (EUR)
           </label>
           <input
             id="price"
@@ -689,25 +721,25 @@ export default function ProductForm({
             }}
             required
             aria-invalid={!!fieldErrors.price}
-            className={`w-full rounded-lg border px-3 py-2 ${
-              fieldErrors.price ? "border-red-400" : "border-gray-300"
+            className={`w-full border-2 px-3 py-2 ${
+              fieldErrors.price ? "border-red-400" : "border-ink/15"
             }`}
           />
           {fieldErrors.price && (
             <p className="mt-1 text-sm text-red-600">{fieldErrors.price}</p>
           )}
           {useVariants && (
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-ink/45">
               Fallback for any colour without its own price below.
             </p>
           )}
         </div>
         <div>
-          <label htmlFor="stock" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="stock" className="mb-1 block text-sm font-medium text-ink/80">
             Stock
           </label>
           {useVariants ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+            <div className="border-2 border-ink/10 bg-paper px-3 py-2 text-sm text-ink/60">
               {variantStockTotal} across {variantRows.length} variant
               {variantRows.length === 1 ? "" : "s"}
             </div>
@@ -724,8 +756,8 @@ export default function ProductForm({
               }}
               required
               aria-invalid={!!fieldErrors.stock}
-              className={`w-full rounded-lg border px-3 py-2 ${
-                fieldErrors.stock ? "border-red-400" : "border-gray-300"
+              className={`w-full border-2 px-3 py-2 ${
+                fieldErrors.stock ? "border-red-400" : "border-ink/15"
               }`}
             />
           )}
@@ -735,8 +767,8 @@ export default function ProductForm({
         </div>
       </div>
 
-      <fieldset className="rounded-xl border border-gray-200 p-4">
-        <legend className="px-1 text-sm font-medium text-gray-700">
+      <fieldset className="border-2 border-ink/10 p-4">
+        <legend className="px-1 text-sm font-medium text-ink/80">
           Sizes &amp; colours
         </legend>
 
@@ -754,9 +786,9 @@ export default function ProductForm({
             }}
             className="mt-1"
           />
-          <span className="text-sm text-gray-700">
+          <span className="text-sm text-ink/80">
             Sell this product by EU size and colour
-            <span className="mt-0.5 block text-xs text-gray-500">
+            <span className="mt-0.5 block text-xs text-ink/45">
               Each size/colour combination gets its own SKU and stock.
               Sizes are per colour — Black can stock 42 while White does not.
               Price is per colour too. Turning this off sells a single SKU.
@@ -766,26 +798,26 @@ export default function ProductForm({
 
         {useVariants && (
           <div className="mt-5 space-y-5">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-              <p className="mb-2 text-sm font-medium text-gray-700">
+            <div className="border-2 border-ink/10 bg-paper p-3">
+              <p className="mb-2 text-sm font-medium text-ink/80">
                 Add a size run
               </p>
-              <p className="mb-2 text-xs text-gray-500">
+              <p className="mb-2 text-xs text-ink/45">
                 Adds sizes for this colour only. White can skip 46 even if
                 Black has it.
               </p>
               <div className="flex flex-wrap items-end gap-3">
                 <label className="block">
-                  <span className="mb-1 block text-xs text-gray-600">Colour</span>
+                  <span className="mb-1 block text-xs text-ink/60">Colour</span>
                   <input
                     value={runColor}
                     onChange={(e) => setRunColor(e.target.value)}
                     placeholder="e.g. Black"
-                    className="w-44 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    className="w-44 border-2 border-ink/15 px-3 py-2 text-sm"
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs text-gray-600">
+                  <span className="mb-1 block text-xs text-ink/60">
                     Stock per size
                   </span>
                   <input
@@ -794,7 +826,7 @@ export default function ProductForm({
                     step="1"
                     value={runStock}
                     onChange={(e) => setRunStock(e.target.value)}
-                    className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    className="w-28 border-2 border-ink/15 px-3 py-2 text-sm"
                   />
                 </label>
               </div>
@@ -812,10 +844,10 @@ export default function ProductForm({
                       type="button"
                       disabled={!runColor.trim()}
                       onClick={() => addRow(size, runColor.trim(), runStock || "0")}
-                      className={`rounded-md border px-2.5 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                      className={`border-2 px-2.5 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                         active
-                          ? "border-blue-600 bg-blue-600 text-white"
-                          : "border-gray-300 bg-white text-gray-700 hover:border-gray-500"
+                          ? "border-ink bg-ink text-paper"
+                          : "border-ink/15 bg-white text-ink/80 hover:border-cardboard-dark"
                       }`}
                     >
                       {size}
@@ -823,7 +855,7 @@ export default function ProductForm({
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-ink/45">
                 {runColor.trim()
                   ? "Tap a size to add it for this colour; tap again to remove."
                   : "Enter a colour first, then tap the sizes you stock."}
@@ -833,7 +865,7 @@ export default function ProductForm({
             {variantRows.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
-                  <thead className="text-left text-xs uppercase tracking-wide text-gray-500">
+                  <thead className="text-left text-xs uppercase tracking-wide text-ink/45">
                     <tr>
                       <th className="py-2 pr-3 font-medium">EU size</th>
                       <th className="py-2 pr-3 font-medium">Colour</th>
@@ -841,7 +873,7 @@ export default function ProductForm({
                       <th className="py-2" />
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-ink/10">
                     {variantRows.map((row, index) => (
                       <tr key={row.uid}>
                         <td className="py-2 pr-3">
@@ -849,7 +881,7 @@ export default function ProductForm({
                             value={row.size}
                             onChange={(e) => updateRow(index, { size: e.target.value })}
                             aria-label={`EU size for row ${index + 1}`}
-                            className="w-20 rounded-lg border border-gray-300 px-2 py-1.5"
+                            className="w-20 border-2 border-ink/15 px-2 py-1.5"
                           />
                         </td>
                         <td className="py-2 pr-3">
@@ -857,7 +889,7 @@ export default function ProductForm({
                             value={row.color}
                             onChange={(e) => updateRow(index, { color: e.target.value })}
                             aria-label={`Colour for row ${index + 1}`}
-                            className="w-40 rounded-lg border border-gray-300 px-2 py-1.5"
+                            className="w-40 border-2 border-ink/15 px-2 py-1.5"
                           />
                         </td>
                         <td className="py-2 pr-3">
@@ -868,7 +900,7 @@ export default function ProductForm({
                             value={row.stock}
                             onChange={(e) => updateRow(index, { stock: e.target.value })}
                             aria-label={`Stock for row ${index + 1}`}
-                            className="w-24 rounded-lg border border-gray-300 px-2 py-1.5"
+                            className="w-24 border-2 border-ink/15 px-2 py-1.5"
                           />
                         </td>
                         <td className="py-2 text-right">
@@ -888,9 +920,9 @@ export default function ProductForm({
             )}
 
             {variantColors.length > 0 && (
-              <div className="rounded-lg border border-gray-200 p-3">
-                <p className="text-sm font-medium text-gray-700">Colour photos and prices</p>
-                <p className="mt-0.5 mb-3 text-xs text-gray-500">
+              <div className="border-2 border-ink/10 p-3">
+                <p className="text-sm font-medium text-ink/80">Colour photos and prices</p>
+                <p className="mt-0.5 mb-3 text-xs text-ink/45">
                   Price is per colour — a limited run can cost more than the
                   standard colour. Leave a price blank to use the default
                   above. Leave a photo blank to fall back to the main image.
@@ -899,7 +931,7 @@ export default function ProductForm({
                 <div className="space-y-2">
                   {variantColors.map((color) => (
                     <div key={color} className="flex items-center gap-3">
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+                      <div className="relative h-10 w-10 shrink-0 overflow-hidden border border-ink/10 bg-paper">
                         {(colorPhotos[color] || imageUrl).startsWith("http") && (
                           /* eslint-disable-next-line @next/next/no-img-element -- admin preview of arbitrary remote URLs */
                           <img
@@ -910,7 +942,7 @@ export default function ProductForm({
                         )}
                       </div>
 
-                      <span className="w-28 shrink-0 truncate text-sm text-gray-700">
+                      <span className="w-28 shrink-0 truncate text-sm text-ink/80">
                         {color}
                       </span>
 
@@ -926,7 +958,7 @@ export default function ProductForm({
                           }))
                         }
                         aria-label={`Price for ${color}`}
-                        className="w-24 shrink-0 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                        className="w-24 shrink-0 border-2 border-ink/15 px-2 py-1.5 text-sm"
                       />
 
                       <input
@@ -939,10 +971,10 @@ export default function ProductForm({
                         }
                         placeholder="https://res.cloudinary.com/… (optional)"
                         aria-label={`Photo URL for ${color}`}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                        className="w-full border-2 border-ink/15 px-3 py-1.5 text-sm"
                       />
 
-                      <label className="shrink-0 cursor-pointer rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                      <label className="shrink-0 cursor-pointer border-2 border-ink/15 px-3 py-1.5 text-xs font-medium text-ink/80 hover:bg-paper">
                         Upload
                         <input
                           type="file"
@@ -978,7 +1010,7 @@ export default function ProductForm({
                       ]
                 )
               }
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="border-2 border-ink/15 px-3 py-2 text-sm font-medium text-ink/80 hover:bg-paper"
             >
               Add empty row
             </button>
@@ -992,7 +1024,7 @@ export default function ProductForm({
 
       {error && (
         <div
-          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
           role="alert"
         >
           {error}
@@ -1003,14 +1035,14 @@ export default function ProductForm({
         <button
           type="submit"
           disabled={loading || uploading}
-          className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+          className="bg-ink px-5 py-2.5 font-semibold text-paper hover:bg-ink/85 disabled:opacity-60"
         >
           {loading ? "Saving…" : mode === "create" ? "Create product" : "Save changes"}
         </button>
         <button
           type="button"
           onClick={() => router.push("/admin/products")}
-          className="rounded-lg bg-gray-100 px-5 py-2.5 font-semibold text-gray-700 hover:bg-gray-200"
+          className="border-2 border-ink/15 bg-paper px-5 py-2.5 font-semibold text-ink hover:border-cardboard-dark"
         >
           Cancel
         </button>
