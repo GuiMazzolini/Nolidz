@@ -21,6 +21,27 @@ async function ensureIndexes(db: Db) {
     // Every product lookup queries by `id`, not `_id`.
     db.collection("products").createIndex({ id: 1 }, { unique: true }),
 
+    /**
+     * A SKU is the identity of a cart line, an order line, and a stock hold, so
+     * two variants sharing one is a mis-shipment waiting to happen. This stops
+     * two products — or two concurrent saves — from landing on the same SKU.
+     *
+     * It does not stop one product from repeating a SKU inside its own array:
+     * a unique multikey index de-duplicates a document's keys before comparing,
+     * so `["x", "x"]` in a single document passes. resolveVariants is what
+     * covers that case, and product-indexes.integration.test.ts pins both halves.
+     *
+     * Partial on `variants.0` rather than plain unique: a single-SKU product has
+     * no `variants` field at all, and every one of those would index the same
+     * missing value and collide with the next.
+     */
+    db
+      .collection("products")
+      .createIndex(
+        { "variants.sku": 1 },
+        { unique: true, partialFilterExpression: { "variants.0": { $exists: true } } }
+      ),
+
     // Rate-limit windows expire themselves.
     db
       .collection("ratelimits")

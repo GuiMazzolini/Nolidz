@@ -232,3 +232,50 @@ describe("a single-SKU product", () => {
     expect(screen.getByRole("button", { name: "Out of Stock" })).toBeDisabled();
   });
 });
+
+describe("the photo gallery", () => {
+  const withPhotos: Product = {
+    ...runner,
+    images: ["/sole.png", "/detail.png"],
+    colorImages: [
+      { color: "Black", imageUrl: "/runner-black.png" },
+      { color: "White", imageUrl: "/runner-white.png" },
+    ],
+  };
+
+  function hero(): HTMLImageElement {
+    return screen.getByAltText(/^Runner in /) as HTMLImageElement;
+  }
+
+  it("leads with the colourway photo and follows with the extra shots", () => {
+    render(<ProductDetail product={withPhotos} initialColor="Black" />);
+
+    expect(hero().src).toContain("runner-black.png");
+    expect(
+      screen.getByRole("button", { name: "Show photo 3 of 3" })
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * Switching colourway must not leave the shopper on the third photo of the
+   * shoe they just navigated away from.
+   */
+  it("returns to the hero when the colourway changes", async () => {
+    const user = userEvent.setup();
+    render(<ProductDetail product={withPhotos} initialColor="Black" />);
+
+    await user.click(screen.getByRole("button", { name: "Show photo 2 of 3" }));
+    expect(hero().src).toContain("sole.png");
+
+    await user.click(screen.getByRole("button", { name: "White" }));
+
+    expect(hero().src).toContain("runner-white.png");
+  });
+
+  it("shows no gallery controls for a product with one photo", () => {
+    render(<ProductDetail product={mug} />);
+
+    expect(screen.getByAltText("Mug")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next photo" })).toBeNull();
+  });
+});

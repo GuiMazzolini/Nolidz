@@ -27,6 +27,8 @@ export function serializeAdminProduct(doc: ProductDoc, held?: HeldStock) {
         stock: variant.stock + (held?.bySku.get(variant.sku) ?? 0),
       })) ?? [],
     colorImages: doc.colorImages ?? [],
+    /** Extra gallery photos only — the main image stays in `imageUrl`. */
+    images: doc.images ?? [],
     /** Surfaced so the admin can tell a slow week from a busy checkout queue. */
     heldForCheckout: held?.total ?? 0,
   };

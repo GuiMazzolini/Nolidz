@@ -32,6 +32,7 @@ type AdminProduct = {
   stock: number;
   variants: ProductVariant[];
   colorImages: { color: string; imageUrl: string }[];
+  images: string[];
 };
 
 const IMAGE = "https://res.cloudinary.com/demo/image/upload/new.png";
@@ -226,6 +227,53 @@ describe("POST /api/admin/products", () => {
     expect(status).toBe(400);
   });
 
+  it("stores the extra gallery photos in order", async () => {
+    const second = "https://res.cloudinary.com/demo/image/upload/sole.png";
+    const { body } = await readResponse<AdminProduct>(
+      await POST(
+        jsonRequest("POST", { ...validBody, stock: 1, images: [IMAGE, second] })
+      )
+    );
+
+    expect(body.images).toEqual([IMAGE, second]);
+  });
+
+  it("holds gallery photos to the same host allowlist as the main image", async () => {
+    const { status, body } = await readResponse<{ error: string }>(
+      await POST(
+        jsonRequest("POST", {
+          ...validBody,
+          stock: 1,
+          images: ["https://evil.example.com/x.png"],
+        })
+      )
+    );
+
+    expect(status).toBe(400);
+    expect(body.error).toContain("res.cloudinary.com");
+  });
+
+  it("stores as many gallery photos as are sent", async () => {
+    const many = Array.from(
+      { length: 40 },
+      (_, i) => `https://res.cloudinary.com/demo/image/upload/p${i}.png`
+    );
+
+    const { status } = await readResponse(
+      await POST(
+        jsonRequest("POST", { ...validBody, id: "many", stock: 1, images: many })
+      )
+    );
+
+    expect(status).toBe(201);
+    expect(stored("many")?.images).toHaveLength(40);
+  });
+
+  it("stores no gallery key when none is sent", async () => {
+    await POST(jsonRequest("POST", { ...validBody, id: "plain", stock: 1 }));
+    expect(stored("plain")).not.toHaveProperty("images");
+  });
+
   it("409s a duplicate id", async () => {
     const { status } = await readResponse(
       await POST(jsonRequest("POST", { ...validBody, id: "mug", stock: 1 }))
@@ -287,6 +335,44 @@ describe("PATCH /api/admin/products/[id]", () => {
 
     expect(body.colorImages).toEqual([]);
     expect(stored("runner")).not.toHaveProperty("colorImages");
+  });
+
+  it("replaces the gallery", async () => {
+    const { body } = await readResponse<AdminProduct>(
+      await PATCH(jsonRequest("PATCH", { images: [IMAGE] }), params("runner"))
+    );
+
+    expect(body.images).toEqual([IMAGE]);
+  });
+
+  it("clears the gallery with an empty array", async () => {
+    await PATCH(jsonRequest("PATCH", { images: [IMAGE] }), params("runner"));
+
+    const { body } = await readResponse<AdminProduct>(
+      await PATCH(jsonRequest("PATCH", { images: [] }), params("runner"))
+    );
+
+    expect(body.images).toEqual([]);
+    expect(stored("runner")).not.toHaveProperty("images");
+  });
+
+  it("leaves the gallery alone when the field is omitted", async () => {
+    await PATCH(jsonRequest("PATCH", { images: [IMAGE] }), params("runner"));
+    await PATCH(jsonRequest("PATCH", { name: "Renamed" }), params("runner"));
+
+    expect(stored("runner")?.images).toEqual([IMAGE]);
+  });
+
+  it("holds a replaced gallery to the host allowlist", async () => {
+    const { status, body } = await readResponse<{ error: string }>(
+      await PATCH(
+        jsonRequest("PATCH", { images: ["https://evil.example.com/x.png"] }),
+        params("runner")
+      )
+    );
+
+    expect(status).toBe(400);
+    expect(body.error).toContain("res.cloudinary.com");
   });
 
   it("refuses a direct stock edit on a variant product", async () => {

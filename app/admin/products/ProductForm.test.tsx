@@ -24,6 +24,7 @@ type Payload = {
   stock?: number;
   variants?: { sku?: string; size: string; color: string; stock: number }[];
   colorImages?: { color: string; imageUrl: string }[];
+  images?: string[];
 };
 
 function lastPayload(): Payload {
@@ -50,6 +51,110 @@ beforeEach(() => {
   vi.clearAllMocks();
   fetchMock.mockResolvedValue({ ok: true, json: async () => ({ id: "runner-low" }) });
   vi.stubGlobal("fetch", fetchMock);
+});
+
+describe("gallery photos", () => {
+  const SOLE = "https://res.cloudinary.com/demo/image/upload/sole.png";
+  const SIDE = "https://res.cloudinary.com/demo/image/upload/side.png";
+
+  async function addPhoto(
+    user: ReturnType<typeof userEvent.setup>,
+    slot: number,
+    url: string
+  ) {
+    await user.click(screen.getByRole("button", { name: "Add photo" }));
+    await user.type(screen.getByLabelText(`Extra photo ${slot} URL`), url);
+  }
+
+  it("sends the extra photos in the order shown", async () => {
+    const user = userEvent.setup();
+    render(<ProductForm mode="create" />);
+
+    await fillBaseFields(user);
+    await addPhoto(user, 1, SOLE);
+    await addPhoto(user, 2, SIDE);
+    await user.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(lastPayload().images).toEqual([SOLE, SIDE]);
+  });
+
+  it("reorders a photo with the move buttons", async () => {
+    const user = userEvent.setup();
+    render(<ProductForm mode="create" />);
+
+    await fillBaseFields(user);
+    await addPhoto(user, 1, SOLE);
+    await addPhoto(user, 2, SIDE);
+    await user.click(screen.getByRole("button", { name: "Move photo 2 up" }));
+    await user.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(lastPayload().images).toEqual([SIDE, SOLE]);
+  });
+
+  it("drops a slot opened but never filled", async () => {
+    const user = userEvent.setup();
+    render(<ProductForm mode="create" />);
+
+    await fillBaseFields(user);
+    await addPhoto(user, 1, SOLE);
+    await user.click(screen.getByRole("button", { name: "Add photo" }));
+    await user.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(lastPayload().images).toEqual([SOLE]);
+    expect(pushMock).toHaveBeenCalledWith("/admin/products");
+  });
+
+  it("blocks a photo URL that is not a URL", async () => {
+    const user = userEvent.setup();
+    render(<ProductForm mode="create" />);
+
+    await fillBaseFields(user);
+    await addPhoto(user, 1, "not-a-url");
+    await user.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/Each extra photo needs a Cloudinary URL/)).toBeVisible();
+  });
+
+  it("keeps offering new slots however many are added", async () => {
+    const user = userEvent.setup();
+    render(<ProductForm mode="create" />);
+
+    await fillBaseFields(user);
+    for (let i = 1; i <= 8; i++) {
+      await addPhoto(user, i, `${SOLE}?${i}`);
+    }
+    await user.click(screen.getByRole("button", { name: "Create product" }));
+
+    expect(screen.getByRole("button", { name: "Add photo" })).toBeEnabled();
+    expect(lastPayload().images).toHaveLength(8);
+  });
+
+  it("opens an edit with the saved gallery and clears it on removal", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProductForm
+        mode="edit"
+        initial={{
+          id: "runner",
+          name: "Runner",
+          description: "A shoe",
+          imageUrl: IMAGE,
+          price: 89.99,
+          stock: 4,
+          images: [SOLE],
+        }}
+      />
+    );
+
+    expect(screen.getByLabelText("Extra photo 1 URL")).toHaveValue(SOLE);
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    // An empty array is what tells the server to drop the gallery.
+    expect(lastPayload().images).toEqual([]);
+  });
 });
 
 describe("single-SKU products", () => {

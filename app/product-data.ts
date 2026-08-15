@@ -15,6 +15,8 @@ export interface Product {
   variants?: ProductVariant[];
   /** Per-colourway photography, keyed by colour name. */
   colorImages?: ColorImage[];
+  /** Extra gallery shots, in display order. The main `imageUrl` is not repeated. */
+  images?: string[];
   /** Cart line quantity (not stored on the product catalog doc). */
   quantity?: number;
   /** Cart line variant, denormalized so the cart renders without a lookup. */

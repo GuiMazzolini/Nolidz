@@ -8,6 +8,7 @@ import { serializeAdminProduct } from "@/app/lib/admin-products";
 import { authOptions } from "@/app/lib/auth";
 import { products as productsCollection } from "@/app/lib/db-collections";
 import { badRequest, parseBody } from "@/app/lib/api-request";
+import { isDuplicateKeyError } from "@/app/lib/mongo-errors";
 import { adminProductCreateSchema, resolveVariants } from "@/app/lib/schemas";
 import { heldStockFor } from "@/app/lib/stock-hold";
 import { totalVariantStock, type ColorImage } from "@/app/lib/variants";
@@ -47,9 +48,21 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) return parsed.response;
   const { name, description, price } = parsed.data;
 
+  // Every photo goes through the same host allowlist as the main image.
   let imageUrl: string;
+  let colorImages: ColorImage[] | undefined;
+  let images: string[] | undefined;
   try {
     imageUrl = normalizeProductImageUrl(parsed.data.imageUrl);
+    colorImages = parsed.data.colorImages?.length
+      ? parsed.data.colorImages.map((entry) => ({
+          color: entry.color,
+          imageUrl: normalizeProductImageUrl(entry.imageUrl),
+        }))
+      : undefined;
+    images = parsed.data.images?.length
+      ? parsed.data.images.map((url) => normalizeProductImageUrl(url))
+      : undefined;
   } catch (err) {
     return badRequest(err instanceof Error ? err.message : "Invalid image URL");
   }
@@ -71,19 +84,6 @@ export async function POST(req: NextRequest) {
     : undefined;
   const stock = variants ? totalVariantStock(variants) : (parsed.data.stock ?? 0);
 
-  // Colour photos go through the same host allowlist as the main image.
-  let colorImages: ColorImage[] | undefined;
-  try {
-    colorImages = parsed.data.colorImages?.length
-      ? parsed.data.colorImages.map((entry) => ({
-          color: entry.color,
-          imageUrl: normalizeProductImageUrl(entry.imageUrl),
-        }))
-      : undefined;
-  } catch (err) {
-    return badRequest(err instanceof Error ? err.message : "Invalid image URL");
-  }
-
   const product = {
     id,
     name,
@@ -93,11 +93,25 @@ export async function POST(req: NextRequest) {
     stock,
     ...(variants ? { variants } : {}),
     ...(colorImages ? { colorImages } : {}),
+    ...(images ? { images } : {}),
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
   // A product that did not exist a moment ago can have nothing held against it.
-  await productsCollection(db).insertOne(product);
+  try {
+    await productsCollection(db).insertOne(product);
+  } catch (err) {
+    // The unique index on `variants.sku` caught a SKU already in use — either
+    // hand-typed against another product, or a second save that raced the
+    // findOne above.
+    if (isDuplicateKeyError(err)) {
+      return NextResponse.json(
+        { error: "A product or variant with this id or SKU already exists" },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
   return NextResponse.json(serializeAdminProduct(product), { status: 201 });
 }

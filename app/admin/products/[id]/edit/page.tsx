@@ -36,6 +36,8 @@ export default async function EditProductPage({
           price: product.price,
           stock: getAvailableStock(product.stock),
           variants: serializeVariants(product.variants),
+          colorImages: product.colorImages,
+          images: product.images,
         }}
       />
     </div>

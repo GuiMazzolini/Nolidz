@@ -162,6 +162,18 @@ export const colorImagesSchema = z
   )
   .max(MAX_PRODUCT_VARIANTS);
 
+/**
+ * Extra gallery photos, in display order.
+ *
+ * Neither a floor nor a ceiling. No floor because every product created before
+ * the gallery existed has none, and a minimum would reject them the first time
+ * an admin edited anything else. No ceiling because how many angles a listing
+ * needs is the admin's call, not this schema's. Duplicates pass too —
+ * productGallery collapses them, and failing a save over a repeated URL helps
+ * nobody.
+ */
+export const productImagesSchema = z.array(z.url().max(2000));
+
 export const adminProductCreateSchema = z
   .object({
     id: productIdSchema.optional(),
@@ -173,6 +185,7 @@ export const adminProductCreateSchema = z
     stock: z.number().int().nonnegative().max(1_000_000).optional(),
     variants: productVariantsSchema.optional(),
     colorImages: colorImagesSchema.optional(),
+    images: productImagesSchema.optional(),
   })
   .refine((v) => v.variants?.length || v.stock !== undefined, {
     message: "Provide a stock count or at least one size/colour variant",
@@ -191,6 +204,8 @@ export const adminProductUpdateSchema = z
     variants: productVariantsSchema,
     // Likewise, an empty array clears the per-colourway photos.
     colorImages: colorImagesSchema,
+    // And an empty array clears the gallery, leaving the main image alone.
+    images: productImagesSchema,
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, {
