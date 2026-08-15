@@ -1,5 +1,6 @@
 import type { Db } from "mongodb";
 import type { Order } from "@/app/lib/orders";
+import type { ReservationDoc } from "@/app/lib/reservations";
 import type { ColorImage, ProductVariant } from "@/app/lib/variants";
 
 /**
@@ -83,3 +84,5 @@ export const carts = (db: Db) => db.collection<CartDoc>("carts");
 export const users = (db: Db) => db.collection<UserDoc>("users");
 export const orders = (db: Db) => db.collection<Order>("orders");
 export const rateLimits = (db: Db) => db.collection<RateLimitDoc>("ratelimits");
+export const reservations = (db: Db) =>
+  db.collection<ReservationDoc>("reservations");

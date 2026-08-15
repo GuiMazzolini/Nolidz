@@ -6,6 +6,7 @@ import {
 import { getStripe } from "@/app/lib/stripe";
 import { decodeCartMetadata } from "@/app/lib/cart-metadata";
 import { carts, orders, products } from "@/app/lib/db-collections";
+import { commitHold, releaseHold } from "@/app/lib/stock-hold";
 import { isDuplicateKeyError } from "@/app/lib/mongo-errors";
 import { normalizeEmail } from "@/app/lib/normalize-email";
 import type { Db } from "mongodb";
@@ -114,10 +115,28 @@ export function buildOrderFromStripeSession(
   };
 }
 
-async function decrementStockForSession(
+/**
+ * Settle inventory for a paid session.
+ *
+ * The normal path moves no counters at all: the stock was taken when the hold
+ * was placed, before the customer ever reached Stripe, so there is nothing
+ * here for a concurrent order to race against. The decrement below is the
+ * fallback for a payment that outlived its hold.
+ */
+async function settleStockForSession(
   db: Db,
   session: Stripe.Checkout.Session
 ) {
+  const reservationId = session.metadata?.reservationId;
+  if (reservationId) {
+    const result = await commitHold(db, reservationId);
+    if (result !== "gone") return;
+
+    console.warn(
+      `Hold ${reservationId} was already gone at fulfillment (session ${session.id}); decrementing directly`
+    );
+  }
+
   const cartItems = decodeCartMetadata(session.metadata);
   for (const item of cartItems) {
     // A variant line moves both counters at once: the variant's own stock and
@@ -151,6 +170,22 @@ async function decrementStockForSession(
       );
     }
   }
+}
+
+/**
+ * Give back the stock behind a checkout that will never be paid — Stripe
+ * reports the session expired, or an async payment method failed.
+ */
+export async function releaseHoldForSession(
+  session: Pick<Stripe.Checkout.Session, "id" | "metadata">,
+  reason: string
+): Promise<boolean> {
+  const reservationId = session.metadata?.reservationId;
+  // Sessions created before holds existed carry no id; nothing to give back.
+  if (!reservationId) return false;
+
+  const { db } = await connectToDB();
+  return releaseHold(db, reservationId, reason);
 }
 
 export async function getOrdersForUser(email: string): Promise<Order[]> {
@@ -324,7 +359,7 @@ export async function fulfillCheckoutSession(
 
   // Only the first successful insert adjusts inventory and sends email.
   if (inserted) {
-    await decrementStockForSession(db, session);
+    await settleStockForSession(db, session);
     await sendOrderConfirmationEmail(order);
   }
 

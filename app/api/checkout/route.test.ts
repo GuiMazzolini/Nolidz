@@ -1,8 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createSessionMock } = vi.hoisted(() => ({
+const { createSessionMock, forcedStockError } = vi.hoisted(() => ({
   createSessionMock: vi.fn(),
+  /** undefined = use the real check; null = pretend it passed. See below. */
+  forcedStockError: { value: undefined as string | null | undefined },
 }));
+
+/**
+ * The read-only stock check and the hold both read the same database in a
+ * single-threaded test, so the window between them cannot occur naturally.
+ * Forcing the check to pass is how we reproduce another customer's checkout
+ * landing in that window — the exact race the hold exists to close.
+ */
+vi.mock("@/app/lib/checkout-cart", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/app/lib/checkout-cart")>();
+  return {
+    ...actual,
+    getCartStockError: (...args: Parameters<typeof actual.getCartStockError>) =>
+      forcedStockError.value !== undefined
+        ? forcedStockError.value
+        : actual.getCartStockError(...args),
+  };
+});
 
 vi.mock("@/app/api/db", async () => {
   const { connectToTestDB } = await import("@/app/test/mongo-double");
@@ -23,7 +43,7 @@ vi.mock("@/app/lib/stripe", () => ({
 
 import { POST } from "@/app/api/checkout/route";
 import { decodeCartMetadata } from "@/app/lib/cart-metadata";
-import { BUYER, catalog } from "@/app/test/fixtures";
+import { BUYER, catalog, runnerProduct } from "@/app/test/fixtures";
 import { jsonRequest, readResponse } from "@/app/test/http";
 import { testDb } from "@/app/test/mongo-double";
 import { setMockSession } from "@/app/test/session";
@@ -44,7 +64,14 @@ beforeEach(() => {
   testDb.reset();
   testDb.seed("products", catalog);
   setMockSession(null);
+  forcedStockError.value = undefined;
 });
+
+function variantStock(sku: string): number {
+  const product = testDb.all("products").find((p) => p.id === "runner");
+  const variants = product!.variants as { sku: string; stock: number }[];
+  return variants.find((v) => v.sku === sku)!.stock;
+}
 
 describe("guest checkout", () => {
   it("prices the guest cart from the catalog and returns the Stripe URL", async () => {
@@ -65,6 +92,16 @@ describe("guest checkout", () => {
     expect(args.line_items![0].quantity).toBe(2);
     expect(args.metadata).toMatchObject({ isGuest: "true" });
     expect(args.client_reference_id).toBeUndefined();
+  });
+
+  it("expires the session so an abandoned checkout stops being payable", async () => {
+    const before = Math.floor(Date.now() / 1000);
+    await POST(
+      jsonRequest("POST", { items: [{ productId: "mug", quantity: 1 }] })
+    );
+
+    // Stripe rejects anything under 30 minutes out, so this is the floor.
+    expect(lastSessionArgs().expires_at).toBeGreaterThanOrEqual(before + 30 * 60);
   });
 
   it("names the line item with its EU size and colour", async () => {
@@ -250,10 +287,160 @@ describe("authenticated checkout", () => {
     expect(body.error).toContain("at most");
   });
 
+  it("holds the stock against the signed-in buyer", async () => {
+    await POST(jsonRequest("POST"));
+
+    const hold = testDb.all("reservations")[0];
+    expect(hold.userId).toBe(BUYER);
+    expect(hold.status).toBe("held");
+  });
+
   it("is rate limited", async () => {
+    // Every attempt takes a hold and none of them pay, so the size needs
+    // enough stock to survive the run — the limiter is what should stop the
+    // 21st request, not the inventory.
+    testDb.seed("products", [
+      {
+        ...runnerProduct,
+        stock: 99,
+        variants: [
+          { sku: "runner-eu42-black", size: "42", color: "Black", stock: 99 },
+        ],
+      },
+    ]);
+
     for (let i = 0; i < 20; i++) {
       expect((await POST(jsonRequest("POST"))).status).toBe(200);
     }
     expect((await POST(jsonRequest("POST"))).status).toBe(429);
+  });
+});
+
+describe("holding stock for the checkout", () => {
+  it("takes the size out of sale before the customer reaches Stripe", async () => {
+    await POST(
+      jsonRequest("POST", {
+        items: [
+          { productId: "runner", quantity: 2, variantSku: "runner-eu42-black" },
+        ],
+      })
+    );
+
+    // Three were in stock; the hold owns two of them from now on.
+    expect(variantStock("runner-eu42-black")).toBe(1);
+  });
+
+  it("gives fulfillment the hold to close, via session metadata", async () => {
+    await POST(
+      jsonRequest("POST", { items: [{ productId: "mug", quantity: 1 }] })
+    );
+
+    const reservationId = (lastSessionArgs().metadata as Record<string, string>)
+      .reservationId;
+    expect(reservationId).toBeTruthy();
+    expect(testDb.all("reservations")[0].reservationId).toBe(reservationId);
+  });
+
+  it("records the session on the hold for support lookups", async () => {
+    await POST(
+      jsonRequest("POST", { items: [{ productId: "mug", quantity: 1 }] })
+    );
+
+    expect(testDb.all("reservations")[0].stripeSessionId).toBe("cs_test_1");
+  });
+
+  it("refuses a size that sold out between the check and the hold", async () => {
+    // Someone else's checkout took the last pair in that window.
+    await POST(
+      jsonRequest("POST", {
+        items: [
+          { productId: "runner", quantity: 3, variantSku: "runner-eu42-black" },
+        ],
+      })
+    );
+    forcedStockError.value = null;
+
+    const { status, body } = await readResponse<{ error: string }>(
+      await POST(
+        jsonRequest("POST", {
+          items: [
+            { productId: "runner", quantity: 1, variantSku: "runner-eu42-black" },
+          ],
+        })
+      )
+    );
+
+    expect(status).toBe(409);
+    expect(body.error).toBe(
+      "Runner (EU 42 · Black) sold out while you were checking out. Please update your basket."
+    );
+    // The refused checkout must not have taken anything.
+    expect(variantStock("runner-eu42-black")).toBe(0);
+  });
+
+  it("puts the stock back when Stripe cannot create the session", async () => {
+    createSessionMock.mockRejectedValueOnce(new Error("stripe is down"));
+
+    const { status } = await readResponse(
+      await POST(
+        jsonRequest("POST", {
+          items: [
+            { productId: "runner", quantity: 2, variantSku: "runner-eu42-black" },
+          ],
+        })
+      )
+    );
+
+    expect(status).toBe(502);
+    // A payment provider outage must not cost the shop its inventory.
+    expect(variantStock("runner-eu42-black")).toBe(3);
+    expect(testDb.all("reservations")[0].status).toBe("released");
+  });
+
+  it("puts the stock back when the session comes back unusable", async () => {
+    createSessionMock.mockResolvedValueOnce({ id: "cs_test_1", url: null });
+
+    const { status } = await readResponse(
+      await POST(
+        jsonRequest("POST", {
+          items: [
+            { productId: "runner", quantity: 2, variantSku: "runner-eu42-black" },
+          ],
+        })
+      )
+    );
+
+    expect(status).toBe(500);
+    expect(variantStock("runner-eu42-black")).toBe(3);
+  });
+
+  it("reclaims an abandoned checkout's stock before taking its own", async () => {
+    await POST(
+      jsonRequest("POST", {
+        items: [
+          { productId: "runner", quantity: 3, variantSku: "runner-eu42-black" },
+        ],
+      })
+    );
+
+    // That checkout was never paid and its window has passed.
+    const stale = testDb.all("reservations")[0];
+    testDb.seed("reservations", [
+      { ...stale, expiresAt: new Date(Date.now() - 60_000) },
+    ]);
+
+    const { status } = await readResponse(
+      await POST(
+        jsonRequest("POST", {
+          items: [
+            { productId: "runner", quantity: 3, variantSku: "runner-eu42-black" },
+          ],
+        })
+      )
+    );
+
+    // Without the sweep this size would look sold out to everyone.
+    expect(status).toBe(200);
+    expect(variantStock("runner-eu42-black")).toBe(0);
   });
 });

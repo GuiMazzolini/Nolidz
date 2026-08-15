@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { constructEventMock, fulfillMock } = vi.hoisted(() => ({
+const { constructEventMock, fulfillMock, releaseMock } = vi.hoisted(() => ({
   constructEventMock: vi.fn(),
   fulfillMock: vi.fn(),
+  releaseMock: vi.fn(),
 }));
 
 vi.mock("@/app/lib/stripe", () => ({
   getStripe: () => ({ webhooks: { constructEvent: constructEventMock } }),
 }));
 
-vi.mock("@/app/lib/orders", () => ({ fulfillCheckoutSession: fulfillMock }));
+vi.mock("@/app/lib/orders", () => ({
+  fulfillCheckoutSession: fulfillMock,
+  releaseHoldForSession: releaseMock,
+}));
 
 import { POST } from "@/app/api/webhooks/stripe/route";
 
@@ -40,6 +44,35 @@ describe("POST /api/webhooks/stripe", () => {
     expect(fulfillMock).toHaveBeenCalledWith("cs_test_1");
   });
 
+  it("puts stock back when a checkout expires unpaid", async () => {
+    const session = { id: "cs_test_1", metadata: { reservationId: "r1" } };
+    constructEventMock.mockReturnValue({
+      type: "checkout.session.expired",
+      data: { object: session },
+    });
+
+    const res = await POST(webhookRequest());
+
+    expect(res.status).toBe(200);
+    expect(releaseMock).toHaveBeenCalledWith(session, "checkout.session.expired");
+    expect(fulfillMock).not.toHaveBeenCalled();
+  });
+
+  it("puts stock back when a delayed payment fails", async () => {
+    const session = { id: "cs_test_1", metadata: { reservationId: "r1" } };
+    constructEventMock.mockReturnValue({
+      type: "checkout.session.async_payment_failed",
+      data: { object: session },
+    });
+
+    await POST(webhookRequest());
+
+    expect(releaseMock).toHaveBeenCalledWith(
+      session,
+      "checkout.session.async_payment_failed"
+    );
+  });
+
   it("acknowledges other event types without fulfilling", async () => {
     constructEventMock.mockReturnValue({
       type: "payment_intent.succeeded",
@@ -50,6 +83,7 @@ describe("POST /api/webhooks/stripe", () => {
 
     expect(res.status).toBe(200);
     expect(fulfillMock).not.toHaveBeenCalled();
+    expect(releaseMock).not.toHaveBeenCalled();
   });
 
   it("rejects a forged payload whose signature does not verify", async () => {

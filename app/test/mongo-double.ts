@@ -22,6 +22,7 @@ const UNIQUE_KEYS: Record<string, string> = {
   carts: "userId",
   orders: "stripeSessionId",
   ratelimits: "_id",
+  reservations: "reservationId",
 };
 
 function duplicateKeyError(collection: string, key: string): Error & { code: number } {
@@ -63,6 +64,26 @@ function getPath(doc: unknown, path: string): unknown {
   }, doc);
 }
 
+/**
+ * Range operators work on dates as well as numbers in MongoDB, and the expiry
+ * sweep relies on that. Returns null for anything not orderable.
+ */
+function comparable(value: unknown): number | null {
+  if (typeof value === "number") return value;
+  if (value instanceof Date) return value.getTime();
+  return null;
+}
+
+function compare(
+  value: unknown,
+  operand: unknown,
+  ordered: (a: number, b: number) => boolean
+): boolean {
+  const left = comparable(value);
+  const right = comparable(operand);
+  return left !== null && right !== null && ordered(left, right);
+}
+
 function matchesCondition(value: unknown, condition: unknown): boolean {
   if (!isOperatorObject(condition)) {
     // An equality check against an array field matches if any element matches,
@@ -80,13 +101,13 @@ function matchesCondition(value: unknown, condition: unknown): boolean {
       case "$ne":
         return !deepEqual(value, operand);
       case "$gt":
-        return typeof value === "number" && value > (operand as number);
+        return compare(value, operand, (a, b) => a > b);
       case "$gte":
-        return typeof value === "number" && value >= (operand as number);
+        return compare(value, operand, (a, b) => a >= b);
       case "$lt":
-        return typeof value === "number" && value < (operand as number);
+        return compare(value, operand, (a, b) => a < b);
       case "$lte":
-        return typeof value === "number" && value <= (operand as number);
+        return compare(value, operand, (a, b) => a <= b);
       case "$in":
         return (operand as unknown[]).some((entry) => deepEqual(value, entry));
       case "$nin":

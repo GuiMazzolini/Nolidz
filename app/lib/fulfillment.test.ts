@@ -6,12 +6,16 @@ const {
   updateOneProductsMock,
   updateOneCartsMock,
   sendEmailMock,
+  findOneAndUpdateReservationsMock,
+  findOneReservationsMock,
 } = vi.hoisted(() => ({
   retrieveMock: vi.fn(),
   insertOneMock: vi.fn(),
   updateOneProductsMock: vi.fn(),
   updateOneCartsMock: vi.fn(),
   sendEmailMock: vi.fn(),
+  findOneAndUpdateReservationsMock: vi.fn(),
+  findOneReservationsMock: vi.fn(),
 }));
 
 vi.mock("@/app/lib/stripe", () => ({
@@ -36,6 +40,12 @@ vi.mock("@/app/api/db", () => ({
         }
         if (name === "carts") {
           return { updateOne: updateOneCartsMock };
+        }
+        if (name === "reservations") {
+          return {
+            findOneAndUpdate: findOneAndUpdateReservationsMock,
+            findOne: findOneReservationsMock,
+          };
         }
         throw new Error(`Unexpected collection: ${name}`);
       },
@@ -102,6 +112,57 @@ describe("fulfillCheckoutSession", () => {
 
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
     expect(updateOneCartsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not decrement again when a hold already took the stock", async () => {
+    insertOneMock.mockResolvedValueOnce({ insertedId: "1" });
+    // The hold was still open, so committing it closes it out.
+    findOneAndUpdateReservationsMock.mockResolvedValueOnce({
+      reservationId: "r1",
+      status: "held",
+    });
+    retrieveMock.mockResolvedValueOnce({
+      id: "cs_test_held",
+      payment_status: "paid",
+      client_reference_id: "buyer@example.com",
+      metadata: { userId: "buyer@example.com", reservationId: "r1", cartItems: "hat:2" },
+      customer_details: { email: "buyer@example.com" },
+      line_items: { data: [] },
+    });
+
+    const result = await fulfillCheckoutSession("cs_test_held");
+
+    expect(result).toEqual({ paid: true, fulfilled: true });
+    // The stock left the catalog when the hold was taken. Touching it here
+    // would sell the same pair twice over.
+    expect(updateOneProductsMock).not.toHaveBeenCalled();
+  });
+
+  it("decrements directly when the hold expired before payment landed", async () => {
+    insertOneMock.mockResolvedValueOnce({ insertedId: "1" });
+    // Nothing to commit: the sweep already gave this stock back.
+    findOneAndUpdateReservationsMock.mockResolvedValueOnce(null);
+    findOneReservationsMock.mockResolvedValueOnce({
+      reservationId: "r1",
+      status: "released",
+    });
+    retrieveMock.mockResolvedValueOnce({
+      id: "cs_test_lapsed",
+      payment_status: "paid",
+      client_reference_id: "buyer@example.com",
+      metadata: { userId: "buyer@example.com", reservationId: "r1", cartItems: "hat:2" },
+      customer_details: { email: "buyer@example.com" },
+      line_items: { data: [] },
+    });
+
+    await fulfillCheckoutSession("cs_test_lapsed");
+
+    // A paid order still has to move inventory; the $gte guard stops it
+    // going negative if the stock was resold in the meantime.
+    expect(updateOneProductsMock).toHaveBeenCalledWith(
+      { id: "hat", stock: { $gte: 2 } },
+      { $inc: { stock: -2 } }
+    );
   });
 
   it("does not fulfill unpaid sessions", async () => {

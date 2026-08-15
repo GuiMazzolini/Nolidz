@@ -25,6 +25,14 @@ async function ensureIndexes(db: Db) {
     db
       .collection("ratelimits")
       .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+
+    // Fulfillment and the expiry sweep both look a hold up by this id.
+    db
+      .collection("reservations")
+      .createIndex({ reservationId: 1 }, { unique: true }),
+    // Deliberately not a TTL index: an expired hold still owns stock, and
+    // deleting the document would strand it. The sweep returns it first.
+    db.collection("reservations").createIndex({ status: 1, expiresAt: 1 }),
   ]);
 
   indexesEnsured = true;
