@@ -8,10 +8,15 @@ import { getShippingCost } from "@/app/lib/shipping";
 import { buildCartMetadata } from "@/app/lib/cart-metadata";
 import { lineItemName } from "@/app/lib/variants";
 import { MAX_CART_LINE_ITEMS } from "@/app/lib/schemas";
-import { enforceRateLimit, RATE_LIMITS } from "@/app/lib/rate-limit";
-import { checkoutSessionExpiresAt } from "@/app/lib/reservations";
+import { enforceRateLimit, getClientIp, RATE_LIMITS } from "@/app/lib/rate-limit";
+import {
+  CHECKOUT_HOLD_MINUTES,
+  checkoutSessionExpiresAt,
+  MAX_OPEN_HOLDS_PER_BUYER,
+} from "@/app/lib/reservations";
 import {
   attachSessionToHold,
+  countOpenHolds,
   holdStock,
   releaseHold,
   sweepExpiredHolds,
@@ -152,6 +157,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Holding stock is free, so without a cap one script can start checkouts all
+  // day and keep the scarce sizes out of sale without ever paying.
+  const holder = email ?? `ip:${getClientIp(req)}`;
+  const openHolds = await countOpenHolds(db, holder);
+  if (openHolds >= MAX_OPEN_HOLDS_PER_BUYER) {
+    return NextResponse.json(
+      {
+        error: `You already have ${openHolds} checkouts open, and each one holds stock for ${CHECKOUT_HOLD_MINUTES} minutes. Finish or abandon one before starting another.`,
+      },
+      { status: 429 }
+    );
+  }
+
   // From here the stock is ours. Every path out of this function either hands
   // the customer a payable session or gives the stock back.
   const reservationId = randomUUID();
@@ -163,6 +181,7 @@ export async function POST(req: NextRequest) {
       ...(p.variantSku ? { variantSku: p.variantSku } : {}),
     })),
     userId: email,
+    holder,
   });
 
   if (!hold.ok) {

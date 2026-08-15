@@ -28,6 +28,15 @@ let test: TestDatabase;
 
 const BLACK_42 = "runner-eu42-black"; // three in stock
 
+/** Each simulated buyer holds under their own identity unless told otherwise. */
+function takeHold(args: {
+  reservationId: string;
+  lines: Parameters<typeof holdStock>[1]["lines"];
+  holder?: string;
+}) {
+  return holdStock(test.db, { holder: args.reservationId, ...args });
+}
+
 async function seedCatalog() {
   await test.db.collection("products").insertOne(structuredClone(runnerProduct));
 }
@@ -65,7 +74,7 @@ describe.skipIf(!mongoUri)("stock holds against a real MongoDB", () => {
     // Ten checkouts fired at once, each wanting all three remaining pairs.
     const results = await Promise.all(
       Array.from({ length: 10 }, (_, i) =>
-        holdStock(test.db, {
+        takeHold({
           reservationId: `r${i}`,
           lines: [{ productId: "runner", quantity: 3, variantSku: BLACK_42 }],
         })
@@ -83,7 +92,7 @@ describe.skipIf(!mongoUri)("stock holds against a real MongoDB", () => {
 
     const results = await Promise.all(
       Array.from({ length: 8 }, (_, i) =>
-        holdStock(test.db, {
+        takeHold({
           reservationId: `r${i}`,
           lines: [{ productId: "runner", quantity: 1, variantSku: BLACK_42 }],
         })
@@ -97,7 +106,7 @@ describe.skipIf(!mongoUri)("stock holds against a real MongoDB", () => {
   it("moves the size and the product mirror by the same amount", async () => {
     await seedCatalog();
 
-    await holdStock(test.db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 2, variantSku: BLACK_42 }],
     });
@@ -111,7 +120,7 @@ describe.skipIf(!mongoUri)("stock holds against a real MongoDB", () => {
 
   it("returns stock once even when release and sweep race", async () => {
     await seedCatalog();
-    await holdStock(test.db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 3, variantSku: BLACK_42 }],
     });
@@ -137,7 +146,7 @@ describe.skipIf(!mongoUri)("stock holds against a real MongoDB", () => {
 
   it("commits once when two webhook deliveries arrive together", async () => {
     await seedCatalog();
-    await holdStock(test.db, {
+    await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 2, variantSku: BLACK_42 }],
     });
@@ -155,7 +164,7 @@ describe.skipIf(!mongoUri)("stock holds against a real MongoDB", () => {
   it("refuses to hold a size that no longer exists", async () => {
     await seedCatalog();
 
-    const result = await holdStock(test.db, {
+    const result = await takeHold({
       reservationId: "r1",
       lines: [{ productId: "runner", quantity: 1, variantSku: "runner-eu99-gold" }],
     });
@@ -167,7 +176,7 @@ describe.skipIf(!mongoUri)("stock holds against a real MongoDB", () => {
   it("keeps a partly-taken cart from stranding stock", async () => {
     await seedCatalog();
 
-    const result = await holdStock(test.db, {
+    const result = await takeHold({
       reservationId: "r1",
       lines: [
         { productId: "runner", quantity: 2, variantSku: "runner-eu42-white" },

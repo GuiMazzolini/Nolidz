@@ -31,6 +31,12 @@ export type ReservationDoc = {
   stripeSessionId: string | null;
   /** Null for a guest checkout, which has no account to attribute it to. */
   userId: string | null;
+  /**
+   * Who to count open holds against: the account email, or `ip:<addr>` for a
+   * guest. Holding stock costs nothing, so without a cap one script can take
+   * the scarce sizes out of sale repeatedly without ever paying.
+   */
+  holder: string;
   lines: ReservationLine[];
   /**
    * The lines whose stock was actually taken. Releasing gives back only these,
@@ -50,6 +56,14 @@ export type ReservationDoc = {
  * 30 minutes out, so this is also the floor.
  */
 export const CHECKOUT_HOLD_MINUTES = 30;
+
+/**
+ * Open checkouts one buyer may have at once. Enough for someone juggling tabs
+ * or retrying a declined card; low enough that abandoning them cannot freeze
+ * the catalog. This bounds the blast radius rather than closing the hole —
+ * see the README on what it does not solve.
+ */
+export const MAX_OPEN_HOLDS_PER_BUYER = 3;
 
 /**
  * The hold outlives the Stripe session by this much. Payment authorised in the

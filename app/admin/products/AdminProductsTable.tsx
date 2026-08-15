@@ -12,9 +12,15 @@ export type AdminProduct = {
   name: string;
   price: number;
   imageUrl: string;
-  /** Total units; for a variant product, the sum across every size/colour. */
+  /**
+   * Units on the shelf; for a variant product, the sum across every
+   * size/colour. Includes anything held by a checkout in progress, so it can
+   * read higher than what the storefront currently offers.
+   */
   stock: number;
   variants?: ProductVariant[];
+  /** Of `stock`, how many are spoken for by a checkout that has not paid. */
+  heldForCheckout: number;
 };
 
 type StockFilter = "all" | "in-stock" | "low-stock" | "out-of-stock";
@@ -215,6 +221,13 @@ export default function AdminProductsTable({
                     {product.variants && product.variants.length > 0 && (
                       <p className="mt-0.5 text-xs text-gray-500">
                         {variantSummary(product.variants)}
+                      </p>
+                    )}
+                    {product.heldForCheckout > 0 && (
+                      // Otherwise this column reads higher than what the shop
+                      // will actually sell, with nothing to explain the gap.
+                      <p className="mt-0.5 text-xs text-blue-700">
+                        {product.heldForCheckout} held in checkout
                       </p>
                     )}
                   </td>

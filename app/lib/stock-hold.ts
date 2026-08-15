@@ -80,16 +80,20 @@ export async function holdStock(
     reservationId,
     lines,
     userId,
+    holder,
   }: {
     reservationId: string;
     lines: ReservationLine[];
     userId?: string | null;
+    /** Account email, or `ip:<addr>` for a guest. See countOpenHolds. */
+    holder: string;
   }
 ): Promise<HoldResult> {
   await reservations(db).insertOne({
     reservationId,
     stripeSessionId: null,
     userId: userId ?? null,
+    holder,
     lines,
     applied: [],
     status: "held",
@@ -192,6 +196,70 @@ export async function commitHold(
 
   const existing = await reservations(db).findOne({ reservationId });
   return existing?.status === "committed" ? "already-committed" : "gone";
+}
+
+/**
+ * How many checkouts this buyer currently has holding stock.
+ *
+ * Call `sweepExpiredHolds` first — the checkout route already does, before it
+ * reads the catalog. Counting without sweeping would lock a buyer out over
+ * checkouts that lapsed hours ago.
+ */
+export async function countOpenHolds(db: Db, holder: string): Promise<number> {
+  return reservations(db).countDocuments({ holder, status: "held" });
+}
+
+/** Units currently held by checkouts in progress, for one product. */
+export type HeldStock = {
+  /** Across the whole product, mirroring the product-level counter. */
+  total: number;
+  /** Per variant SKU. A single-SKU product holds nothing here. */
+  bySku: Map<string, number>;
+};
+
+/**
+ * What open checkouts are holding, per product.
+ *
+ * The admin screens need this because `stock` is what is *available*, while an
+ * admin counting boxes in a stockroom is looking at what is *on the shelf*.
+ * Showing them available stock and writing it back verbatim would let a
+ * released hold add its units on top of the new count and invent inventory.
+ */
+export async function heldStockFor(
+  db: Db,
+  productIds: string[]
+): Promise<Map<string, HeldStock>> {
+  const byProduct = new Map<string, HeldStock>();
+  if (!productIds.length) return byProduct;
+
+  const open = await reservations(db)
+    .find({
+      status: "held",
+      applied: { $elemMatch: { productId: { $in: productIds } } },
+    })
+    .toArray();
+
+  for (const doc of open) {
+    for (const line of doc.applied ?? []) {
+      if (!productIds.includes(line.productId)) continue;
+
+      let entry = byProduct.get(line.productId);
+      if (!entry) {
+        entry = { total: 0, bySku: new Map() };
+        byProduct.set(line.productId, entry);
+      }
+
+      entry.total += line.quantity;
+      if (line.variantSku) {
+        entry.bySku.set(
+          line.variantSku,
+          (entry.bySku.get(line.variantSku) ?? 0) + line.quantity
+        );
+      }
+    }
+  }
+
+  return byProduct;
 }
 
 /**

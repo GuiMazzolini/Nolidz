@@ -4,17 +4,13 @@ import {
   normalizeProductImageUrl,
   slugifyProductId,
 } from "@/app/lib/admin";
+import { serializeAdminProduct } from "@/app/lib/admin-products";
 import { authOptions } from "@/app/lib/auth";
-import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products as productsCollection } from "@/app/lib/db-collections";
 import { badRequest, parseBody } from "@/app/lib/api-request";
 import { adminProductCreateSchema, resolveVariants } from "@/app/lib/schemas";
-import {
-  serializeVariants,
-  totalVariantStock,
-  type ColorImage,
-  type ProductVariant,
-} from "@/app/lib/variants";
+import { heldStockFor } from "@/app/lib/stock-hold";
+import { totalVariantStock, type ColorImage } from "@/app/lib/variants";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -26,19 +22,6 @@ async function requireAdmin() {
   return session;
 }
 
-function serializeProduct(doc: Record<string, unknown>) {
-  return {
-    id: doc.id,
-    name: doc.name,
-    price: doc.price,
-    description: doc.description,
-    imageUrl: doc.imageUrl,
-    stock: getAvailableStock(doc.stock),
-    variants: serializeVariants(doc.variants as ProductVariant[] | undefined) ?? [],
-    colorImages: (doc.colorImages as ColorImage[] | undefined) ?? [],
-  };
-}
-
 export async function GET() {
   const session = await requireAdmin();
   if (!session) {
@@ -47,7 +30,11 @@ export async function GET() {
 
   const { db } = await connectToDB();
   const products = await productsCollection(db).find({}).sort({ name: 1 }).toArray();
-  return NextResponse.json(products.map(serializeProduct));
+  const held = await heldStockFor(db, products.map((p) => p.id));
+
+  return NextResponse.json(
+    products.map((doc) => serializeAdminProduct(doc, held.get(doc.id)))
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -110,6 +97,7 @@ export async function POST(req: NextRequest) {
     updatedAt: new Date(),
   };
 
+  // A product that did not exist a moment ago can have nothing held against it.
   await productsCollection(db).insertOne(product);
-  return NextResponse.json(serializeProduct(product), { status: 201 });
+  return NextResponse.json(serializeAdminProduct(product), { status: 201 });
 }

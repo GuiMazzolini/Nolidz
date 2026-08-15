@@ -24,6 +24,7 @@ import { testDb } from "@/app/test/mongo-double";
 import { setMockSession } from "@/app/test/session";
 import type { ProductDoc } from "@/app/lib/db-collections";
 import type { ProductVariant } from "@/app/lib/variants";
+import { commitHold, holdStock, releaseHold } from "@/app/lib/stock-hold";
 
 type AdminProduct = {
   id: string;
@@ -367,5 +368,110 @@ describe("GET and DELETE", () => {
     expect(
       (await DELETE_ONE(jsonRequest("DELETE"), params("mug"))).status
     ).toBe(404);
+  });
+});
+
+describe("admin stock while checkouts are in progress", () => {
+  /** Two pairs of EU 42 Black are held by a checkout that has not paid yet. */
+  async function holdTwoBlack42() {
+    await holdStock(testDb as never, {
+      reservationId: "r1",
+      holder: "shopper@example.com",
+      lines: [
+        { productId: "runner", quantity: 2, variantSku: "runner-eu42-black" },
+      ],
+    });
+  }
+
+  it("shows the admin what is on the shelf, not what is left to sell", async () => {
+    await holdTwoBlack42();
+    // The catalog now offers one; the stockroom still has three.
+    expect(stored("runner")!.variants![0].stock).toBe(1);
+
+    const { body } = await readResponse<AdminProduct & { heldForCheckout: number }>(
+      await GET_ONE(jsonRequest("GET"), params("runner"))
+    );
+
+    expect(body.variants[0].stock).toBe(3);
+    expect(body.heldForCheckout).toBe(2);
+  });
+
+  it("does not invent stock when a held checkout is later abandoned", async () => {
+    await holdTwoBlack42();
+
+    // The admin counts the shelf, finds ten, and saves that.
+    await PATCH(
+      jsonRequest("PATCH", {
+        variants: [
+          { sku: "runner-eu42-black", size: "42", color: "Black", stock: 10 },
+        ],
+      }),
+      params("runner")
+    );
+
+    // Eight are sellable now; two are still spoken for.
+    expect(stored("runner")!.variants![0].stock).toBe(8);
+
+    await releaseHold(testDb as never, "r1", "expired");
+
+    // Ten on the shelf, ten for sale. Writing 10 verbatim would have given 12.
+    expect(stored("runner")!.variants![0].stock).toBe(10);
+    expect(stored("runner")!.stock).toBe(10);
+  });
+
+  it("keeps the shelf count stable when a held checkout is paid for", async () => {
+    await holdTwoBlack42();
+
+    await PATCH(
+      jsonRequest("PATCH", {
+        variants: [
+          { sku: "runner-eu42-black", size: "42", color: "Black", stock: 10 },
+        ],
+      }),
+      params("runner")
+    );
+    await commitHold(testDb as never, "r1");
+
+    // Two shipped, eight remain and all eight are sellable.
+    expect(stored("runner")!.variants![0].stock).toBe(8);
+  });
+
+  it("reconciles a single-SKU product the same way", async () => {
+    await holdStock(testDb as never, {
+      reservationId: "r2",
+      holder: "shopper@example.com",
+      lines: [{ productId: "mug", quantity: 1 }],
+    });
+
+    await PATCH(jsonRequest("PATCH", { stock: 20 }), params("mug"));
+    expect(stored("mug")!.stock).toBe(19);
+
+    await releaseHold(testDb as never, "r2", "expired");
+    expect(stored("mug")!.stock).toBe(20);
+  });
+
+  it("goes negative rather than hiding a genuine oversell", async () => {
+    await holdTwoBlack42();
+
+    // The admin finds only one pair on the shelf, but two are already sold.
+    await PATCH(
+      jsonRequest("PATCH", {
+        variants: [
+          { sku: "runner-eu42-black", size: "42", color: "Black", stock: 1 },
+        ],
+      }),
+      params("runner")
+    );
+
+    // Nothing further can be sold until the count recovers, which is the
+    // point — clamping to zero would let it be oversold again.
+    expect(stored("runner")!.variants![0].stock).toBe(-1);
+  });
+
+  it("leaves the listing alone when nothing is held", async () => {
+    const { body } = await readResponse<AdminProduct[]>(await GET());
+    const runner = body.find((p) => p.id === "runner")!;
+
+    expect(runner.variants[0].stock).toBe(3);
   });
 });
