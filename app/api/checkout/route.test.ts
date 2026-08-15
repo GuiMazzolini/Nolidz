@@ -212,9 +212,10 @@ describe("guest checkout", () => {
       cheap.shipping_options![0].shipping_rate_data!.fixed_amount!.amount
     ).toBe(500);
 
+    // One pair is €89.99, still under the €100 threshold. Two pairs clear it.
     await POST(
       jsonRequest("POST", {
-        items: [{ productId: "runner", quantity: 1, variantSku: "runner-eu42-black" }],
+        items: [{ productId: "runner", quantity: 2, variantSku: "runner-eu42-black" }],
       })
     );
     const pricey = lastSessionArgs();

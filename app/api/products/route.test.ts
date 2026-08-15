@@ -33,12 +33,13 @@ describe("GET /api/products", () => {
     const { status, body } = await readResponse<PublicProduct[]>(await GET_ALL());
 
     expect(status).toBe(200);
-    expect(body.map((p) => p.id)).toEqual(["runner", "mug", "pins"]);
+    // Pins is in the fixture but fully sold out, so the public catalog omits it.
+    expect(body.map((p) => p.id)).toEqual(["runner", "mug"]);
     // Three combinations in the fixture, one of them sold out.
     expect(body[0].variants).toHaveLength(2);
   });
 
-  it("keeps a sold-out product listed, without a size run to offer", async () => {
+  it("omits a sold-out product from the catalog", async () => {
     testDb.reset();
     testDb.seed("products", [
       { ...runnerProduct, stock: 0, variants: runnerProduct.variants?.map((v) => ({ ...v, stock: 0 })) },
@@ -46,8 +47,7 @@ describe("GET /api/products", () => {
 
     const { body } = await readResponse<PublicProduct[]>(await GET_ALL());
 
-    expect(body.map((p) => p.id)).toEqual(["runner"]);
-    expect(body[0].variants).toBeUndefined();
+    expect(body).toEqual([]);
   });
 
   it("does not leak the Mongo _id", async () => {
@@ -110,6 +110,13 @@ describe("GET /api/products/[id]", () => {
   it("404s an unknown id", async () => {
     const { status } = await readResponse(
       await GET_ONE(jsonRequest("GET"), params("ghost"))
+    );
+    expect(status).toBe(404);
+  });
+
+  it("404s a sold-out product rather than listing it empty", async () => {
+    const { status } = await readResponse(
+      await GET_ONE(jsonRequest("GET"), params("pins"))
     );
     expect(status).toBe(404);
   });
