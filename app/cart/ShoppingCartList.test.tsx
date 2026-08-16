@@ -46,6 +46,10 @@ const white43: Product = {
   variantColor: "White",
 };
 
+/** The one button that leaves the site. Named once: its wording follows
+ *  whichever payment methods Checkout is offering. */
+const PAY_BUTTON = { name: /Pay with card or PayPal/ };
+
 beforeEach(() => {
   vi.clearAllMocks();
   useSessionMock.mockReturnValue({ status: "authenticated" });
@@ -103,14 +107,14 @@ describe("ShoppingCartList", () => {
     render(<ShoppingCartList initialCartProducts={[]} />);
 
     expect(screen.getByText("Your cart is empty")).toBeVisible();
-    expect(screen.queryByRole("button", { name: /Pay with Stripe/ })).toBeNull();
+    expect(screen.queryByRole("button", PAY_BUTTON)).toBeNull();
   });
 
   it("starts checkout from the summary", async () => {
     const user = userEvent.setup();
     render(<ShoppingCartList initialCartProducts={[black42]} />);
 
-    await user.click(screen.getByRole("button", { name: /Pay with Stripe/ }));
+    await user.click(screen.getByRole("button", PAY_BUTTON));
     expect(startCheckoutMock).toHaveBeenCalledOnce();
   });
 
@@ -121,7 +125,7 @@ describe("ShoppingCartList", () => {
     render(<ShoppingCartList initialCartProducts={[]} />);
 
     expect(screen.getByText(/shopping as a guest/i)).toBeVisible();
-    expect(screen.getByRole("button", { name: /Pay with Stripe/ })).toBeEnabled();
+    expect(screen.getByRole("button", PAY_BUTTON)).toBeEnabled();
   });
 
   it("adopts the server snapshot for a signed-in visitor", () => {
