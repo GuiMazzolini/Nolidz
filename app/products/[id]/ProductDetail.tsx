@@ -328,9 +328,9 @@ export default function ProductDetail({
                 <div className="grid grid-cols-2 gap-4 text-sm text-ink/60">
                   <div>
                     <span className="block font-semibold text-ink">
-                      Free Shipping
+                      Ships in Germany
                     </span>
-                    <span>On orders over €100</span>
+                    <span>Free over €100 · otherwise €5</span>
                   </div>
                   <div>
                     <span className="block font-semibold text-ink">

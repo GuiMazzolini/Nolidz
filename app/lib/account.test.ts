@@ -56,14 +56,17 @@ describe("passwordChangeSchema", () => {
 
 describe("addressSchema", () => {
   const valid = {
-    line1: "1 Main St",
-    city: "Austin",
-    postalCode: "78701",
-    country: "us",
+    line1: "Musterstraße 1",
+    city: "Berlin",
+    postalCode: "10115",
+    country: "de",
   };
 
-  it("uppercases the country code", () => {
-    expect(addressSchema.parse(valid).country).toBe("US");
+  it("uppercases the country code and only allows Germany", () => {
+    expect(addressSchema.parse(valid).country).toBe("DE");
+    expect(addressSchema.safeParse({ ...valid, country: "US" }).success).toBe(
+      false
+    );
   });
 
   it("normalizes blank optional fields to null", () => {

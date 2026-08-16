@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { STORE_CURRENCY } from "@/app/lib/money";
 import { getAppUrl, getStripe } from "@/app/lib/stripe";
-import { getShippingCost } from "@/app/lib/shipping";
+import { getShippingCost, SHIPPING_COUNTRIES } from "@/app/lib/shipping";
 import { buildCartMetadata } from "@/app/lib/cart-metadata";
 import { lineItemName } from "@/app/lib/variants";
 import { MAX_CART_LINE_ITEMS } from "@/app/lib/schemas";
@@ -202,9 +202,13 @@ export async function POST(req: NextRequest) {
   try {
     checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
+      // Card + PayPal (enable PayPal under Dashboard → Payment methods).
+      // Listing them here keeps Checkout aligned with what we support in the UI.
+      payment_method_types: ["card", "paypal"],
       line_items,
       shipping_address_collection: {
-        allowed_countries: ["DE", "AT", "CH", "NL", "BE", "FR", "LU", "PL", "CZ", "DK"],
+        // Germany only — we do not deliver elsewhere.
+        allowed_countries: [...SHIPPING_COUNTRIES],
       },
       shipping_options: [
         {

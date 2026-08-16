@@ -1,3 +1,7 @@
+/** Where nolidz delivers. Stripe Checkout and saved addresses use this list. */
+export const SHIPPING_COUNTRIES = ["DE"] as const;
+export type ShippingCountry = (typeof SHIPPING_COUNTRIES)[number];
+
 export const FREE_SHIPPING_THRESHOLD = 100;
 export const SHIPPING_FLAT_RATE = 5;
 
