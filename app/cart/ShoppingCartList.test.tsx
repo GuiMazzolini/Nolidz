@@ -103,14 +103,14 @@ describe("ShoppingCartList", () => {
     render(<ShoppingCartList initialCartProducts={[]} />);
 
     expect(screen.getByText("Your cart is empty")).toBeVisible();
-    expect(screen.queryByRole("button", { name: /Pay with Stripe/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Pay with card or PayPal/ })).toBeNull();
   });
 
   it("starts checkout from the summary", async () => {
     const user = userEvent.setup();
     render(<ShoppingCartList initialCartProducts={[black42]} />);
 
-    await user.click(screen.getByRole("button", { name: /Pay with Stripe/ }));
+    await user.click(screen.getByRole("button", { name: /Pay with card or PayPal/ }));
     expect(startCheckoutMock).toHaveBeenCalledOnce();
   });
 
@@ -121,7 +121,7 @@ describe("ShoppingCartList", () => {
     render(<ShoppingCartList initialCartProducts={[]} />);
 
     expect(screen.getByText(/shopping as a guest/i)).toBeVisible();
-    expect(screen.getByRole("button", { name: /Pay with Stripe/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Pay with card or PayPal/ })).toBeEnabled();
   });
 
   it("adopts the server snapshot for a signed-in visitor", () => {

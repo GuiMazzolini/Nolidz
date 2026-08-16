@@ -40,12 +40,12 @@ import { setEmaillessSession, setMockSession } from "@/app/test/session";
 
 const PASSWORD = "original-password";
 const address = {
-  line1: "1 Main St",
+  line1: "Musterstraße 1",
   line2: null,
-  city: "Lisbon",
+  city: "Berlin",
   state: null,
-  postalCode: "1000-001",
-  country: "pt",
+  postalCode: "10115",
+  country: "de",
 };
 
 function storedUser(email = BUYER): UserDoc | undefined {
@@ -243,7 +243,7 @@ describe("PUT /api/account/address", () => {
     );
 
     expect(status).toBe(200);
-    expect(body.address).toMatchObject({ city: "Lisbon", country: "PT" });
+    expect(body.address).toMatchObject({ city: "Berlin", country: "DE" });
     expect(customersCreateMock).toHaveBeenCalledOnce();
     expect(storedUser()?.stripeCustomerId).toBe("cus_new");
   });
@@ -268,14 +268,15 @@ describe("PUT /api/account/address", () => {
     );
 
     expect(status).toBe(200);
-    expect(body.address?.line1).toBe("1 Main St");
+    expect(body.address?.line1).toBe("Musterstraße 1");
     expect(storedUser()?.stripeCustomerId).toBeUndefined();
   });
 
-  it("rejects an incomplete address", async () => {
+  it("rejects an incomplete address or a non-German country", async () => {
     const invalid = [
       { ...address, line1: "" },
       { ...address, country: "PRT" },
+      { ...address, country: "US" },
       { ...address, postalCode: "" },
     ];
 
