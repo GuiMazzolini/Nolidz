@@ -45,7 +45,6 @@ const address = {
   city: "Berlin",
   state: null,
   postalCode: "10115",
-  // The shop ships within Germany only; addressSchema refuses anything else.
   country: "de",
 };
 
@@ -273,13 +272,11 @@ describe("PUT /api/account/address", () => {
     expect(storedUser()?.stripeCustomerId).toBeUndefined();
   });
 
-  it("rejects an incomplete address", async () => {
+  it("rejects an incomplete address or a non-German country", async () => {
     const invalid = [
       { ...address, line1: "" },
       { ...address, country: "PRT" },
-      // A real country code the shop does not ship to, so the route has to
-      // refuse it rather than save an address nothing can be delivered to.
-      { ...address, country: "FR" },
+      { ...address, country: "US" },
       { ...address, postalCode: "" },
     ];
 
