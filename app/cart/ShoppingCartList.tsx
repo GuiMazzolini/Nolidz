@@ -160,12 +160,14 @@ export default function ShoppingCartList({ initialCartProducts }: { initialCartP
                 disabled={checkoutLoading}
                 className="block text-center w-full bg-ink text-paper py-4 font-semibold hover:bg-ink/85 transition-colors mb-2 disabled:opacity-60 disabled:pointer-events-none"
               >
-                {checkoutLoading ? "Redirecting…" : "Pay with Stripe"}
+                {checkoutLoading ? "Redirecting…" : "Pay with card or PayPal"}
               </button>
 
               <p className="mb-4 text-center text-xs text-ink/45">
-                Secure payment on Stripe. {isGuest && "No account needed — "}
-                shipping and email are collected there.
+                Secure checkout on Stripe (card or PayPal).{" "}
+                {isGuest && "No account needed — "}
+                shipping and email are collected there. We only ship within
+                Germany.
               </p>
 
               <p className="mb-4 bg-paper px-3 py-2 text-xs text-ink/60">

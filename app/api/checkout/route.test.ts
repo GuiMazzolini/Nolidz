@@ -108,6 +108,7 @@ describe("guest checkout", () => {
     expect(args.line_items![0].quantity).toBe(2);
     expect(args.metadata).toMatchObject({ isGuest: "true" });
     expect(args.client_reference_id).toBeUndefined();
+    expect(args.payment_method_types).toEqual(["card", "paypal"]);
   });
 
   it("expires the session so an abandoned checkout stops being payable", async () => {

@@ -12,12 +12,15 @@ const LABEL = "mb-1 block text-sm font-medium text-gray-700";
 const PRIMARY =
   "rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:pointer-events-none";
 
-/** Countries Checkout accepts, so a saved address can always be used there. */
-const COUNTRIES = [
-  ["US", "United States"], ["CA", "Canada"], ["GB", "United Kingdom"],
-  ["BR", "Brazil"], ["PT", "Portugal"], ["DE", "Germany"],
-  ["FR", "France"], ["ES", "Spain"], ["IT", "Italy"], ["NL", "Netherlands"],
-] as const;
+/** Germany only — same rule as Stripe Checkout (SHIPPING_COUNTRIES). */
+const EMPTY_ADDRESS: SavedAddress = {
+  line1: "",
+  line2: null,
+  city: "",
+  state: null,
+  postalCode: "",
+  country: "DE",
+};
 
 function Section({
   title,
@@ -249,11 +252,11 @@ function PasswordSection({
 
 function AddressSection({ initial }: { initial: SavedAddress | null }) {
   const router = useRouter();
-  const [address, setAddress] = useState<SavedAddress>(
-    initial ?? {
-      line1: "", line2: null, city: "", state: null, postalCode: "", country: "US",
-    }
-  );
+  const [address, setAddress] = useState<SavedAddress>(() => {
+    if (!initial) return { ...EMPTY_ADDRESS };
+    // Older saves may still have a non-DE country; Checkout no longer accepts them.
+    return { ...initial, country: "DE" };
+  });
   const [state, setState] = useState<{ error?: string | null; success?: string | null }>({});
   const [saving, setSaving] = useState(false);
 
@@ -271,7 +274,8 @@ function AddressSection({ initial }: { initial: SavedAddress | null }) {
     setState({});
     setSaving(true);
     try {
-      await submit("/api/account/address", "PUT", address);
+      // Country is fixed to DE — Stripe Checkout only ships within Germany.
+      await submit("/api/account/address", "PUT", { ...address, country: "DE" });
       router.refresh();
       setState({ success: "Address saved. Checkout will prefill it." });
     } catch (err) {
@@ -286,7 +290,7 @@ function AddressSection({ initial }: { initial: SavedAddress | null }) {
     setSaving(true);
     try {
       await submit("/api/account/address", "DELETE");
-      setAddress({ line1: "", line2: null, city: "", state: null, postalCode: "", country: "US" });
+      setAddress({ ...EMPTY_ADDRESS });
       router.refresh();
       setState({ success: "Address removed." });
     } catch (err) {
@@ -299,7 +303,7 @@ function AddressSection({ initial }: { initial: SavedAddress | null }) {
   return (
     <Section
       title="Shipping address"
-      description="Saved to your Stripe customer record, so it prefills at checkout. You can still change it during payment."
+      description="Germany only. Saved to your Stripe customer record so it prefills at checkout — you can still change it during payment."
     >
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
@@ -333,11 +337,12 @@ function AddressSection({ initial }: { initial: SavedAddress | null }) {
           </div>
           <div>
             <label htmlFor="addr-country" className={LABEL}>Country</label>
-            <select id="addr-country" required {...field("country")}>
-              {COUNTRIES.map(([code, label]) => (
-                <option key={code} value={code}>{label}</option>
-              ))}
-            </select>
+            <input
+              id="addr-country"
+              readOnly
+              value="Germany"
+              className={`${INPUT} bg-gray-50 text-gray-700`}
+            />
           </div>
         </div>
 

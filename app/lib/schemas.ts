@@ -86,7 +86,7 @@ export const passwordChangeSchema = z.object({
   newPassword: z.string().min(8).max(200),
 });
 
-/** ISO 3166-1 alpha-2, matching the countries Checkout accepts. */
+/** ISO 3166-1 alpha-2. Must match SHIPPING_COUNTRIES (Germany only). */
 export const addressSchema = z.object({
   line1: z.string().trim().min(1).max(200),
   line2: z.string().trim().max(200).nullish().transform((v) => v || null),
@@ -97,7 +97,10 @@ export const addressSchema = z.object({
     .string()
     .trim()
     .length(2)
-    .transform((v) => v.toUpperCase()),
+    .transform((v) => v.toUpperCase())
+    .refine((v): v is "DE" => v === "DE", {
+      message: "We only ship within Germany",
+    }),
 });
 
 /** One size/colour row from the admin form. */
