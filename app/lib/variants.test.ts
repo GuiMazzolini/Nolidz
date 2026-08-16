@@ -20,6 +20,8 @@ import {
   resolveLinePrice,
   resolveLineStock,
   sellableVariants,
+  serializeVariants,
+  sizesAvailableLabel,
   sizesLeftLabel,
   totalVariantStock,
   variantsForColor,
@@ -172,6 +174,130 @@ describe("variant stock", () => {
   it("falls back to the product count when there are no variants", () => {
     expect(resolveLineStock({ stock: 4 })).toBe(4);
     expect(resolveLineStock({ stock: -2 })).toBe(0);
+  });
+
+  it("never counts a broken stock value as sellable units", () => {
+    // A hand-edited document or a failed import can leave any of these
+    // behind. Each one has to read as sold out, not as stock to sell.
+    const broken: ProductVariant[] = [
+      { sku: "a", size: "40", color: "Black", stock: -5 },
+      { sku: "b", size: "41", color: "Black", stock: Number.NaN },
+      { sku: "c", size: "42", color: "Black", stock: Number.POSITIVE_INFINITY },
+    ];
+
+    expect(totalVariantStock(broken)).toBe(0);
+    for (const variant of broken) {
+      expect(resolveLineStock({ variants: broken }, variant.sku)).toBe(0);
+    }
+  });
+
+  it("floors a fractional count rather than selling a part-pair", () => {
+    const variants: ProductVariant[] = [
+      { sku: "a", size: "40", color: "Black", stock: 2.7 },
+      { sku: "b", size: "41", color: "Black", stock: 3 },
+    ];
+
+    expect(totalVariantStock(variants)).toBe(5);
+    expect(resolveLineStock({ variants }, "a")).toBe(2);
+  });
+
+  it("ignores the product mirror when the SKU is the thing being sold", () => {
+    // The mirror can drift — an admin edit, an interrupted hold — and the
+    // size's own count is the one that decides whether this line can ship.
+    const drifted = { ...runner, stock: 99 };
+    expect(resolveLineStock(drifted, "runner-eu43-black")).toBe(0);
+  });
+});
+
+describe("variants as the client receives them", () => {
+  it("keeps a sold-out size, at zero, so the page can strike it through", () => {
+    // sellableVariants drops these for the API; serializeVariants must not,
+    // or a shopper cannot tell their size exists at all.
+    expect(serializeVariants(RUNNER_VARIANTS)).toEqual(RUNNER_VARIANTS);
+  });
+
+  it("normalizes broken counts to zero instead of passing them through", () => {
+    expect(
+      serializeVariants([
+        { sku: "a", size: "40", color: "Black", stock: -3 },
+        { sku: "b", size: "41", color: "Black", stock: 2.9 },
+        { sku: "c", size: "42", color: "Black", stock: Number.NaN },
+      ])
+    ).toEqual([
+      { sku: "a", size: "40", color: "Black", stock: 0 },
+      { sku: "b", size: "41", color: "Black", stock: 2 },
+      { sku: "c", size: "42", color: "Black", stock: 0 },
+    ]);
+  });
+
+  it("carries a colourway price through and drops an unusable one", () => {
+    const [priced, negative, free] = serializeVariants([
+      { sku: "a", size: "40", color: "White", stock: 1, price: 109.99 },
+      { sku: "b", size: "41", color: "White", stock: 1, price: -1 },
+      { sku: "c", size: "42", color: "White", stock: 1, price: 0 },
+    ])!;
+
+    expect(priced.price).toBe(109.99);
+    // Falling back to the product price beats charging a negative one.
+    expect(negative).not.toHaveProperty("price");
+    // Zero is a real price — a giveaway — and must survive.
+    expect(free.price).toBe(0);
+  });
+
+  it("reads a product with no size run as having no variants", () => {
+    expect(serializeVariants([])).toBeUndefined();
+    expect(serializeVariants(null)).toBeUndefined();
+    expect(serializeVariants(undefined)).toBeUndefined();
+  });
+});
+
+describe("sizes available, on a catalog card", () => {
+  it("names the sizes while there are few enough to scan", () => {
+    expect(
+      sizesAvailableLabel([
+        { sku: "a", size: "40", color: "Black", stock: 1 },
+        { sku: "b", size: "42", color: "Black", stock: 2 },
+      ])
+    ).toBe("EU 40, 42");
+  });
+
+  it("stops listing once the run is long enough to stop being scannable", () => {
+    expect(
+      sizesAvailableLabel([
+        { sku: "a", size: "40", color: "Black", stock: 1 },
+        { sku: "b", size: "41", color: "Black", stock: 1 },
+        { sku: "c", size: "42", color: "Black", stock: 1 },
+        { sku: "d", size: "43", color: "Black", stock: 1 },
+      ])
+    ).toBe("Available in several sizes");
+  });
+
+  it("counts only what is in stock towards that cutoff", () => {
+    // Three sold-out sizes must not push a two-size card into the summary.
+    expect(
+      sizesAvailableLabel([
+        { sku: "a", size: "40", color: "Black", stock: 1 },
+        { sku: "b", size: "41", color: "Black", stock: 0 },
+        { sku: "c", size: "42", color: "Black", stock: 0 },
+        { sku: "d", size: "43", color: "Black", stock: 0 },
+        { sku: "e", size: "44", color: "Black", stock: 2 },
+      ])
+    ).toBe("EU 40, 44");
+  });
+
+  it("leaves the EU prefix off sizes that are not numbers", () => {
+    expect(
+      sizesAvailableLabel([
+        { sku: "a", size: "One size", color: "Cream", stock: 1 },
+      ])
+    ).toBe("One size");
+  });
+
+  it("says nothing when there is nothing left to offer", () => {
+    expect(
+      sizesAvailableLabel([{ sku: "a", size: "40", color: "Black", stock: 0 }])
+    ).toBeNull();
+    expect(sizesAvailableLabel([])).toBeNull();
   });
 });
 
@@ -347,6 +473,93 @@ describe("stripe cart metadata with variants", () => {
       { productId: "hat", quantity: 2 },
       { productId: "shirt", quantity: 1 },
     ]);
+  });
+
+  it("keeps two sizes of one shoe as two separate lines", () => {
+    // Same product id twice: collapsing these would decrement one size twice
+    // and leave the other oversold.
+    const items = [
+      { productId: "runner", quantity: 1, variantSku: "runner-eu42-black" },
+      { productId: "runner", quantity: 2, variantSku: "runner-eu43-black" },
+    ];
+    expect(decodeCartMetadata(buildCartMetadata(items)!)).toEqual(items);
+  });
+
+  it("survives a SKU built from a half size and a two-word colour", () => {
+    // The real generator's output, through the separators it has to avoid.
+    const sku = buildVariantSku("runner-low", "42.5", "Off White");
+    expect(sku).not.toMatch(/[,:|]/);
+    expect(
+      decodeCartMetadata(
+        buildCartMetadata([{ productId: "runner-low", quantity: 1, variantSku: sku }])!
+      )
+    ).toEqual([{ productId: "runner-low", quantity: 1, variantSku: sku }]);
+  });
+
+  it("numbers the chunk keys from the second one, and packs them in order", () => {
+    // One line per chunk: 249 + ":1" is 251, so no two fit in 500 characters.
+    const items = Array.from({ length: MAX_CART_METADATA_CHUNKS }, (_, i) => ({
+      productId: `${String(i).padStart(3, "0")}${"x".repeat(246)}`,
+      quantity: 1,
+    }));
+
+    const metadata = buildCartMetadata(items)!;
+    expect(Object.keys(metadata)).toEqual([
+      "cartItems",
+      ...Array.from({ length: MAX_CART_METADATA_CHUNKS - 1 }, (_, i) => `cartItems${i + 2}`),
+    ]);
+    // Fulfillment decrements in this order, so it has to come back in it.
+    expect(decodeCartMetadata(metadata)).toEqual(items);
+  });
+
+  it("refuses the cart that needs one chunk more than the budget", () => {
+    const oneLinePerChunk = (count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        productId: `${String(i).padStart(3, "0")}${"x".repeat(246)}`,
+        quantity: 1,
+      }));
+
+    expect(buildCartMetadata(oneLinePerChunk(MAX_CART_METADATA_CHUNKS))).not.toBeNull();
+    // Refused outright: encoding all but the last line would check out a cart
+    // whose stock nothing ever decrements.
+    expect(buildCartMetadata(oneLinePerChunk(MAX_CART_METADATA_CHUNKS + 1))).toBeNull();
+  });
+
+  it("refuses one line too long to fit any single metadata value", () => {
+    expect(
+      buildCartMetadata([
+        { productId: "x".repeat(STRIPE_METADATA_VALUE_LIMIT + 1), quantity: 1 },
+      ])
+    ).toBeNull();
+  });
+
+  it("encodes an empty cart as no cartItems key at all", () => {
+    // Not null: nothing to encode is not the same as a cart that overflowed,
+    // and the checkout route turns null into a hard refusal.
+    expect(buildCartMetadata([])).toEqual({});
+    expect(decodeCartMetadata({})).toEqual([]);
+    expect(decodeCartMetadata(null)).toEqual([]);
+    expect(decodeCartMetadata(undefined)).toEqual([]);
+  });
+
+  it("drops a line it cannot trust rather than guessing a quantity", () => {
+    // Fulfillment decrements from this, so a quantity that is not a whole
+    // positive number has to be discarded, never rounded or defaulted to one.
+    expect(
+      decodeCartMetadata({
+        cartItems: "good:2,zero:0,negative:-1,fractional:1.5,words:many,noqty,:3",
+      })
+    ).toEqual([{ productId: "good", quantity: 2 }]);
+  });
+
+  it("ignores metadata Stripe carries alongside the cart", () => {
+    expect(
+      decodeCartMetadata({
+        userId: "buyer@example.com",
+        reservationId: "res_1",
+        cartItems: "runner|runner-eu42-black:1",
+      })
+    ).toEqual([{ productId: "runner", quantity: 1, variantSku: "runner-eu42-black" }]);
   });
 });
 

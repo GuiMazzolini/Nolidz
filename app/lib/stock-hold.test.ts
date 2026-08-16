@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   attachSessionToHold,
   commitHold,
+  heldStockFor,
   holdStock,
   releaseHold,
   sweepExpiredHolds,
@@ -268,6 +269,107 @@ describe("sweeping expired holds", () => {
     expect(await sweepExpiredHolds(db, later)).toBe(0);
     // A committed hold must never hand stock back.
     expect(stockOf(BLACK_42)).toBe(2);
+  });
+});
+
+describe("what open checkouts are holding, for the admin", () => {
+  /**
+   * `stock` is what is available, so an admin counting boxes sees fewer than
+   * the shelf holds. These numbers are what the admin screens add back to show
+   * a real count — get them wrong and saving the form invents inventory.
+   */
+  it("reports the units held per size and across the product", async () => {
+    await takeHold({
+      reservationId: "r1",
+      lines: [
+        { productId: "runner", quantity: 2, variantSku: BLACK_42 },
+        { productId: "runner", quantity: 1, variantSku: WHITE_42 },
+      ],
+    });
+
+    const held = (await heldStockFor(db, ["runner"])).get("runner")!;
+    expect(held.total).toBe(3);
+    expect(held.bySku.get(BLACK_42)).toBe(2);
+    expect(held.bySku.get(WHITE_42)).toBe(1);
+  });
+
+  it("adds up what several buyers hold of the same size", async () => {
+    await takeHold({
+      reservationId: "r1",
+      lines: [{ productId: "runner", quantity: 2, variantSku: BLACK_42 }],
+      holder: "one@example.com",
+    });
+    await takeHold({
+      reservationId: "r2",
+      lines: [{ productId: "runner", quantity: 1, variantSku: BLACK_42 }],
+      holder: "two@example.com",
+    });
+
+    const held = (await heldStockFor(db, ["runner"])).get("runner")!;
+    expect(held.bySku.get(BLACK_42)).toBe(3);
+    expect(stockOf(BLACK_42)).toBe(0);
+  });
+
+  it("counts a single-SKU product in the total and nowhere else", async () => {
+    await takeHold({
+      reservationId: "r1",
+      lines: [{ productId: "mug", quantity: 2 }],
+    });
+
+    const held = (await heldStockFor(db, ["mug"])).get("mug")!;
+    expect(held.total).toBe(2);
+    expect(held.bySku.size).toBe(0);
+  });
+
+  it("stops counting a hold once it is settled either way", async () => {
+    await takeHold({
+      reservationId: "r1",
+      lines: [{ productId: "runner", quantity: 2, variantSku: BLACK_42 }],
+    });
+    await takeHold({
+      reservationId: "r2",
+      lines: [{ productId: "runner", quantity: 1, variantSku: BLACK_42 }],
+      holder: "two@example.com",
+    });
+
+    // Released stock is back on the shelf; committed stock has been sold.
+    await releaseHold(db, "r1", "expired");
+    await commitHold(db, "r2");
+
+    expect((await heldStockFor(db, ["runner"])).size).toBe(0);
+  });
+
+  it("leaves out the line of a hold that failed before reaching it", async () => {
+    await takeHold({
+      reservationId: "r1",
+      lines: [
+        { productId: "mug", quantity: 1 },
+        // Only three of these exist, so the whole hold is rolled back.
+        { productId: "runner", quantity: 9, variantSku: BLACK_42 },
+      ],
+    });
+
+    expect((await heldStockFor(db, ["mug", "runner"])).size).toBe(0);
+  });
+
+  it("answers only for the products it was asked about", async () => {
+    await takeHold({
+      reservationId: "r1",
+      lines: [
+        { productId: "runner", quantity: 1, variantSku: BLACK_42 },
+        { productId: "mug", quantity: 1 },
+      ],
+    });
+
+    const held = await heldStockFor(db, ["mug"]);
+    // The hold covers both, but a page showing one product must not be told
+    // about the other's units.
+    expect([...held.keys()]).toEqual(["mug"]);
+  });
+
+  it("reports nothing for a product with no checkout open on it", async () => {
+    expect((await heldStockFor(db, ["runner"])).size).toBe(0);
+    expect((await heldStockFor(db, [])).size).toBe(0);
   });
 });
 
