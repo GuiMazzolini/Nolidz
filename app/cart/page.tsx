@@ -4,6 +4,7 @@ import { authOptions } from "@/app/lib/auth";
 import { connectToDB } from "@/app/api/db";
 import { carts, products } from "@/app/lib/db-collections";
 import { findVariant, hasVariants, resolveLinePrice, resolveLineStock } from "@/app/lib/variants";
+import ShippingAreaBanner from "@/app/components/ShippingAreaBanner";
 import ShoppingCartList from "./ShoppingCartList";
 import type { Product } from "@/app/product-data";
 
@@ -18,7 +19,12 @@ export default async function CartPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.email) {
-    return <ShoppingCartList initialCartProducts={[]} />;
+    return (
+      <>
+        <ShippingAreaBanner />
+        <ShoppingCartList initialCartProducts={[]} />
+      </>
+    );
   }
 
   const { db } = await connectToDB();
@@ -61,5 +67,10 @@ export default async function CartPage() {
       .filter(Boolean) as Product[];
   }
 
-  return <ShoppingCartList initialCartProducts={cartProducts} />;
+  return (
+    <>
+      <ShippingAreaBanner />
+      <ShoppingCartList initialCartProducts={cartProducts} />
+    </>
+  );
 }

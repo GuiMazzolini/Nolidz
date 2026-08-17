@@ -5,6 +5,7 @@ import { formatMoney } from "@/app/lib/money";
 import CartErrorBanner from "@/app/components/CartErrorBanner";
 import ProductGallery from "./ProductGallery";
 import { productGallery } from "@/app/lib/images";
+import { SHIPPING_AREA_LABEL } from "@/app/lib/shipping";
 import { useCartStore } from "@/app/lib/store/cartStore";
 import { useCheckout } from "@/app/lib/use-checkout";
 import {
@@ -328,7 +329,7 @@ export default function ProductDetail({
                 <div className="grid grid-cols-2 gap-4 text-sm text-ink/60">
                   <div>
                     <span className="block font-semibold text-ink">
-                      Ships in Germany
+                      Ships to {SHIPPING_AREA_LABEL} only
                     </span>
                     <span>Free over €100 · otherwise €5</span>
                   </div>

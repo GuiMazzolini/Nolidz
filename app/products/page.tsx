@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { connectToDB } from "@/app/api/db";
 import ProductsList from "../components/ProductsList";
+import ShippingAreaBanner from "../components/ShippingAreaBanner";
 import { parseCategoryFilter } from "@/app/lib/categories";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products as productsCollection } from "@/app/lib/db-collections";
@@ -47,10 +48,13 @@ export default async function ProductsPage({ searchParams }: Props) {
     }));
 
   return (
-    <ProductsList
-      key={initialCategory}
-      products={serialized}
-      initialCategory={initialCategory}
-    />
+    <>
+      <ShippingAreaBanner />
+      <ProductsList
+        key={initialCategory}
+        products={serialized}
+        initialCategory={initialCategory}
+      />
+    </>
   );
 }
