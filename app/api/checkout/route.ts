@@ -114,7 +114,22 @@ export async function POST(req: NextRequest) {
   }
 
   const origin = getAppUrl();
-  const stripe = getStripe();
+
+  // getStripe throws when STRIPE_SECRET_KEY is unset. Left uncaught it left
+  // the route with an unhandled 500 and an empty body, so the client's
+  // `res.json()` found no `error` to show and the buyer saw a button that
+  // did nothing. Nothing is held yet at this point, so there is no stock to
+  // give back — only a usable message to return.
+  let stripe;
+  try {
+    stripe = getStripe();
+  } catch (err) {
+    console.error("Stripe is not configured:", err);
+    return NextResponse.json(
+      { error: "Payments are not configured. Please contact us." },
+      { status: 503 }
+    );
+  }
 
   const line_items = cartProducts.map((p) => {
     const image =

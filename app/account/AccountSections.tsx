@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import type { AccountProfile } from "@/app/lib/account";
 import type { SavedAddress } from "@/app/lib/db-collections";
+import { addressForForm, EMPTY_ADDRESS } from "@/app/lib/address";
+import { SHIPPING_AREA_LABEL } from "@/app/lib/shipping";
 
 const INPUT =
   "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
@@ -12,15 +14,6 @@ const LABEL = "mb-1 block text-sm font-medium text-gray-700";
 const PRIMARY =
   "rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:pointer-events-none";
 
-/** Germany only — same rule as Stripe Checkout (SHIPPING_COUNTRIES). */
-const EMPTY_ADDRESS: SavedAddress = {
-  line1: "",
-  line2: null,
-  city: "",
-  state: null,
-  postalCode: "",
-  country: "DE",
-};
 
 function Section({
   title,
@@ -252,11 +245,12 @@ function PasswordSection({
 
 function AddressSection({ initial }: { initial: SavedAddress | null }) {
   const router = useRouter();
-  const [address, setAddress] = useState<SavedAddress>(() => {
-    if (!initial) return { ...EMPTY_ADDRESS };
-    // Older saves may still have a non-DE country; Checkout no longer accepts them.
-    return { ...initial, country: "DE" };
-  });
+  const [address, setAddress] = useState<SavedAddress>(() =>
+    addressForForm(initial)
+  );
+  // A dropped foreign address leaves an empty form for no visible reason, so
+  // say why rather than letting it look like the save was lost.
+  const droppedForeignAddress = Boolean(initial && !address.line1);
   const [state, setState] = useState<{ error?: string | null; success?: string | null }>({});
   const [saving, setSaving] = useState(false);
 
@@ -306,6 +300,15 @@ function AddressSection({ initial }: { initial: SavedAddress | null }) {
       description="Germany only. Saved to your Stripe customer record so it prefills at checkout — you can still change it during payment."
     >
       <form onSubmit={onSubmit} className="space-y-4">
+        {droppedForeignAddress && (
+          <p
+            role="status"
+            className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          >
+            Your saved address was outside {SHIPPING_AREA_LABEL}, so we cleared
+            it. Please enter a {SHIPPING_AREA_LABEL} address.
+          </p>
+        )}
         <div>
           <label htmlFor="addr-line1" className={LABEL}>Address line 1</label>
           <input id="addr-line1" required maxLength={200} {...field("line1")} />

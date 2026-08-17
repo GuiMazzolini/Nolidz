@@ -10,6 +10,7 @@ import {
   type ColorImage,
   type ProductVariant,
 } from "@/app/lib/variants";
+import ShippingAreaBanner from "@/app/components/ShippingAreaBanner";
 import ProductDetail from "./ProductDetail";
 
 type Params = { id: string };
@@ -90,5 +91,10 @@ export default async function ProductDetailPage({
 
   const requested = Array.isArray(query.color) ? query.color[0] : query.color;
 
-  return <ProductDetail product={product} initialColor={requested ?? null} />;
+  return (
+    <>
+      <ShippingAreaBanner />
+      <ProductDetail product={product} initialColor={requested ?? null} />
+    </>
+  );
 }

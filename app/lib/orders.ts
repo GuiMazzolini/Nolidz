@@ -9,6 +9,7 @@ import { carts, orders, products } from "@/app/lib/db-collections";
 import { commitHold, releaseHold } from "@/app/lib/stock-hold";
 import { isDuplicateKeyError } from "@/app/lib/mongo-errors";
 import { normalizeEmail } from "@/app/lib/normalize-email";
+import { readCachedTracking, type CachedTracking } from "@/app/lib/tracking";
 import type { Db } from "mongodb";
 import type Stripe from "stripe";
 
@@ -46,6 +47,8 @@ export type Order = {
   trackingNumber: string | null;
   carrier: string | null;
   shippedAt: Date | null;
+  /** Last DHL status we fetched. Never fetched during a render — see tracking.ts. */
+  tracking: CachedTracking | null;
   createdAt: Date;
 };
 
@@ -65,6 +68,7 @@ export function toOrder(doc: Record<string, unknown>): Order {
     trackingNumber: doc.trackingNumber ? String(doc.trackingNumber) : null,
     carrier: doc.carrier ? String(doc.carrier) : null,
     shippedAt: doc.shippedAt ? new Date(doc.shippedAt as string | Date) : null,
+    tracking: readCachedTracking(doc),
     createdAt: new Date(doc.createdAt as string | Date),
   };
 }
@@ -111,6 +115,8 @@ export function buildOrderFromStripeSession(
     trackingNumber: null,
     carrier: null,
     shippedAt: null,
+    // Nothing to track until someone ships it and DHL is asked.
+    tracking: null,
     createdAt: new Date(),
   };
 }

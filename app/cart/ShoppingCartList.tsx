@@ -13,6 +13,7 @@ import { CHECKOUT_HOLD_MINUTES } from "../lib/reservations";
 import { useCheckout } from "../lib/use-checkout";
 import {
   FREE_SHIPPING_THRESHOLD,
+  SHIPPING_AREA_LABEL,
   getOrderTotal,
   getShippingCost,
 } from "../lib/shipping";
@@ -154,6 +155,16 @@ export default function ShoppingCartList({ initialCartProducts }: { initialCartP
                 </p>
               )}
 
+              {/* Above the button, not in the small print under it: the one
+                  thing that can end this purchase outright is where it ships,
+                  and Checkout is the wrong place to learn it. */}
+              <p className="mb-3 border-2 border-ink/10 bg-paper px-3 py-2 text-sm text-ink/75">
+                <span className="font-semibold text-ink">
+                  Delivery to {SHIPPING_AREA_LABEL} only.
+                </span>{" "}
+                Checkout accepts a {SHIPPING_AREA_LABEL} address.
+              </p>
+
               <button
                 type="button"
                 onClick={startCheckout}
@@ -166,8 +177,7 @@ export default function ShoppingCartList({ initialCartProducts }: { initialCartP
               <p className="mb-4 text-center text-xs text-ink/45">
                 Secure checkout on Stripe (card or PayPal).{" "}
                 {isGuest && "No account needed — "}
-                shipping and email are collected there. We only ship within
-                Germany.
+                shipping and email are collected there.
               </p>
 
               <p className="mb-4 bg-paper px-3 py-2 text-xs text-ink/60">

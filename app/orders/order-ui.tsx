@@ -1,5 +1,6 @@
 import type { Order, OrderItem, ShippingAddress } from "@/app/lib/orders";
 import { formatMoney } from "@/app/lib/money";
+import { describeTrackingStatus } from "@/app/lib/tracking";
 
 export function formatOrderDate(date: Date | string): string {
   return new Intl.DateTimeFormat("de-DE", {
@@ -107,6 +108,25 @@ export function OrderTracking({ order }: { order: Order }) {
         <p className="mt-1 text-xs text-gray-500">
           Shipped {formatOrderDate(order.shippedAt)}
         </p>
+      )}
+      {/* Read straight from the cache written by the admin-side refresh. This
+          page never calls DHL — a customer reloading their order, or a crawler
+          walking every order URL, must not spend the daily budget. */}
+      {order.tracking && (
+        <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2">
+          <p className="text-sm font-medium text-gray-900">
+            {order.tracking.description ??
+              describeTrackingStatus(order.tracking.statusCode)}
+          </p>
+          {order.tracking.location && (
+            <p className="text-sm text-gray-600">{order.tracking.location}</p>
+          )}
+          {order.tracking.eventAt && (
+            <p className="mt-1 text-xs text-gray-500">
+              Last update {formatOrderDate(order.tracking.eventAt)}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

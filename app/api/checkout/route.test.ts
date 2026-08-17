@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createSessionMock, forcedStockError } = vi.hoisted(() => ({
-  createSessionMock: vi.fn(),
-  /** undefined = use the real check; null = pretend it passed. See below. */
-  forcedStockError: { value: undefined as string | null | undefined },
-}));
+const { createSessionMock, forcedStockError, stripeUnconfigured } = vi.hoisted(
+  () => ({
+    createSessionMock: vi.fn(),
+    /** undefined = use the real check; null = pretend it passed. See below. */
+    forcedStockError: { value: undefined as string | null | undefined },
+    /** Makes getStripe throw the way it does with no STRIPE_SECRET_KEY set. */
+    stripeUnconfigured: { value: false },
+  })
+);
 
 /**
  * The read-only stock check and the hold both read the same database in a
@@ -37,7 +41,12 @@ vi.mock("next-auth", async () => {
 vi.mock("@/app/lib/auth", () => ({ authOptions: {} }));
 
 vi.mock("@/app/lib/stripe", () => ({
-  getStripe: () => ({ checkout: { sessions: { create: createSessionMock } } }),
+  getStripe: () => {
+    if (stripeUnconfigured.value) {
+      throw new Error("STRIPE_SECRET_KEY is not set");
+    }
+    return { checkout: { sessions: { create: createSessionMock } } };
+  },
   getAppUrl: () => "http://localhost:3000",
 }));
 
@@ -68,6 +77,7 @@ beforeEach(() => {
   testDb.seed("products", catalog);
   setMockSession(null);
   forcedStockError.value = undefined;
+  stripeUnconfigured.value = false;
 });
 
 function variantStock(sku: string): number {
@@ -235,6 +245,42 @@ describe("guest checkout", () => {
 
     expect(status).toBe(502);
     expect(body.error).toContain("Payment provider");
+  });
+
+  /**
+   * A deployment with no STRIPE_SECRET_KEY used to throw out of the handler,
+   * so the response was a bodyless 500. The client found no `error` to show
+   * and "Buy Now" looked like a dead button. The message matters as much as
+   * the status here.
+   */
+  it("returns a readable error when Stripe is not configured at all", async () => {
+    stripeUnconfigured.value = true;
+
+    const { status, body } = await readResponse<{ error: string }>(
+      await POST(jsonRequest("POST", { items: [{ productId: "mug", quantity: 1 }] }))
+    );
+
+    expect(status).toBe(503);
+    expect(body.error).toMatch(/not configured/i);
+  });
+
+  it("holds no stock when Stripe is not configured", async () => {
+    stripeUnconfigured.value = true;
+
+    await POST(
+      jsonRequest("POST", {
+        items: [{ productId: "runner", quantity: 1, variantSku: "runner-eu42-black" }],
+      })
+    );
+
+    // The bail-out happens before any hold is taken, so a misconfigured
+    // deployment must not quietly take sizes out of sale on every attempt.
+    expect(testDb.all("stockHolds")).toHaveLength(0);
+    expect(variantStock("runner-eu42-black")).toBe(
+      (runnerProduct.variants as { sku: string; stock: number }[]).find(
+        (v) => v.sku === "runner-eu42-black"
+      )!.stock
+    );
   });
 });
 
