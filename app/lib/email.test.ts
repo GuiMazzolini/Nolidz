@@ -40,6 +40,7 @@ const order: Order = {
   trackingNumber: null,
   carrier: null,
   shippedAt: null,
+  tracking: null,
   createdAt: new Date("2026-06-01"),
 };
 

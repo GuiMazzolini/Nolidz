@@ -3,7 +3,9 @@ import { formatMoney } from "@/app/lib/money";
 import Link from "next/link";
 import { getAllOrders } from "@/app/lib/orders";
 import { formatOrderDate } from "@/app/orders/order-ui";
+import { canRefreshTracking, describeTrackingStatus } from "@/app/lib/tracking";
 import ShipOrderForm from "./ShipOrderForm";
+import RefreshTrackingButton from "./RefreshTrackingButton";
 
 export const metadata: Metadata = {
   title: "Admin — Orders",
@@ -129,6 +131,25 @@ export default async function AdminOrdersPage() {
                           Marked shipped {formatOrderDate(order.shippedAt)}
                         </p>
                       )}
+                      {order.tracking && (
+                        <p className="mt-2 border-t border-green-200 pt-2">
+                          <span className="font-semibold">
+                            DHL:{" "}
+                            {order.tracking.description ??
+                              describeTrackingStatus(order.tracking.statusCode)}
+                          </span>
+                          {order.tracking.location && (
+                            <span> · {order.tracking.location}</span>
+                          )}
+                          <span className="mt-0.5 block text-xs text-green-800">
+                            Checked {formatOrderDate(order.tracking.checkedAt)}
+                          </span>
+                        </p>
+                      )}
+                      <RefreshTrackingButton
+                        sessionId={order.stripeSessionId}
+                        canRefresh={canRefreshTracking(order.tracking)}
+                      />
                     </div>
                   )}
                 </div>
