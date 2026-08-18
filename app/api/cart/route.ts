@@ -2,14 +2,15 @@ import { connectToDB } from "@/app/api/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 import { MAX_CART_QUANTITY } from "@/app/lib/cart-limits";
-import { carts, products, type CartItemDoc, type ProductDoc } from "@/app/lib/db-collections";
+import { carts, products, type CartItemDoc } from "@/app/lib/db-collections";
 import { parseBody, unauthorized } from "@/app/lib/api-request";
 import {
   cartDeleteSchema,
   cartPatchSchema,
   cartPostSchema,
 } from "@/app/lib/schemas";
-import { findVariant, hasVariants, resolveLinePrice, resolveLineStock } from "@/app/lib/variants";
+import { findVariant, hasVariants, resolveLineStock } from "@/app/lib/variants";
+import { loadCartProducts } from "@/app/lib/cart-server";
 import type { Db, Filter } from "mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -50,50 +51,6 @@ function findCartItem(
   );
 }
 
-function serializeCartProduct(
-  product: ProductDoc,
-  item: CartItemDoc
-) {
-  const variant = findVariant(product.variants, item.variantSku);
-  return {
-    id: product.id,
-    name: product.name,
-    price: resolveLinePrice(product, item.variantSku),
-    description: product.description,
-    imageUrl: product.imageUrl,
-    stock: resolveLineStock(product, item.variantSku),
-    quantity: item.quantity,
-    ...(variant
-      ? {
-          variantSku: variant.sku,
-          variantSize: variant.size,
-          variantColor: variant.color,
-        }
-      : {}),
-  };
-}
-
-async function buildCartProducts(db: Db, items: CartItemDoc[]) {
-  if (!items.length) return [];
-  const productIds = items.map((i) => i.productId);
-  const productDocs = await products(db)
-    .find({ id: { $in: productIds } })
-    .toArray();
-
-  return items
-    .map((item) => {
-      const product = productDocs.find((p) => p.id === item.productId);
-      if (!product) return null;
-      // A line whose variant was deleted from the catalog can no longer be
-      // priced or shipped, so it drops out of the cart instead of showing.
-      if (hasVariants(product) && !findVariant(product.variants, item.variantSku)) {
-        return null;
-      }
-      return serializeCartProduct(product, item);
-    })
-    .filter(Boolean);
-}
-
 /** Resolve the product and the stock backing this line, or an error response. */
 async function resolveLine(db: Db, productId: string, variantSku?: string) {
   const product = await products(db).findOne({ id: productId });
@@ -121,7 +78,7 @@ export async function GET() {
 
   const { db } = await connectToDB();
   const cart = await carts(db).findOne({ userId });
-  const cartProducts = await buildCartProducts(db, cart?.items || []);
+  const cartProducts = await loadCartProducts(db, cart?.items || []);
 
   return NextResponse.json(cartProducts);
 }
@@ -175,7 +132,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const cartProducts = await buildCartProducts(db, updatedCart?.items || []);
+  const cartProducts = await loadCartProducts(db, updatedCart?.items || []);
   return NextResponse.json(cartProducts, { status: 201 });
 }
 
@@ -225,7 +182,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Item not found in cart" }, { status: 404 });
   }
 
-  const cartProducts = await buildCartProducts(db, updatedCart?.items || []);
+  const cartProducts = await loadCartProducts(db, updatedCart?.items || []);
   return NextResponse.json(cartProducts);
 }
 
@@ -248,6 +205,6 @@ export async function DELETE(req: NextRequest) {
     { returnDocument: "after" }
   );
 
-  const cartProducts = await buildCartProducts(db, updatedCart?.items || []);
+  const cartProducts = await loadCartProducts(db, updatedCart?.items || []);
   return NextResponse.json(cartProducts);
 }
