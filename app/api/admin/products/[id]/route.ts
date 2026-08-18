@@ -1,7 +1,7 @@
 import { connectToDB } from "@/app/api/db";
-import { isAdminEmail, normalizeProductImageUrl } from "@/app/lib/admin";
+import { normalizeProductImageUrl } from "@/app/lib/admin";
 import { serializeAdminProduct } from "@/app/lib/admin-products";
-import { authOptions } from "@/app/lib/auth";
+import { adminUnauthorized, requireAdmin } from "@/app/lib/admin-auth";
 import { products, type ProductDoc } from "@/app/lib/db-collections";
 import { badRequest, parseBody } from "@/app/lib/api-request";
 import { isDuplicateKeyError } from "@/app/lib/mongo-errors";
@@ -12,18 +12,9 @@ import {
   totalVariantStock,
   type ColorImage,
 } from "@/app/lib/variants";
-import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 type Params = { id: string };
-
-async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isAdminEmail(session.user.email)) {
-    return null;
-  }
-  return session;
-}
 
 export async function GET(
   _req: NextRequest,
@@ -31,7 +22,7 @@ export async function GET(
 ) {
   const session = await requireAdmin();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return adminUnauthorized();
   }
 
   const { id } = await params;
@@ -51,7 +42,7 @@ export async function PATCH(
 ) {
   const session = await requireAdmin();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return adminUnauthorized();
   }
 
   const { id } = await params;
@@ -179,7 +170,7 @@ export async function DELETE(
 ) {
   const session = await requireAdmin();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return adminUnauthorized();
   }
 
   const { id } = await params;

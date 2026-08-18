@@ -1,32 +1,19 @@
 import { connectToDB } from "@/app/api/db";
-import {
-  isAdminEmail,
-  normalizeProductImageUrl,
-  slugifyProductId,
-} from "@/app/lib/admin";
+import { normalizeProductImageUrl, slugifyProductId } from "@/app/lib/admin";
 import { serializeAdminProduct } from "@/app/lib/admin-products";
-import { authOptions } from "@/app/lib/auth";
+import { adminUnauthorized, requireAdmin } from "@/app/lib/admin-auth";
 import { products as productsCollection } from "@/app/lib/db-collections";
 import { badRequest, parseBody } from "@/app/lib/api-request";
 import { isDuplicateKeyError } from "@/app/lib/mongo-errors";
 import { adminProductCreateSchema, resolveVariants } from "@/app/lib/schemas";
 import { heldStockFor } from "@/app/lib/stock-hold";
 import { totalVariantStock, type ColorImage } from "@/app/lib/variants";
-import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
-
-async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isAdminEmail(session.user.email)) {
-    return null;
-  }
-  return session;
-}
 
 export async function GET() {
   const session = await requireAdmin();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return adminUnauthorized();
   }
 
   const { db } = await connectToDB();
@@ -41,7 +28,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await requireAdmin();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return adminUnauthorized();
   }
 
   const parsed = await parseBody(req, adminProductCreateSchema);
