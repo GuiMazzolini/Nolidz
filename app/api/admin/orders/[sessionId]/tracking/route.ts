@@ -65,6 +65,8 @@ function describeFailure(reason: string): [number, string] {
   switch (reason) {
     case "no-tracking-number":
       return [400, "This order has no tracking number yet."];
+    case "carrier-not-supported":
+      return [400, "We can only check DHL parcels. Track this one on the carrier's own site."];
     case "not-configured":
       return [503, "DHL_API_KEY is not set on this environment."];
     case "throttled":

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getAllOrders } from "@/app/lib/orders";
 import { formatOrderDate } from "@/app/orders/order-ui";
 import { canRefreshTracking, describeTrackingStatus } from "@/app/lib/tracking";
+import { isTrackableCarrier } from "@/app/lib/carriers";
 import ShipOrderForm from "./ShipOrderForm";
 import RefreshTrackingButton from "./RefreshTrackingButton";
 
@@ -148,7 +149,11 @@ export default async function AdminOrdersPage() {
                       )}
                       <RefreshTrackingButton
                         sessionId={order.stripeSessionId}
-                        canRefresh={canRefreshTracking(order.tracking)}
+                        canRefresh={
+                          isTrackableCarrier(order.carrier) &&
+                          canRefreshTracking(order.tracking)
+                        }
+                        carrierSupported={isTrackableCarrier(order.carrier)}
                       />
                     </div>
                   )}
