@@ -5,6 +5,7 @@ import {
   isDhlConfigured,
   type TrackingStatusCode,
 } from "@/app/lib/dhl";
+import { dhlServiceForCarrier } from "@/app/lib/carriers";
 
 /**
  * Cached DHL status on an order, and the rules for when it may be refetched.
@@ -84,7 +85,14 @@ export function readCachedTracking(
 
 export type RefreshOutcome =
   | { ok: true; tracking: CachedTracking; refreshed: boolean }
-  | { ok: false; reason: "no-tracking-number" | "not-configured" | "throttled" }
+  | {
+      ok: false;
+      reason:
+        | "no-tracking-number"
+        | "not-configured"
+        | "throttled"
+        | "carrier-not-supported";
+    }
   | { ok: false; reason: "not-found" | "rate-limited" | "unauthorized" | "error" };
 
 /**
@@ -106,6 +114,14 @@ export async function refreshTrackingForOrder(
     typeof record?.trackingNumber === "string" ? record.trackingNumber.trim() : "";
   if (!trackingNumber) return { ok: false, reason: "no-tracking-number" };
 
+  // Only DHL is reachable from here. A parcel sent with DPD or UPS has a
+  // perfectly good tracking number that DHL has simply never heard of, so
+  // asking would spend budget to be told "not found" and would read to an
+  // admin as though the parcel were lost.
+  const carrier = typeof record?.carrier === "string" ? record.carrier : null;
+  const service = dhlServiceForCarrier(carrier);
+  if (!service) return { ok: false, reason: "carrier-not-supported" };
+
   const cached = readCachedTracking(record);
 
   // `force` skips the time floor but never the terminal check: a delivered
@@ -123,7 +139,7 @@ export async function refreshTrackingForOrder(
 
   if (!isDhlConfigured()) return { ok: false, reason: "not-configured" };
 
-  const result = await fetchTrackingStatus(trackingNumber);
+  const result = await fetchTrackingStatus(trackingNumber, service);
   if (!result.ok) return { ok: false, reason: result.reason };
 
   const tracking: CachedTracking = {

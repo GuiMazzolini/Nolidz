@@ -1,43 +1,51 @@
 # StyleShop — Code Review
 
-Reviewed at `10f5094`, updated after the P0 remediation pass.
+Reviewed at `10f5094`, updated after the P0 remediation pass, then again at
+`3a0852b` after the P1 pass.
 Verified by running: `npm run typecheck`, `npm test`, `npm run lint`, `npm run build`, `npm audit`, plus runtime checks against a live MongoDB.
 
 ## Status
 
-| Gate | At review | Now |
-|---|---|---|
-| `npm run typecheck` | 13 errors | **0** |
-| `npm run build` | ❌ failed | **✅ passes** |
-| `npm test` | 17 pass | **42 pass** (6 files) |
-| `npm run lint` | clean | clean |
-| `npm audit` | 12 vulns, 2 critical | **0** |
+| Gate | At review | After P0 | Now |
+|---|---|---|---|
+| `npm run typecheck` | 13 errors | 0 | **0** |
+| `npm run build` | ❌ failed | ✅ passes | **✅ passes** |
+| `npm test` | 17 pass | 42 pass (6 files) | **638 pass** (49 files) |
+| `npm run lint` | clean | clean | **clean** |
+| `npm audit` | 12 vulns, 2 critical | 0 | **0** |
 
-**Fixed:** broken build (typed Mongo collections), `next` 16.0.4→16.3.0 + `next-auth` 4.24.15 (cleared a CVSS 10.0 RCE and an OAuth cookie-binding flaw), NoSQL operator injection (Zod on every route), rate limiting, unauthenticated writes on `/checkout/success`, cross-tenant cart wipe, security headers, unique DB indexes, image-host allowlist, order-email case sensitivity, Stripe metadata overflow.
+**Fixed in the P0 pass:** broken build (typed Mongo collections), `next` 16.0.4→16.3.0 + `next-auth` 4.24.15 (cleared a CVSS 10.0 RCE and an OAuth cookie-binding flaw), NoSQL operator injection (Zod on every route), rate limiting, unauthenticated writes on `/checkout/success`, cross-tenant cart wipe, security headers, unique DB indexes, image-host allowlist, order-email case sensitivity, Stripe metadata overflow.
 
-Nothing critical or high is open. Everything below is quality and hardening work.
+**Fixed in the P1 pass:** the duplicated cart join, the duplicated `requireAdmin`, the last untested route handler, and `CartItem`'s missing `"use client"`. Details below.
+
+Nothing critical or high is open, and P1 is now clear. What remains is P2 polish.
 
 ---
 
 ## What's left
 
-### P1 — worth doing next
+### P1 — cleared
 
-**1. The cart join is duplicated 4×.**
-`app/api/cart/route.ts`, `app/api/cart/merge/route.ts`, `app/cart/page.tsx`, `app/checkout/page.tsx` each rebuild "fetch products by id → attach quantities → normalize stock." Extract `loadCartProducts(db, items)` into `app/lib/cart-server.ts`. Highest-value refactor in the codebase: ~100 lines deleted, one place to test.
+**1. The cart join was duplicated 3×.** ✅ Done.
+`app/api/cart/route.ts`, `app/api/cart/merge/route.ts`, and `app/cart/page.tsx` each rebuilt "fetch products by id → attach quantities → normalize stock." (The review said 4× and named `app/checkout/page.tsx`; that page no longer exists.) All three now call `loadCartProducts(db, items)` from `app/lib/cart-server.ts`. Net −174/+32 lines across the touched files.
 
-Same pattern, smaller: `requireAdmin` and `serializeProduct` are copy-pasted between the two admin route files.
+`serializeProduct` had already been extracted to `app/lib/admin-products.ts`. `requireAdmin` was copy-pasted in three route files by this point, with a fourth copy inlined in the tracking route; all four now use `requireAdmin`/`adminUnauthorized` from `app/lib/admin-auth.ts`. It is kept apart from `admin.ts` so `isAdminEmail` stays a pure function importable without dragging next-auth in behind it.
 
-**2. No route-handler or component tests.** All 42 tests cover `app/lib/` pure functions. Zero coverage of the 8 route handlers (including every authorization check) and 20 components. Biggest gap: handler tests. App Router handlers are plain functions — call them directly with a `Request` and mock `getServerSession`. Priority cases: 401s on every cart verb, admin routes reject non-admins, checkout ignores a client-supplied price, webhook rejects a bad signature.
+**2. No route-handler or component tests.** ✅ Done.
+The suite now covers all 17 route handlers and the components. The last handler at 0% was `POST /api/admin/orders/[sessionId]/tracking` — the only route that can spend the daily DHL budget, so its 401 is a budget control and not merely a privacy one. It now has 21 tests covering the admin gate, the `force` flag, and every DHL failure reason's status mapping.
 
-Needs `vitest.config.mts` changes for components: `environment: "jsdom"`, `include: ["app/**/*.test.{ts,tsx}"]`, plus `@testing-library/react`.
+`vitest.config.mts` already handles both environments: node by default, with component files opting into jsdom via a `@vitest-environment jsdom` docblock.
 
-**3. Two non-selector store subscriptions.**
-`ProductsList.tsx:14` and `ProductDetail.tsx:19` destructure the whole store, so every `loading[productId]` toggle re-renders the entire product grid. Everywhere else already uses selectors correctly.
+*Note on measuring this:* v8's text reporter silently omits the most deeply-nested file in a table while still counting it toward the aggregate, so per-file coverage numbers for `webhooks/stripe/route.ts` and the tracking route read as absent or 0 when they are neither. The suite was verified by mutation instead — removing the admin check, weakening `force === true` to a truthiness test, downgrading the throttled 429, dropping either cart-join guard, and replacing the single `$in` with a per-line query each fail tests.
 
-**4. `CartItem.tsx` is missing `"use client"`.** Works only because a client component imports it. Any Server Component importing it breaks. One line.
+**3. Two non-selector store subscriptions.** ✅ Already fixed before this pass.
+All 17 `useCartStore` call sites use selectors. `ProductsList.tsx` no longer touches the store at all.
+
+**4. `CartItem.tsx` is missing `"use client"`.** ✅ Done. One line. It has three `useCartStore` hooks and had been working only because `ShoppingCartList.tsx` imports it as a client component.
 
 ### P2 — polish
+
+Not re-verified in the P1 pass — the items below are as recorded at the P0 review and some may already be stale.
 
 - **Wrong GitHub URL.** `app/page.tsx:6` and the README point at `github.com/GuiMazzolini/e-commerce-NextJs`, and the README credits `GuiMazzolini`. Every "Inspect the code" button sends visitors to someone else's repo.
 - **Dead API routes.** `/api/products` and `/api/products/[id]` are unused (nothing fetches them) and return raw Mongo docs including `_id`. `GET /api/admin/products` is also unused. Delete or align them.
@@ -48,7 +56,7 @@ Needs `vitest.config.mts` changes for components: `environment: "jsdom"`, `inclu
 - **One `error.tsx` at root only.** Add per-segment boundaries for `products/`, `cart/`, `orders/`, `admin/` — `loading.tsx` coverage is already good, mirror it.
 - **No Prettier/Husky.** Formatting drifts (`app/api/products/*` is 4-space, everything else 2-space). Add Prettier + lint-staged so the CI typecheck gate isn't the first thing to catch a mistake.
 - **No error tracking.** 8 `console.error`/`warn` calls go nowhere. The `console.warn` at `orders.ts` (stock decrement skipped on a *paid* order) is money-affecting and should alert. Add Sentry.
-- **Stock isn't reserved**, only validated at checkout and decremented after payment. Two buyers can both pass validation for the last unit; the `$gte` guard prevents negative stock, so the second is charged for something that won't ship. Acceptable for a demo, but `Order.status` is the literal `"paid"` and can't represent it — add `"needs_review"` and alert.
+- ~~**Stock isn't reserved**~~ — **obsolete.** Stock is now held at checkout and either committed or released exactly once (`app/lib/stock-hold.ts`, `app/lib/reservations.ts`); the Stripe webhook releases the hold on `checkout.session.expired` and `async_payment_failed`, and the checkout route puts it back if Stripe fails to create the session. The admin product form reconciles against held units rather than writing shelf counts verbatim.
 
 ---
 

@@ -13,6 +13,8 @@
  * cache and the refresh floor.
  */
 
+import type { DhlService } from "@/app/lib/carriers";
+
 const TRACKING_ENDPOINT = "https://api-eu.dhl.com/track/shipments";
 
 /** DHL's own timeout is generous; ours is not. A slow carrier API must never
@@ -132,16 +134,18 @@ export function parseTrackingResponse(body: unknown): TrackingStatus | null {
  * 250/day budget spends tomorrow's allowance on today's outage.
  */
 export async function fetchTrackingStatus(
-  trackingNumber: string
+  trackingNumber: string,
+  service: DhlService
 ): Promise<TrackingResult> {
   const apiKey = process.env.DHL_API_KEY;
   if (!apiKey) throw new DhlNotConfiguredError();
 
   const url = new URL(TRACKING_ENDPOINT);
   url.searchParams.set("trackingNumber", trackingNumber);
-  // Scopes the lookup to German parcels. Without it DHL searches every
-  // division and can return a same-numbered shipment from another one.
-  url.searchParams.set("service", "parcel-de");
+  // Scopes the lookup to one DHL division. Without it DHL searches every
+  // division and can return a same-numbered shipment from another one — and
+  // an express number looked up as a domestic parcel simply is not found.
+  url.searchParams.set("service", service);
 
   let response: Response;
   try {

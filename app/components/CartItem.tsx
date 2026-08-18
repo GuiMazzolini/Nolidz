@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { formatMoney } from "@/app/lib/money";
 import Image from "next/image";

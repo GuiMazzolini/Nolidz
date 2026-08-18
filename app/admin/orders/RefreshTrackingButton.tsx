@@ -13,10 +13,13 @@ import { useRouter } from "next/navigation";
 export default function RefreshTrackingButton({
   sessionId,
   canRefresh,
+  carrierSupported = true,
 }: {
   sessionId: string;
   /** False once the parcel is delivered, or within the six-hour floor. */
   canRefresh: boolean;
+  /** False for a non-DHL carrier, which we cannot ask about at all. */
+  carrierSupported?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -67,7 +70,11 @@ export default function RefreshTrackingButton({
         onClick={refresh}
         disabled={loading || !canRefresh}
         title={
-          canRefresh ? undefined : "Delivered, or checked within the last 6 hours"
+          !carrierSupported
+            ? "Only DHL parcels can be checked from here"
+            : canRefresh
+              ? undefined
+              : "Delivered, or checked within the last 6 hours"
         }
         className="border-2 border-ink/15 bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:border-cardboard-dark disabled:opacity-50"
       >

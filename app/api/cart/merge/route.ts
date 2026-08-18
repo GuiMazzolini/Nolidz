@@ -11,49 +11,14 @@ import {
   cartLineKey,
   findVariant,
   hasVariants,
-  resolveLinePrice,
   resolveLineStock,
 } from "@/app/lib/variants";
+import { loadCartProducts } from "@/app/lib/cart-server";
 import { parseBody } from "@/app/lib/api-request";
 import { cartMergeSchema } from "@/app/lib/schemas";
 import { enforceRateLimit, RATE_LIMITS } from "@/app/lib/rate-limit";
-import type { Db } from "mongodb";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
-
-async function buildCartProducts(db: Db, items: CartItemDoc[]) {
-  if (!items.length) return [];
-  const productIds = items.map((i) => i.productId);
-  const productDocs = await products(db)
-    .find({ id: { $in: productIds } })
-    .toArray();
-
-  return items
-    .map((item) => {
-      const product = productDocs.find((p) => p.id === item.productId);
-      if (!product) return null;
-      const variant = findVariant(product.variants, item.variantSku);
-      if (hasVariants(product) && !variant) return null;
-
-      return {
-        id: product.id,
-        name: product.name,
-        price: resolveLinePrice(product, item.variantSku),
-        description: product.description,
-        imageUrl: product.imageUrl,
-        stock: resolveLineStock(product, item.variantSku),
-        quantity: item.quantity,
-        ...(variant
-          ? {
-              variantSku: variant.sku,
-              variantSize: variant.size,
-              variantColor: variant.color,
-            }
-          : {}),
-      };
-    })
-    .filter(Boolean);
-}
 
 export async function POST(req: NextRequest) {
   const limited = await enforceRateLimit(
@@ -145,6 +110,6 @@ export async function POST(req: NextRequest) {
     { upsert: true }
   );
 
-  const cartProducts = await buildCartProducts(db, mergedItems);
+  const cartProducts = await loadCartProducts(db, mergedItems);
   return NextResponse.json(cartProducts);
 }

@@ -1,16 +1,6 @@
-import { isAdminEmail } from "@/app/lib/admin";
-import { authOptions } from "@/app/lib/auth";
+import { adminUnauthorized, requireAdmin } from "@/app/lib/admin-auth";
 import { markOrderShipped } from "@/app/lib/orders";
-import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
-
-async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isAdminEmail(session.user.email)) {
-    return null;
-  }
-  return session;
-}
 
 type Params = { sessionId: string };
 
@@ -20,7 +10,7 @@ export async function PATCH(
 ) {
   const session = await requireAdmin();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return adminUnauthorized();
   }
 
   const { sessionId } = await params;

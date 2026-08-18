@@ -98,7 +98,7 @@ describe("fetchTrackingStatus", () => {
 
   it("sends the key as a header and scopes to parcel-de", async () => {
     const fetchMock = stubFetch(200, SAMPLE);
-    await fetchTrackingStatus("00340434161094042557");
+    await fetchTrackingStatus("00340434161094042557", "parcel-de");
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit];
     expect(url.toString()).toContain("trackingNumber=00340434161094042557");
@@ -108,9 +108,17 @@ describe("fetchTrackingStatus", () => {
     expect((init.headers as Record<string, string>)["DHL-API-Key"]).toBe("test-key");
   });
 
+  it("sends the express service code when that is the carrier", async () => {
+    const fetchMock = stubFetch(200, SAMPLE);
+    await fetchTrackingStatus("1234567890", "express");
+
+    const [url] = fetchMock.mock.calls[0] as unknown as [URL];
+    expect(url.toString()).toContain("service=express");
+  });
+
   it("returns the parsed status on 200", async () => {
     stubFetch(200, SAMPLE);
-    const result = await fetchTrackingStatus("00340434161094042557");
+    const result = await fetchTrackingStatus("00340434161094042557", "parcel-de");
     expect(result).toEqual({
       ok: true,
       status: {
@@ -126,7 +134,7 @@ describe("fetchTrackingStatus", () => {
   // it must not read as a fault.
   it("maps 404 to not-found", async () => {
     stubFetch(404, { title: "Not Found" });
-    expect(await fetchTrackingStatus("x")).toEqual({
+    expect(await fetchTrackingStatus("x", "parcel-de")).toEqual({
       ok: false,
       reason: "not-found",
     });
@@ -134,7 +142,7 @@ describe("fetchTrackingStatus", () => {
 
   it("maps a 200 carrying no shipment to not-found too", async () => {
     stubFetch(200, { shipments: [] });
-    expect(await fetchTrackingStatus("x")).toEqual({
+    expect(await fetchTrackingStatus("x", "parcel-de")).toEqual({
       ok: false,
       reason: "not-found",
     });
@@ -143,7 +151,7 @@ describe("fetchTrackingStatus", () => {
   // Distinct from a generic error: this means stop for the day.
   it("maps 429 to rate-limited", async () => {
     stubFetch(429, {});
-    expect(await fetchTrackingStatus("x")).toEqual({
+    expect(await fetchTrackingStatus("x", "parcel-de")).toEqual({
       ok: false,
       reason: "rate-limited",
     });
@@ -151,12 +159,12 @@ describe("fetchTrackingStatus", () => {
 
   it("maps 401 and 403 to unauthorized", async () => {
     stubFetch(401, {});
-    expect(await fetchTrackingStatus("x")).toEqual({
+    expect(await fetchTrackingStatus("x", "parcel-de")).toEqual({
       ok: false,
       reason: "unauthorized",
     });
     stubFetch(403, {});
-    expect(await fetchTrackingStatus("x")).toEqual({
+    expect(await fetchTrackingStatus("x", "parcel-de")).toEqual({
       ok: false,
       reason: "unauthorized",
     });
@@ -169,7 +177,7 @@ describe("fetchTrackingStatus", () => {
         throw new Error("socket hang up");
       })
     );
-    const result = await fetchTrackingStatus("x");
+    const result = await fetchTrackingStatus("x", "parcel-de");
     expect(result).toEqual({
       ok: false,
       reason: "error",
@@ -182,13 +190,13 @@ describe("fetchTrackingStatus", () => {
       "fetch",
       vi.fn(async () => new Response("<html>502</html>", { status: 200 }))
     );
-    const result = await fetchTrackingStatus("x");
+    const result = await fetchTrackingStatus("x", "parcel-de");
     expect(result).toMatchObject({ ok: false, reason: "error" });
   });
 
   it("throws when the key is missing, rather than calling DHL anonymously", async () => {
     delete process.env.DHL_API_KEY;
-    await expect(fetchTrackingStatus("x")).rejects.toBeInstanceOf(
+    await expect(fetchTrackingStatus("x", "parcel-de")).rejects.toBeInstanceOf(
       DhlNotConfiguredError
     );
   });

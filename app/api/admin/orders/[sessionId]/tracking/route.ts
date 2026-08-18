@@ -1,8 +1,6 @@
 import { connectToDB } from "@/app/api/db";
-import { isAdminEmail } from "@/app/lib/admin";
-import { authOptions } from "@/app/lib/auth";
+import { adminUnauthorized, requireAdmin } from "@/app/lib/admin-auth";
 import { describeTrackingStatus, refreshTrackingForOrder } from "@/app/lib/tracking";
-import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 type Params = { sessionId: string };
@@ -20,10 +18,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<Params> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email || !isAdminEmail(session.user.email)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await requireAdmin();
+  if (!session) return adminUnauthorized();
 
   const { sessionId } = await params;
   if (!sessionId) {
@@ -65,6 +61,8 @@ function describeFailure(reason: string): [number, string] {
   switch (reason) {
     case "no-tracking-number":
       return [400, "This order has no tracking number yet."];
+    case "carrier-not-supported":
+      return [400, "We can only check DHL parcels. Track this one on the carrier's own site."];
     case "not-configured":
       return [503, "DHL_API_KEY is not set on this environment."];
     case "throttled":
