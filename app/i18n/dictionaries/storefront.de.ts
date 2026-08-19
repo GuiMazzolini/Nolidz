@@ -388,6 +388,22 @@ const storefront: StorefrontDict = {
     errorGeneric: "Etwas ist schiefgelaufen",
   },
 
+  footer: {
+    copyright: (year: number) => `© ${year} Kristiyan Valin`,
+    impressum: "Impressum",
+    datenschutz: "Datenschutz",
+    widerruf: "Widerruf",
+  },
+
+  sizeGuide: {
+    link: "Größentabelle",
+    title: "Größentabelle",
+    close: "Schließen",
+    note: "Größen sind ungefähre Angaben. Bei Unsicherheit empfehlen wir, eine Größe größer zu wählen.",
+    adults: "Erwachsene (EU 36–47)",
+    kids: "Kinder (EU 28–35)",
+  },
+
   notFound: {
     metaTitle: "Seite nicht gefunden",
     heading: "Seite nicht gefunden",

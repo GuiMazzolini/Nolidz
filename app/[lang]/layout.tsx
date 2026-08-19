@@ -3,6 +3,7 @@ import { Barlow_Condensed, Inter } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import '../globals.css';
 import NavBar from '@/app/components/NavBar';
+import Footer from '@/app/components/Footer';
 import Providers from '@/app/providers';
 import { I18nProvider } from '@/app/i18n/client';
 import { LOCALES, LOCALE_HTML_LANG, isLocale } from '@/app/i18n/config';
@@ -80,6 +81,7 @@ export default async function RootLayout({
           <Providers>
             <NavBar />
             {children}
+            <Footer />
           </Providers>
         </I18nProvider>
       </body>

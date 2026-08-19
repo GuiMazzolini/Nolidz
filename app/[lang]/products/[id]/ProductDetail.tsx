@@ -21,6 +21,9 @@ import {
 } from "@/app/lib/variants";
 import type { Product } from "@/app/product-data";
 import { useLocale, useT } from "@/app/i18n/client";
+import dynamic from "next/dynamic";
+
+const SizeGuideModal = dynamic(() => import("@/app/components/SizeGuideModal"), { ssr: false });
 
 type ProductDetailProps = {
   product: Product;
@@ -69,6 +72,7 @@ export default function ProductDetail({
     return requested ?? colors[0] ?? "";
   });
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
   // Sold-out sizes stay off the grid — shoppers only see what they can buy.
   const sizesForColor = useMemo(
@@ -184,6 +188,7 @@ export default function ProductDetail({
         : "text-gray-600";
 
   return (
+    <>
     <div className="min-h-screen bg-paper py-12">
       <div className="container mx-auto px-4 max-w-6xl">
         <CartErrorBanner />
@@ -256,9 +261,16 @@ export default function ProductDetail({
                   )}
 
                   <div>
-                    <p className="mb-2 text-sm font-semibold text-ink">
-                      {sizeHeading}
-                    </p>
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-sm font-semibold text-ink">{sizeHeading}</p>
+                      <button
+                        type="button"
+                        onClick={() => setSizeGuideOpen(true)}
+                        className="text-xs text-ink/50 underline underline-offset-2 hover:text-ink transition-colors"
+                      >
+                        {t.sizeGuide.link}
+                      </button>
+                    </div>
                     <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                       {sizesForColor.map((variant) => {
                         const isSelected = variant.sku === selectedSku;
@@ -371,5 +383,7 @@ export default function ProductDetail({
         </div>
       </div>
     </div>
+    {sizeGuideOpen && <SizeGuideModal onClose={() => setSizeGuideOpen(false)} />}
+    </>
   );
 }

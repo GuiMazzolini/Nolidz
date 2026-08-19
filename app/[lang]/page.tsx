@@ -257,21 +257,6 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <footer className="border-t-2 border-ink/10 py-10 bg-paper">
-        <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/nolidz.jpeg"
-              alt=""
-              width={36}
-              height={36}
-              className="h-9 w-9 rounded-md object-cover border border-ink/10"
-            />
-            <span className="font-display italic font-extrabold text-xl">nolidz</span>
-          </div>
-          <p className="text-sm text-ink/45">{t.common.brandTagline}</p>
-        </div>
-      </footer>
     </div>
   );
 }

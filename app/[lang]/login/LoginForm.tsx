@@ -217,13 +217,6 @@ export default function LoginPage() {
           <div className="space-y-3">
             <button
               type="button"
-              onClick={() => signIn("github", { callbackUrl })}
-              className="flex w-full items-center justify-center gap-2 border-2 border-ink/15 bg-white py-2.5 text-sm font-semibold text-ink hover:border-cardboard transition-colors"
-            >
-              {t.login.continueWithGitHub}
-            </button>
-            <button
-              type="button"
               onClick={() => signIn("google", { callbackUrl })}
               className="flex w-full items-center justify-center gap-2 border-2 border-ink/15 bg-white py-2.5 text-sm font-semibold text-ink hover:border-cardboard transition-colors"
             >

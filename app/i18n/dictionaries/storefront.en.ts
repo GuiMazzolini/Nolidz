@@ -385,6 +385,22 @@ const storefront = {
     errorGeneric: "Something went wrong",
   },
 
+  footer: {
+    copyright: (year: number) => `© ${year} Kristiyan Valin`,
+    impressum: "Impressum",
+    datenschutz: "Datenschutz",
+    widerruf: "Widerruf",
+  },
+
+  sizeGuide: {
+    link: "Size guide",
+    title: "Size Guide",
+    close: "Close",
+    note: "Sizes are approximate. If you're between sizes, we recommend sizing up.",
+    adults: "Adults (EU 36–47)",
+    kids: "Kids (EU 28–35)",
+  },
+
   notFound: {
     metaTitle: "Page not found",
     heading: "Page not found",
