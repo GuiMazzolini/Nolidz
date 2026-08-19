@@ -1,6 +1,9 @@
 import { connectToDB } from "@/app/api/db";
 import { rateLimits } from "@/app/lib/db-collections";
 import { NextResponse } from "next/server";
+import { DEFAULT_LOCALE } from "@/app/i18n/config";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor } from "@/app/i18n/lookup";
 
 export type RateLimitResult = { ok: boolean; retryAfter: number };
 
@@ -64,9 +67,13 @@ export function getClientIp(req: Request): string {
   return req.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
-export function tooManyRequests(retryAfter: number): NextResponse {
+export function tooManyRequests(
+  retryAfter: number,
+  req?: Request
+): NextResponse {
+  const locale = req ? localeFromRequest(req) : DEFAULT_LOCALE;
   return NextResponse.json(
-    { error: "Too many requests. Please try again later." },
+    { error: apiDictionaryFor(locale).tooManyRequests },
     { status: 429, headers: { "Retry-After": String(retryAfter) } }
   );
 }
@@ -86,7 +93,7 @@ export async function enforceRateLimit(
     limit,
     windowSec
   );
-  return ok ? null : tooManyRequests(retryAfter);
+  return ok ? null : tooManyRequests(retryAfter, req);
 }
 
 /** Budgets, in one place so they are reviewable together. */

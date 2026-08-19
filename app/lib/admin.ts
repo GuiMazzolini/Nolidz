@@ -17,11 +17,30 @@ export function isAdminEmail(email: string | null | undefined): boolean {
  */
 export const ALLOWED_IMAGE_HOSTS = ["res.cloudinary.com"];
 
+export type ImageUrlMessages = {
+  notAbsolute: string;
+  notHttps: string;
+  hostNotAllowed: (hosts: string) => string;
+};
+
+const DEFAULT_IMAGE_MESSAGES: ImageUrlMessages = {
+  notAbsolute: "Image URL must be a valid absolute URL",
+  notHttps: "Image URL must use https",
+  hostNotAllowed: (hosts) => `Image URL host must be one of: ${hosts}`,
+};
+
 /**
  * Validate and normalize an admin-supplied product image URL.
  * Throws when the URL is unparseable, not https, or off the allowlist.
+ *
+ * The rejection wording is a parameter so the admin reads it in their own
+ * language; this module itself stays free of locale wiring, and the English
+ * defaults are what the unit tests read.
  */
-export function normalizeProductImageUrl(imageUrl: string): string {
+export function normalizeProductImageUrl(
+  imageUrl: string,
+  messages: ImageUrlMessages = DEFAULT_IMAGE_MESSAGES
+): string {
   const trimmed = imageUrl.trim();
 
   // A same-origin path is the seeded photography in `public/`. It cannot point
@@ -36,16 +55,14 @@ export function normalizeProductImageUrl(imageUrl: string): string {
   try {
     url = new URL(trimmed);
   } catch {
-    throw new Error("Image URL must be a valid absolute URL");
+    throw new Error(messages.notAbsolute);
   }
 
   if (url.protocol !== "https:") {
-    throw new Error("Image URL must use https");
+    throw new Error(messages.notHttps);
   }
   if (!ALLOWED_IMAGE_HOSTS.includes(url.hostname)) {
-    throw new Error(
-      `Image URL host must be one of: ${ALLOWED_IMAGE_HOSTS.join(", ")}`
-    );
+    throw new Error(messages.hostNotAllowed(ALLOWED_IMAGE_HOSTS.join(", ")));
   }
 
   return url.toString();

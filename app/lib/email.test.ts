@@ -41,6 +41,7 @@ const order: Order = {
   carrier: null,
   shippedAt: null,
   tracking: null,
+  locale: "de",
   createdAt: new Date("2026-06-01"),
 };
 

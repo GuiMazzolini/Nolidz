@@ -12,6 +12,7 @@ import { normalizeEmail } from "@/app/lib/normalize-email";
 import { readCachedTracking, type CachedTracking } from "@/app/lib/tracking";
 import type { Db } from "mongodb";
 import type Stripe from "stripe";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/app/i18n/config";
 
 export { normalizeEmail };
 
@@ -49,6 +50,15 @@ export type Order = {
   shippedAt: Date | null;
   /** Last DHL status we fetched. Never fetched during a render — see tracking.ts. */
   tracking: CachedTracking | null;
+  /**
+   * The language the buyer checked out in.
+   *
+   * Stored on the order because the confirmation and shipping emails are sent
+   * later, from a Stripe webhook and from an admin action — neither of which
+   * has the buyer's request, cookie or `Accept-Language` to read. Orders placed
+   * before this field existed fall back to the default locale.
+   */
+  locale: Locale;
   createdAt: Date;
 };
 
@@ -69,6 +79,7 @@ export function toOrder(doc: Record<string, unknown>): Order {
     carrier: doc.carrier ? String(doc.carrier) : null,
     shippedAt: doc.shippedAt ? new Date(doc.shippedAt as string | Date) : null,
     tracking: readCachedTracking(doc),
+    locale: isLocale(doc.locale) ? doc.locale : DEFAULT_LOCALE,
     createdAt: new Date(doc.createdAt as string | Date),
   };
 }
@@ -117,6 +128,10 @@ export function buildOrderFromStripeSession(
     shippedAt: null,
     // Nothing to track until someone ships it and DHL is asked.
     tracking: null,
+    // Written into session metadata when checkout started; see /api/checkout.
+    locale: isLocale(session.metadata?.locale)
+      ? session.metadata.locale
+      : DEFAULT_LOCALE,
     createdAt: new Date(),
   };
 }

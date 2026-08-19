@@ -1,5 +1,7 @@
 import { connectToDB } from "@/app/api/db";
 import { authOptions } from "@/app/lib/auth";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor } from "@/app/i18n/lookup";
 import { clampCartQuantity } from "@/app/lib/cart-limits";
 import {
   carts,
@@ -31,7 +33,10 @@ export async function POST(req: NextRequest) {
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: apiDictionaryFor(localeFromRequest(req)).unauthorized },
+      { status: 401 }
+    );
   }
 
   const parsed = await parseBody(req, cartMergeSchema);

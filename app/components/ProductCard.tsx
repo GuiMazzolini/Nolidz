@@ -2,17 +2,20 @@
 
 import Image from "next/image";
 import { formatMoney } from "@/app/lib/money";
-import Link from "next/link";
+import Link from "@/app/i18n/Link";
 import { useCallback, useMemo, useState } from "react";
 import { getImageSrc, productGallery } from "../lib/images";
 import { colorwayStock, type Colorway } from "../lib/colorways";
 import { useCartStore } from "../lib/store/cartStore";
+import { useLocale, useT } from "@/app/i18n/client";
 import { colorwayPrice, imageForColor, sizesAvailableLabel, variantsForColor } from "../lib/variants";
 
 /** Swatches past this are summarised as "+N", as the strip has finite width. */
 const MAX_SWATCHES = 5;
 
 export default function ProductCard({ colorway }: { colorway: Colorway }) {
+  const t = useT();
+  const locale = useLocale();
   const { product, color, images, otherColors } = colorway;
   const variants = useMemo(() => product.variants ?? [], [product.variants]);
 
@@ -81,7 +84,11 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
   const isVariantProduct = color !== null;
 
   const sizesLabel = activeColor
-    ? sizesAvailableLabel(variantsForColor(variants, activeColor))
+    ? sizesAvailableLabel(
+        variantsForColor(variants, activeColor),
+        undefined,
+        t.productCard.manySizes
+      )
     : null;
 
   const stock = colorwayStock(product, activeColor);
@@ -131,7 +138,11 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
           <Image
             key={current}
             src={current}
-            alt={count > 1 ? `${label} — photo ${active + 1} of ${count}` : label}
+            alt={
+              count > 1
+                ? t.productCard.photoOf(label, active + 1, count)
+                : label
+            }
             fill
             unoptimized
             className="object-cover transition-transform duration-300 group-hover:scale-105"
@@ -146,12 +157,12 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
           <Link
             href={href}
             className="absolute inset-0 z-10"
-            aria-label={`View ${label}`}
+            aria-label={t.productCard.view(label)}
           />
 
           {outOfStock && (
             <span className="absolute left-3 top-3 z-20 rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white">
-              Out of stock
+              {t.productCard.outOfStockBadge}
             </span>
           )}
 
@@ -160,7 +171,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
               <button
                 type="button"
                 onClick={() => step(-1)}
-                aria-label={`Previous photo of ${label}`}
+                aria-label={t.productCard.previousPhotoOf(label)}
                 className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/90 p-1.5 text-ink opacity-0 shadow transition-opacity hover:bg-white focus:outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-cardboard group-hover:opacity-100"
               >
                 <Chevron direction="left" />
@@ -168,7 +179,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
               <button
                 type="button"
                 onClick={() => step(1)}
-                aria-label={`Next photo of ${label}`}
+                aria-label={t.productCard.nextPhotoOf(label)}
                 className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/90 p-1.5 text-ink opacity-0 shadow transition-opacity hover:bg-white focus:outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-cardboard group-hover:opacity-100"
               >
                 <Chevron direction="right" />
@@ -215,7 +226,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
                       // anchor, which already carries the previewed colour's
                       // href, and nesting interactive elements would be invalid.
                       data-color={other}
-                      title={soldOut ? `${other} — sold out` : other}
+                      title={soldOut ? t.productCard.soldOutSwatch(other) : other}
                       onMouseEnter={() => setPreviewColor(other)}
                       className={`relative block h-9 w-9 shrink-0 overflow-hidden border bg-paper transition-colors ${
                         previewing
@@ -257,10 +268,12 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
 
           <div className="mt-auto flex items-baseline justify-between gap-2">
             <span className="font-display italic text-2xl font-bold text-cardboard-dark">
-              {formatMoney(displayPrice)}
+              {formatMoney(displayPrice, undefined, locale)}
             </span>
             {!outOfStock && (
-              <span className="text-xs text-ink/45">{stock} left</span>
+              <span className="text-xs text-ink/45">
+                {t.productCard.stockLeft(stock)}
+              </span>
             )}
           </div>
         </div>
@@ -278,17 +291,21 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
             aria-disabled={outOfStock}
           >
             {outOfStock
-              ? "Out of Stock"
+              ? t.productCard.outOfStock
               : unitsInCart > 0
-                ? `In cart (${unitsInCart}) · Add size`
-                : "Choose Size"}
+                ? t.productCard.inCartAddSize(unitsInCart)
+                : t.productCard.chooseSize}
           </Link>
         ) : inCart ? (
           <div className="flex items-center justify-between overflow-hidden border-2 border-ink/15 bg-white">
             <button
               onClick={() => updateQuantity(product.id, quantity - 1)}
               disabled={loading}
-              aria-label={quantity <= 1 ? "Remove from cart" : "Decrease quantity"}
+              aria-label={
+                quantity <= 1
+                  ? t.productCard.removeFromCart
+                  : t.productCard.decreaseQuantity
+              }
               className="flex items-center justify-center px-4 py-2 transition-colors hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
             >
               {quantity <= 1 ? (
@@ -317,7 +334,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
             <button
               onClick={() => updateQuantity(product.id, quantity + 1)}
               disabled={loading || atStockLimit}
-              aria-label="Increase quantity"
+              aria-label={t.productCard.increaseQuantity}
               className="px-4 py-2 transition-colors hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
             >
               +
@@ -333,7 +350,11 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
                 : "bg-ink text-paper hover:bg-ink/85"
             } ${loading && "cursor-not-allowed opacity-50"}`}
           >
-            {loading ? "Adding..." : outOfStock ? "Out of Stock" : "Add to Cart"}
+            {loading
+              ? t.productCard.adding
+              : outOfStock
+                ? t.productCard.outOfStock
+                : t.productCard.addToCart}
           </button>
         )}
       </div>

@@ -158,19 +158,47 @@ export async function refreshTrackingForOrder(
   return { ok: true, tracking, refreshed: true };
 }
 
-/** Customer-facing wording. DHL's own description is shown when there is one;
- * this is the fallback so a parcel is never labelled with a raw status code. */
-export function describeTrackingStatus(code: TrackingStatusCode): string {
+/**
+ * Customer-facing wording for a status code.
+ *
+ * DHL also sends a description of its own, but in whichever language it feels
+ * like and cached on the order from whenever it was fetched — so a German
+ * reader could be shown an English line written days ago. These labels are
+ * ours, in the reader's language, which is why the customer pages prefer them.
+ *
+ * The labels are a parameter so this module stays free of locale wiring; the
+ * English defaults are what the API route and the unit tests read.
+ */
+export type TrackingStatusLabels = {
+  preTransit: string;
+  transit: string;
+  delivered: string;
+  failure: string;
+  unknown: string;
+};
+
+const DEFAULT_TRACKING_LABELS: TrackingStatusLabels = {
+  preTransit: "Label created — DHL has not scanned it yet",
+  transit: "On its way",
+  delivered: "Delivered",
+  failure: "Delivery problem — contact us",
+  unknown: "Status unavailable",
+};
+
+export function describeTrackingStatus(
+  code: TrackingStatusCode,
+  labels: TrackingStatusLabels = DEFAULT_TRACKING_LABELS
+): string {
   switch (code) {
     case "pre-transit":
-      return "Label created — DHL has not scanned it yet";
+      return labels.preTransit;
     case "transit":
-      return "On its way";
+      return labels.transit;
     case "delivered":
-      return "Delivered";
+      return labels.delivered;
     case "failure":
-      return "Delivery problem — contact us";
+      return labels.failure;
     default:
-      return "Status unavailable";
+      return labels.unknown;
   }
 }

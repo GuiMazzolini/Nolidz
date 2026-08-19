@@ -1,5 +1,7 @@
 import { adminUnauthorized, requireAdmin } from "@/app/lib/admin-auth";
 import { markOrderShipped } from "@/app/lib/orders";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor } from "@/app/i18n/lookup";
 import { NextRequest, NextResponse } from "next/server";
 
 type Params = { sessionId: string };
@@ -8,14 +10,16 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<Params> }
 ) {
+  const t = apiDictionaryFor(localeFromRequest(req));
+
   const session = await requireAdmin();
   if (!session) {
-    return adminUnauthorized();
+    return adminUnauthorized(req);
   }
 
   const { sessionId } = await params;
   if (!sessionId) {
-    return NextResponse.json({ error: "Missing order id" }, { status: 400 });
+    return NextResponse.json({ error: t.missingOrderId }, { status: 400 });
   }
 
   let body: {
@@ -26,14 +30,14 @@ export async function PATCH(
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json({ error: t.invalidJson }, { status: 400 });
   }
 
   const trackingNumber =
     typeof body.trackingNumber === "string" ? body.trackingNumber.trim() : "";
   if (!trackingNumber) {
     return NextResponse.json(
-      { error: "Tracking number is required" },
+      { error: t.trackingNumberRequired },
       { status: 400 }
     );
   }
@@ -53,7 +57,7 @@ export async function PATCH(
     });
 
     if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      return NextResponse.json({ error: t.orderNotFound }, { status: 404 });
     }
 
     return NextResponse.json({

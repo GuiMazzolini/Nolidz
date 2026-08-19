@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { useT } from "@/app/i18n/client";
 
 const DISMISSED_KEY = "nolidz:shipping-area-banner-dismissed";
 
@@ -46,6 +47,7 @@ function dismiss() {
  * their German delivery address will go through either way.
  */
 export default function ShippingAreaBannerShell({ area }: { area: string }) {
+  const t = useT();
   const dismissed = useSyncExternalStore(
     subscribe,
     isDismissed,
@@ -58,16 +60,13 @@ export default function ShippingAreaBannerShell({ area }: { area: string }) {
     <div className="border-b-2 border-ink/10 bg-cardboard/25 text-ink">
       <div className="mx-auto flex max-w-7xl items-start justify-between gap-4 px-4 py-2.5 sm:px-6">
         <p className="text-sm">
-          <span className="font-semibold">We ship to {area} only.</span>{" "}
-          <span className="text-ink/70">
-            You can browse and order, but checkout accepts a {area} delivery
-            address.
-          </span>
+          <span className="font-semibold">{t.shippingBanner.shipToOnly(area)}</span>{" "}
+          <span className="text-ink/70">{t.shippingBanner.body(area)}</span>
         </p>
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Dismiss shipping notice"
+          aria-label={t.shippingBanner.dismiss}
           className="shrink-0 px-1 text-lg leading-none text-ink/50 hover:text-ink"
         >
           ×

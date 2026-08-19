@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/app/i18n/Link";
 import { formatMoney } from "@/app/lib/money";
 import Image from "next/image";
 import { Product } from "../product-data";
@@ -8,12 +8,15 @@ import { MAX_CART_QUANTITY } from "../lib/cart-limits";
 import { getImageSrc } from "../lib/images";
 import { useCartStore } from "../lib/store/cartStore";
 import { variantLabel } from "../lib/variants";
+import { useLocale, useT } from "@/app/i18n/client";
 
 interface CartItemProps {
   product: Product;
 }
 
 export default function CartItem({ product }: CartItemProps) {
+  const t = useT();
+  const locale = useLocale();
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeFromCart = useCartStore((s) => s.removeFromCart);
   const isLoading = useCartStore((s) => s.isLoading);
@@ -21,6 +24,7 @@ export default function CartItem({ product }: CartItemProps) {
   const sku = product.variantSku;
   const loading = isLoading(product.id, sku);
   const label = variantLabel(product.variantSize, product.variantColor);
+  const money = (amount: number) => formatMoney(amount, undefined, locale);
   const quantity = product.quantity || 1;
   const stock =
     typeof product.stock === "number" ? product.stock : MAX_CART_QUANTITY;
@@ -70,19 +74,19 @@ export default function CartItem({ product }: CartItemProps) {
                 }`}
               >
                 {product.stock < 1
-                  ? "Out of stock"
-                  : `${product.stock} available`}
+                  ? t.cart.itemOutOfStock
+                  : t.cart.itemAvailable(product.stock)}
               </p>
             )}
           </div>
 
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="font-display italic text-2xl font-bold text-cardboard-dark">
-              {formatMoney(product.price * quantity)}
+              {money(product.price * quantity)}
 
               {quantity > 1 && (
                 <span className="text-sm text-ink/45 ml-2 not-italic font-sans font-normal">
-                  ({formatMoney(product.price)} each)
+                  {t.cart.eachPrice(money(product.price))}
                 </span>
               )}
             </div>
@@ -93,7 +97,7 @@ export default function CartItem({ product }: CartItemProps) {
                   <button
                     onClick={() => removeFromCart(product.id, sku)}
                     disabled={loading}
-                    aria-label="Remove from cart"
+                    aria-label={t.cart.removeFromCart}
                     className="px-3 py-2 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                   >
                     <svg
@@ -114,7 +118,7 @@ export default function CartItem({ product }: CartItemProps) {
                   <button
                     onClick={() => updateQuantity(product.id, quantity - 1, sku)}
                     disabled={loading}
-                    aria-label="Decrease quantity"
+                    aria-label={t.cart.decreaseQuantity}
                     className="px-3 py-2 hover:bg-paper disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     −
@@ -128,7 +132,7 @@ export default function CartItem({ product }: CartItemProps) {
                 <button
                   onClick={() => updateQuantity(product.id, quantity + 1, sku)}
                   disabled={loading || atLimit}
-                  aria-label="Increase quantity"
+                  aria-label={t.cart.increaseQuantity}
                   className="px-3 py-2 hover:bg-paper disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   +

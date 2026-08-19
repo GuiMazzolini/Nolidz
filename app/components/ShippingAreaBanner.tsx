@@ -1,9 +1,6 @@
 import { headers } from "next/headers";
-import {
-  SHIPPING_AREA_LABEL,
-  isOutsideShippingArea,
-  readVisitorCountry,
-} from "@/app/lib/shipping";
+import { isOutsideShippingArea, readVisitorCountry } from "@/app/lib/shipping";
+import { getT } from "@/app/i18n/server";
 import ShippingAreaBannerShell from "./ShippingAreaBannerShell";
 
 /**
@@ -29,5 +26,6 @@ export default async function ShippingAreaBanner() {
   const country = readVisitorCountry(await headers());
   if (!isOutsideShippingArea(country)) return null;
 
-  return <ShippingAreaBannerShell area={SHIPPING_AREA_LABEL} />;
+  const t = await getT();
+  return <ShippingAreaBannerShell area={t.common.shippingArea} />;
 }

@@ -1,0 +1,44 @@
+import type { Metadata } from "next";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/lib/auth";
+import { connectToDB } from "@/app/api/db";
+import { carts } from "@/app/lib/db-collections";
+import { loadCartProducts } from "@/app/lib/cart-server";
+import ShippingAreaBanner from "@/app/components/ShippingAreaBanner";
+import ShoppingCartList from "./ShoppingCartList";
+import { getT } from "@/app/i18n/server";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: t.cart.metaTitle,
+    description: t.cart.metaDescription,
+  };
+}
+
+export default async function CartPage() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.email) {
+    return (
+      <>
+        <ShippingAreaBanner />
+        <ShoppingCartList initialCartProducts={[]} />
+      </>
+    );
+  }
+
+  const { db } = await connectToDB();
+
+  const cart = await carts(db).findOne({ userId: session.user.email });
+  const items = cart?.items || [];
+
+  const cartProducts = await loadCartProducts(db, items);
+
+  return (
+    <>
+      <ShippingAreaBanner />
+      <ShoppingCartList initialCartProducts={cartProducts} />
+    </>
+  );
+}

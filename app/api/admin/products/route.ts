@@ -9,11 +9,13 @@ import { adminProductCreateSchema, resolveVariants } from "@/app/lib/schemas";
 import { heldStockFor } from "@/app/lib/stock-hold";
 import { totalVariantStock, type ColorImage } from "@/app/lib/variants";
 import { NextRequest, NextResponse } from "next/server";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor } from "@/app/i18n/lookup";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await requireAdmin();
   if (!session) {
-    return adminUnauthorized();
+    return adminUnauthorized(req);
   }
 
   const { db } = await connectToDB();
@@ -26,9 +28,11 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const t = apiDictionaryFor(localeFromRequest(req));
+
   const session = await requireAdmin();
   if (!session) {
-    return adminUnauthorized();
+    return adminUnauthorized(req);
   }
 
   const parsed = await parseBody(req, adminProductCreateSchema);
@@ -40,18 +44,18 @@ export async function POST(req: NextRequest) {
   let colorImages: ColorImage[] | undefined;
   let images: string[] | undefined;
   try {
-    imageUrl = normalizeProductImageUrl(parsed.data.imageUrl);
+    imageUrl = normalizeProductImageUrl(parsed.data.imageUrl, t.image);
     colorImages = parsed.data.colorImages?.length
       ? parsed.data.colorImages.map((entry) => ({
           color: entry.color,
-          imageUrl: normalizeProductImageUrl(entry.imageUrl),
+          imageUrl: normalizeProductImageUrl(entry.imageUrl, t.image),
         }))
       : undefined;
     images = parsed.data.images?.length
-      ? parsed.data.images.map((url) => normalizeProductImageUrl(url))
+      ? parsed.data.images.map((url) => normalizeProductImageUrl(url, t.image))
       : undefined;
   } catch (err) {
-    return badRequest(err instanceof Error ? err.message : "Invalid image URL");
+    return badRequest(err instanceof Error ? err.message : t.image.invalid);
   }
 
   const id = parsed.data.id
@@ -61,7 +65,10 @@ export async function POST(req: NextRequest) {
   const { db } = await connectToDB();
   const existing = await productsCollection(db).findOne({ id });
   if (existing) {
-    return NextResponse.json({ error: "A product with this id already exists" }, { status: 409 });
+    return NextResponse.json(
+      { error: t.productIdTaken },
+      { status: 409 }
+    );
   }
 
   // With variants, the product-level count is their sum: one number the
@@ -95,7 +102,7 @@ export async function POST(req: NextRequest) {
     // findOne above.
     if (isDuplicateKeyError(err)) {
       return NextResponse.json(
-        { error: "A product or variant with this id or SKU already exists" },
+        { error: t.productOrSkuTaken },
         { status: 409 }
       );
     }

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
 import { formatMoney } from "@/app/lib/money";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
+import { renderWithLocale } from "@/app/test/render";
 import userEvent from "@testing-library/user-event";
 
 import ProductCard from "@/app/components/ProductCard";
@@ -94,7 +95,7 @@ beforeEach(() => {
 
 describe("a colourway card", () => {
   it("names the product and its colour", () => {
-    render(<ProductCard colorway={cardFor("White")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("White")} />);
 
     expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(
       "Runner – White"
@@ -103,16 +104,16 @@ describe("a colourway card", () => {
   });
 
   it("reports the stock of that colour alone", () => {
-    render(<ProductCard colorway={cardFor("Red")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Red")} />);
     expect(screen.getByText("1 left")).toBeVisible();
   });
 
   it("links to the product page on its own colour", () => {
-    render(<ProductCard colorway={cardFor("White")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("White")} />);
 
     expect(screen.getByRole("link", { name: "View Runner – White" })).toHaveAttribute(
       "href",
-      "/products/runner?color=White"
+      "/en/products/runner?color=White"
     );
   });
 
@@ -121,7 +122,7 @@ describe("a colourway card", () => {
       ...runner,
       variants: [{ sku: "r-42-black", size: "42", color: "Black", stock: 0 }],
     };
-    render(<ProductCard colorway={cardFor("Black", gone)} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black", gone)} />);
 
     expect(screen.getByText("Out of stock")).toBeVisible();
     expect(screen.queryByText(/left$/)).toBeNull();
@@ -130,13 +131,13 @@ describe("a colourway card", () => {
 
 describe("paging through a card's photos", () => {
   it("opens on the colourway photo", () => {
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
     expect(photoName(hero())).toBe("runner-black.png");
   });
 
   it("steps forward and back with the arrows", async () => {
     const user = userEvent.setup();
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
     await user.click(
       screen.getByRole("button", { name: "Next photo of Runner – Black" })
@@ -151,7 +152,7 @@ describe("paging through a card's photos", () => {
 
   it("wraps around in both directions", async () => {
     const user = userEvent.setup();
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
     await user.click(
       screen.getByRole("button", { name: "Previous photo of Runner – Black" })
@@ -162,7 +163,7 @@ describe("paging through a card's photos", () => {
   /** A one-photo card must not grow controls that do nothing. */
   it("shows no arrows when there is only one photo", () => {
     const plain: Product = { ...runner, images: undefined, colorImages: [] };
-    render(<ProductCard colorway={cardFor("Black", plain)} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black", plain)} />);
 
     expect(screen.queryByRole("button", { name: /Next photo/ })).toBeNull();
     expect(screen.getByAltText("Runner – Black")).toBeInTheDocument();
@@ -174,7 +175,7 @@ describe("paging through a card's photos", () => {
    */
   it("hides the colour preview while paging, and shows it again after leaving", async () => {
     const user = userEvent.setup();
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
     expect(previewShowsOnHover()).toBe(true);
 
@@ -190,11 +191,11 @@ describe("paging through a card's photos", () => {
 
 describe("the swatch banner on a colourway card", () => {
   it("offers the other colours and never its own", () => {
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
     expect(swatchColors()).toEqual(["White", "Red"]);
 
     cleanup();
-    render(<ProductCard colorway={cardFor("White")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("White")} />);
     expect(swatchColors()).toEqual(["Black", "Red"]);
   });
 
@@ -203,7 +204,7 @@ describe("the swatch banner on a colourway card", () => {
       ...runner,
       variants: [{ sku: "r-42-black", size: "42", color: "Black", stock: 1 }],
     };
-    render(<ProductCard colorway={cardFor("Black", one)} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black", one)} />);
 
     expect(swatchColors()).toEqual([]);
   });
@@ -216,7 +217,7 @@ describe("the swatch banner on a colourway card", () => {
         { sku: "r-42-white", size: "42", color: "White", stock: 0 },
       ],
     };
-    render(<ProductCard colorway={cardFor("Black", partly)} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black", partly)} />);
 
     expect(swatch("White")).toHaveAttribute("title", "White — sold out");
   });
@@ -225,7 +226,7 @@ describe("the swatch banner on a colourway card", () => {
 describe("previewing a sibling colourway", () => {
   it("turns the card over to the hovered colour", async () => {
     const user = userEvent.setup();
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
     await user.hover(swatch("White"));
 
@@ -237,7 +238,7 @@ describe("previewing a sibling colourway", () => {
 
   it("reports the previewed colour's stock, not its own", async () => {
     const user = userEvent.setup();
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
     expect(screen.getByText("5 left")).toBeVisible();
     await user.hover(swatch("Red"));
@@ -246,32 +247,32 @@ describe("previewing a sibling colourway", () => {
 
   it("shows the previewed colour's price, not its own", async () => {
     const user = userEvent.setup();
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
-    expect(screen.getByText(formatMoney(89.99))).toBeVisible();
+    expect(screen.getByText(formatMoney(89.99, undefined, "en"))).toBeVisible();
     await user.hover(swatch("White"));
-    expect(screen.getByText(formatMoney(109.99))).toBeVisible();
+    expect(screen.getByText(formatMoney(109.99, undefined, "en"))).toBeVisible();
   });
 
   it("carries the previewed colour into the links", async () => {
     const user = userEvent.setup();
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
     await user.hover(swatch("Red"));
 
     expect(screen.getByRole("link", { name: "View Runner – Red" })).toHaveAttribute(
       "href",
-      "/products/runner?color=Red"
+      "/en/products/runner?color=Red"
     );
     expect(screen.getByRole("link", { name: "Choose Size" })).toHaveAttribute(
       "href",
-      "/products/runner?color=Red"
+      "/en/products/runner?color=Red"
     );
   });
 
   it("returns to its own colourway when the card is left", async () => {
     const user = userEvent.setup();
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
     await user.hover(swatch("White"));
     expect(photoName(hero())).toBe("runner-white.png");
@@ -283,7 +284,7 @@ describe("previewing a sibling colourway", () => {
   /** A previewed colour brings its own photos, starting at the first. */
   it("resets the gallery position when the preview changes", async () => {
     const user = userEvent.setup();
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
     await user.click(
       screen.getByRole("button", { name: "Next photo of Runner – Black" })
@@ -307,7 +308,7 @@ describe("the cart state a card reflects", () => {
         { ...runner, variantSku: "r-42-white", quantity: 4 },
       ],
     });
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
     expect(
       screen.getByRole("link", { name: "In cart (3) · Add size" })
@@ -315,7 +316,7 @@ describe("the cart state a card reflects", () => {
   });
 
   it("sends a variant card to the product page rather than adding inline", () => {
-    render(<ProductCard colorway={cardFor("Black")} />);
+    renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
     expect(screen.getByRole("link", { name: "Choose Size" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Add to Cart" })).toBeNull();
@@ -323,7 +324,7 @@ describe("the cart state a card reflects", () => {
 
   it("keeps a single-SKU product on its inline add button", async () => {
     const user = userEvent.setup();
-    render(<ProductCard colorway={toColorways(mug)[0]} />);
+    renderWithLocale(<ProductCard colorway={toColorways(mug)[0]} />);
 
     await user.click(screen.getByRole("button", { name: "Add to Cart" }));
 
@@ -334,7 +335,7 @@ describe("the cart state a card reflects", () => {
     useCartStore.setState({
       cartProducts: [{ ...mug, variantSku: "mug-x", quantity: 2 }],
     });
-    render(<ProductCard colorway={toColorways(mug)[0]} />);
+    renderWithLocale(<ProductCard colorway={toColorways(mug)[0]} />);
 
     expect(screen.getByRole("button", { name: "Add to Cart" })).toBeVisible();
   });

@@ -1,6 +1,8 @@
 import { connectToDB } from "@/app/api/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor, type ApiDict } from "@/app/i18n/lookup";
 import { MAX_CART_QUANTITY } from "@/app/lib/cart-limits";
 import { carts, products, type CartItemDoc } from "@/app/lib/db-collections";
 import { parseBody, unauthorized } from "@/app/lib/api-request";
@@ -51,19 +53,32 @@ function findCartItem(
   );
 }
 
-/** Resolve the product and the stock backing this line, or an error response. */
-async function resolveLine(db: Db, productId: string, variantSku?: string) {
+/**
+ * Resolve the product and the stock backing this line, or an error response.
+ *
+ * Takes the message dictionary rather than the request: the caller has already
+ * resolved the locale, and this stays a plain database helper.
+ */
+async function resolveLine(
+  db: Db,
+  t: ApiDict,
+  productId: string,
+  variantSku?: string
+) {
   const product = await products(db).findOne({ id: productId });
   if (!product) {
     return {
-      error: NextResponse.json({ error: "Product not found" }, { status: 404 }),
+      error: NextResponse.json(
+        { error: t.productNotFound },
+        { status: 404 }
+      ),
     };
   }
 
   if (hasVariants(product) && !findVariant(product.variants, variantSku)) {
     return {
       error: NextResponse.json(
-        { error: "Choose a size and colour" },
+        { error: t.chooseSizeAndColour },
         { status: 400 }
       ),
     };
@@ -72,9 +87,9 @@ async function resolveLine(db: Db, productId: string, variantSku?: string) {
   return { product, stock: resolveLineStock(product, variantSku) };
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const userId = await getUserId();
-  if (!userId) return unauthorized();
+  if (!userId) return unauthorized(req);
 
   const { db } = await connectToDB();
   const cart = await carts(db).findOne({ userId });
@@ -84,8 +99,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const t = apiDictionaryFor(localeFromRequest(req));
   const userId = await getUserId();
-  if (!userId) return unauthorized();
+  if (!userId) return unauthorized(req);
 
   const parsed = await parseBody(req, cartPostSchema);
   if (!parsed.ok) return parsed.response;
@@ -93,12 +109,15 @@ export async function POST(req: NextRequest) {
 
   const { db } = await connectToDB();
 
-  const line = await resolveLine(db, productId, variantSku);
+  const line = await resolveLine(db, t, productId, variantSku);
   if (line.error) return line.error;
 
   const { stock } = line;
   if (stock < 1) {
-    return NextResponse.json({ error: "Out of stock" }, { status: 409 });
+    return NextResponse.json(
+      { error: t.outOfStock },
+      { status: 409 }
+    );
   }
 
   const cart = await carts(db).findOne({ userId });
@@ -108,7 +127,7 @@ export async function POST(req: NextRequest) {
   if (existingItem) {
     if (existingItem.quantity >= stock) {
       return NextResponse.json(
-        { error: `Only ${stock} in stock` },
+        { error: t.onlyNInStock(stock) },
         { status: 409 }
       );
     }
@@ -137,8 +156,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const t = apiDictionaryFor(localeFromRequest(req));
   const userId = await getUserId();
-  if (!userId) return unauthorized();
+  if (!userId) return unauthorized(req);
 
   const parsed = await parseBody(req, cartPatchSchema);
   if (!parsed.ok) return parsed.response;
@@ -157,18 +177,24 @@ export async function PATCH(req: NextRequest) {
       { returnDocument: "after" }
     );
     if (!updatedCart)
-      return NextResponse.json({ error: "Item not found in cart" }, { status: 404 });
+      return NextResponse.json(
+        { error: t.itemNotInCart },
+        { status: 404 }
+      );
   } else {
-    const line = await resolveLine(db, productId, variantSku);
+    const line = await resolveLine(db, t, productId, variantSku);
     if (line.error) return line.error;
 
     const { stock } = line;
     if (stock < 1) {
-      return NextResponse.json({ error: "Out of stock" }, { status: 409 });
+      return NextResponse.json(
+      { error: t.outOfStock },
+      { status: 409 }
+    );
     }
     if (quantity > stock) {
       return NextResponse.json(
-        { error: `Only ${stock} in stock` },
+        { error: t.onlyNInStock(stock) },
         { status: 409 }
       );
     }
@@ -179,7 +205,10 @@ export async function PATCH(req: NextRequest) {
       { returnDocument: "after" }
     );
     if (!updatedCart)
-      return NextResponse.json({ error: "Item not found in cart" }, { status: 404 });
+      return NextResponse.json(
+        { error: t.itemNotInCart },
+        { status: 404 }
+      );
   }
 
   const cartProducts = await loadCartProducts(db, updatedCart?.items || []);
@@ -188,7 +217,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const userId = await getUserId();
-  if (!userId) return unauthorized();
+  if (!userId) return unauthorized(req);
 
   const parsed = await parseBody(req, cartDeleteSchema);
   if (!parsed.ok) return parsed.response;

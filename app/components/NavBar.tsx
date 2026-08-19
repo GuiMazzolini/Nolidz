@@ -1,11 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import Link from "@/app/i18n/Link";
+import { useT } from "@/app/i18n/client";
+import { stripLocale } from "@/app/i18n/config";
 import AuthButton from "./AuthButton";
 import CartButton from "./CartButton";
+import LanguageToggle from "./LanguageToggle";
 
 function NavLink({
   href,
@@ -38,34 +41,36 @@ function NavLink({
 }
 
 function CategoryLinks({ compact = false }: { compact?: boolean }) {
+  const t = useT();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const category = searchParams.get("category");
-  const onShop = pathname === "/products";
+  // The pathname carries a locale prefix now, so compare on the app path.
+  const onShop = stripLocale(pathname) === "/products";
 
   return (
     <>
       <NavLink
         href="/products?category=women"
-        label="Women"
+        label={t.nav.women}
         active={onShop && category === "women"}
         compact={compact}
       />
       <NavLink
         href="/products?category=men"
-        label="Men"
+        label={t.nav.men}
         active={onShop && category === "men"}
         compact={compact}
       />
       <NavLink
         href="/products?category=kids"
-        label="Kids"
+        label={t.nav.kids}
         active={onShop && category === "kids"}
         compact={compact}
       />
       <NavLink
         href="/products"
-        label="All"
+        label={t.nav.all}
         active={onShop && !category}
         compact={compact}
       />
@@ -73,9 +78,7 @@ function CategoryLinks({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function DesktopNav() {
-  const pathname = usePathname();
-
+function DesktopNav({ cartActive }: { cartActive: boolean }) {
   return (
     <div className="hidden sm:flex items-center gap-1">
       <Suspense
@@ -86,12 +89,14 @@ function DesktopNav() {
           <span className="mx-1 h-4 w-px bg-ink/15" aria-hidden />
         </div>
       </Suspense>
-      <CartButton active={pathname === "/cart"} />
+      <CartButton active={cartActive} />
     </div>
   );
 }
 
 function MobileCategories() {
+  const t = useT();
+
   return (
     <div className="sm:hidden border-t border-ink/10">
       <Suspense
@@ -105,7 +110,7 @@ function MobileCategories() {
         }
       >
         <nav
-          aria-label="Shop by"
+          aria-label={t.nav.shopBy}
           className="flex items-stretch gap-0.5 px-1"
         >
           <CategoryLinks compact />
@@ -117,6 +122,7 @@ function MobileCategories() {
 
 export default function NavBar() {
   const pathname = usePathname();
+  const cartActive = stripLocale(pathname) === "/cart";
 
   return (
     <nav className="sticky top-0 z-50 bg-paper/90 backdrop-blur-md border-b-2 border-ink/10">
@@ -135,11 +141,12 @@ export default function NavBar() {
           </span>
         </Link>
 
-        <DesktopNav />
+        <DesktopNav cartActive={cartActive} />
 
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <LanguageToggle />
           <div className="sm:hidden">
-            <CartButton active={pathname === "/cart"} />
+            <CartButton active={cartActive} />
           </div>
           {/* Remounting on navigation is what closes the account menu. */}
           <AuthButton key={pathname} />

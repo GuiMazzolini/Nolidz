@@ -81,12 +81,12 @@ describe("account access control", () => {
     setMockSession(null);
 
     const responses = await Promise.all([
-      GET(),
-      DELETE_ACCOUNT(),
+      GET(jsonRequest("GET")),
+      DELETE_ACCOUNT(jsonRequest("DELETE")),
       PATCH_PROFILE(jsonRequest("PATCH", { name: "Mallory" })),
       PUT_PASSWORD(jsonRequest("PUT", { newPassword: "new-password" })),
       PUT_ADDRESS(jsonRequest("PUT", address)),
-      DELETE_ADDRESS(),
+      DELETE_ADDRESS(jsonRequest("DELETE")),
     ]);
 
     for (const res of responses) {
@@ -97,19 +97,19 @@ describe("account access control", () => {
 
   it("treats a session with no email as unauthenticated", async () => {
     setEmaillessSession();
-    expect((await GET()).status).toBe(401);
+    expect((await GET(jsonRequest("GET"))).status).toBe(401);
   });
 
   it("404s when the session points at a deleted account", async () => {
     setMockSession("ghost@example.com");
-    expect((await GET()).status).toBe(404);
-    expect((await DELETE_ACCOUNT()).status).toBe(404);
+    expect((await GET(jsonRequest("GET"))).status).toBe(404);
+    expect((await DELETE_ACCOUNT(jsonRequest("DELETE"))).status).toBe(404);
   });
 });
 
 describe("GET /api/account", () => {
   it("returns the profile and never the password hash", async () => {
-    const { status, body } = await readResponse<AccountProfile>(await GET());
+    const { status, body } = await readResponse<AccountProfile>(await GET(jsonRequest("GET")));
 
     expect(status).toBe(200);
     expect(body).toMatchObject({
@@ -124,7 +124,7 @@ describe("GET /api/account", () => {
 
   it("matches the account regardless of session email casing", async () => {
     setMockSession("BUYER@Example.com");
-    const { status } = await readResponse(await GET());
+    const { status } = await readResponse(await GET(jsonRequest("GET")));
     expect(status).toBe(200);
   });
 });
@@ -289,7 +289,7 @@ describe("PUT /api/account/address", () => {
     await PUT_ADDRESS(jsonRequest("PUT", address));
 
     const { status, body } = await readResponse<AccountProfile>(
-      await DELETE_ADDRESS()
+      await DELETE_ADDRESS(jsonRequest("DELETE"))
     );
 
     expect(status).toBe(200);
@@ -302,7 +302,7 @@ describe("DELETE /api/account", () => {
     testDb.seed("carts", [{ userId: BUYER, items: [{ productId: "mug", quantity: 1 }] }]);
     testDb.seed("orders", [{ stripeSessionId: "cs_1", userId: BUYER, items: [] }]);
 
-    const { status } = await readResponse(await DELETE_ACCOUNT());
+    const { status } = await readResponse(await DELETE_ACCOUNT(jsonRequest("DELETE")));
 
     expect(status).toBe(200);
     expect(storedUser()).toBeUndefined();

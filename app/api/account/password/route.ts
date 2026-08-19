@@ -5,13 +5,15 @@ import { connectToDB } from "@/app/api/db";
 import { authOptions } from "@/app/lib/auth";
 import { users } from "@/app/lib/db-collections";
 import { normalizeEmail } from "@/app/lib/normalize-email";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor } from "@/app/i18n/lookup";
 import { badRequest, parseBody, unauthorized } from "@/app/lib/api-request";
 import { passwordChangeSchema } from "@/app/lib/schemas";
 import { enforceRateLimit, RATE_LIMITS } from "@/app/lib/rate-limit";
 
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return unauthorized();
+  if (!session?.user?.email) return unauthorized(req);
 
   // Same budget as login: this endpoint also verifies a password, so leaving
   // it open would just move the guessing target.
@@ -32,24 +34,31 @@ export async function PUT(req: Request) {
   const user = await users(db).findOne({ email });
 
   if (!user) {
-    return NextResponse.json({ error: "Account not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: apiDictionaryFor(localeFromRequest(req)).accountNotFound },
+      { status: 404 }
+    );
   }
 
   if (user.passwordHash) {
     // Changing an existing password requires proving you know it — a stolen
     // session should not be enough to lock the real owner out.
     if (!currentPassword) {
-      return badRequest("Your current password is required");
+      return badRequest(
+        apiDictionaryFor(localeFromRequest(req)).currentPasswordRequired
+      );
     }
     const valid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!valid) {
       return NextResponse.json(
-        { error: "Your current password is incorrect" },
+        { error: apiDictionaryFor(localeFromRequest(req)).currentPasswordWrong },
         { status: 403 }
       );
     }
     if (currentPassword === newPassword) {
-      return badRequest("The new password must be different");
+      return badRequest(
+        apiDictionaryFor(localeFromRequest(req)).newPasswordMustDiffer
+      );
     }
   }
   // An OAuth account has no password yet, so there is nothing to prove.

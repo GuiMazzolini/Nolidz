@@ -7,6 +7,9 @@ import { STORE_CURRENCY } from "@/app/lib/money";
 import { getAppUrl, getStripe } from "@/app/lib/stripe";
 import { getShippingCost, SHIPPING_COUNTRIES } from "@/app/lib/shipping";
 import { buildCartMetadata } from "@/app/lib/cart-metadata";
+import { localePath } from "@/app/i18n/config";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor } from "@/app/i18n/lookup";
 import { lineItemName } from "@/app/lib/variants";
 import { MAX_CART_LINE_ITEMS } from "@/app/lib/schemas";
 import { enforceRateLimit, getClientIp, RATE_LIMITS } from "@/app/lib/rate-limit";
@@ -43,6 +46,12 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email ?? null;
 
+  // Captured here and carried on the session: this is the last point in the
+  // purchase where the buyer's own request is available, and the confirmation
+  // email is sent much later from a webhook that has no idea who they are.
+  const locale = localeFromRequest(req);
+  const t = apiDictionaryFor(locale);
+
   const { db } = await connectToDB();
 
   // Present only once a signed-in user has saved an address.
@@ -61,17 +70,17 @@ export async function POST(req: NextRequest) {
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+      return NextResponse.json({ error: t.invalidBody }, { status: 400 });
     }
     const guestItems = parseGuestCheckoutItems(body);
     if (!guestItems) {
-      return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+      return NextResponse.json({ error: t.cartEmpty }, { status: 400 });
     }
     items = guestItems;
   }
 
   if (!items.length) {
-    return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+    return NextResponse.json({ error: t.cartEmpty }, { status: 400 });
   }
 
   // A saved cart is not validated on read, so it can exceed the cap even
@@ -110,7 +119,7 @@ export async function POST(req: NextRequest) {
   const cartProducts = attachQuantitiesToProducts(items, productDocs);
 
   if (cartProducts.length === 0) {
-    return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+    return NextResponse.json({ error: t.cartEmpty }, { status: 400 });
   }
 
   const origin = getAppUrl();
@@ -126,7 +135,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("Stripe is not configured:", err);
     return NextResponse.json(
-      { error: "Payments are not configured. Please contact us." },
+      { error: t.paymentsNotConfigured },
       { status: 503 }
     );
   }
@@ -168,7 +177,7 @@ export async function POST(req: NextRequest) {
   );
   if (!cartMetadata) {
     return NextResponse.json(
-      { error: "Cart is too large to check out. Please remove some items." },
+      { error: t.cartTooLarge },
       { status: 400 }
     );
   }
@@ -240,9 +249,15 @@ export async function POST(req: NextRequest) {
       // Bounds how long an abandoned checkout stays payable. Once stock is
       // held against this session, it also bounds how long that hold lasts.
       expires_at: checkoutSessionExpiresAt(),
-      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      // Stripe hosts the payment page itself, so it is told the language too —
+      // otherwise the buyer crosses from a German shop into an English form.
+      locale,
+      success_url: `${origin}${localePath(
+        locale,
+        "/checkout/success"
+      )}?session_id={CHECKOUT_SESSION_ID}`,
       // Cancelling returns to the cart, which is now the only review step.
-      cancel_url: `${origin}/cart`,
+      cancel_url: `${origin}${localePath(locale, "/cart")}`,
       ...(email
         ? {
             client_reference_id: email,
@@ -252,24 +267,32 @@ export async function POST(req: NextRequest) {
             ...(stripeCustomerId
               ? { customer: stripeCustomerId }
               : { customer_email: email }),
-            metadata: { userId: email, reservationId, ...cartMetadata },
+            metadata: { userId: email, reservationId, locale, ...cartMetadata },
           }
         : {
-            metadata: { isGuest: "true", reservationId, ...cartMetadata },
+            metadata: {
+              isGuest: "true",
+              reservationId,
+              locale,
+              ...cartMetadata,
+            },
           }),
     });
   } catch (err) {
     console.error("Stripe checkout session creation failed:", err);
     await releaseHold(db, reservationId, "session-create-failed");
     return NextResponse.json(
-      { error: "Payment provider is unavailable. Please try again." },
+      { error: t.paymentProviderUnavailable },
       { status: 502 }
     );
   }
 
   if (!checkoutSession.url) {
     await releaseHold(db, reservationId, "session-unusable");
-    return NextResponse.json({ error: "Could not create checkout session" }, { status: 500 });
+    return NextResponse.json(
+      { error: t.checkoutSessionFailed },
+      { status: 500 }
+    );
   }
 
   // Not what fulfillment keys on — that reads reservationId straight from the

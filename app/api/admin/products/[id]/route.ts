@@ -1,5 +1,7 @@
 import { connectToDB } from "@/app/api/db";
 import { normalizeProductImageUrl } from "@/app/lib/admin";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor } from "@/app/i18n/lookup";
 import { serializeAdminProduct } from "@/app/lib/admin-products";
 import { adminUnauthorized, requireAdmin } from "@/app/lib/admin-auth";
 import { products, type ProductDoc } from "@/app/lib/db-collections";
@@ -17,19 +19,22 @@ import { NextRequest, NextResponse } from "next/server";
 type Params = { id: string };
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<Params> }
 ) {
   const session = await requireAdmin();
   if (!session) {
-    return adminUnauthorized();
+    return adminUnauthorized(req);
   }
 
   const { id } = await params;
   const { db } = await connectToDB();
   const product = await products(db).findOne({ id });
   if (!product) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: apiDictionaryFor(localeFromRequest(req)).productNotFound },
+      { status: 404 }
+    );
   }
 
   const held = await heldStockFor(db, [id]);
@@ -40,9 +45,11 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<Params> }
 ) {
+  const t = apiDictionaryFor(localeFromRequest(req));
+
   const session = await requireAdmin();
   if (!session) {
-    return adminUnauthorized();
+    return adminUnauthorized(req);
   }
 
   const { id } = await params;
@@ -61,9 +68,9 @@ export async function PATCH(
   if (category !== undefined) updates.category = category;
   if (imageUrl !== undefined) {
     try {
-      updates.imageUrl = normalizeProductImageUrl(imageUrl);
+      updates.imageUrl = normalizeProductImageUrl(imageUrl, t.image);
     } catch (err) {
-      return badRequest(err instanceof Error ? err.message : "Invalid image URL");
+      return badRequest(err instanceof Error ? err.message : t.image.invalid);
     }
   }
 
@@ -71,19 +78,19 @@ export async function PATCH(
     try {
       updates.colorImages = colorImages.map((entry) => ({
         color: entry.color,
-        imageUrl: normalizeProductImageUrl(entry.imageUrl),
+        imageUrl: normalizeProductImageUrl(entry.imageUrl, t.image),
       })) satisfies ColorImage[];
     } catch (err) {
-      return badRequest(err instanceof Error ? err.message : "Invalid image URL");
+      return badRequest(err instanceof Error ? err.message : t.image.invalid);
     }
   }
   const clearColorImages = colorImages !== undefined && colorImages.length === 0;
 
   if (images?.length) {
     try {
-      updates.images = images.map((url) => normalizeProductImageUrl(url));
+      updates.images = images.map((url) => normalizeProductImageUrl(url, t.image));
     } catch (err) {
-      return badRequest(err instanceof Error ? err.message : "Invalid image URL");
+      return badRequest(err instanceof Error ? err.message : t.image.invalid);
     }
   }
   const clearImages = images !== undefined && images.length === 0;
@@ -91,7 +98,10 @@ export async function PATCH(
   const { db } = await connectToDB();
   const current = await products(db).findOne({ id });
   if (!current) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: apiDictionaryFor(localeFromRequest(req)).productNotFound },
+      { status: 404 }
+    );
   }
 
   // An empty array clears the variants; omitting the field leaves them alone.
@@ -152,32 +162,38 @@ export async function PATCH(
     // A hand-typed SKU that another product already owns; the unique index on
     // `variants.sku` is what catches it.
     if (isDuplicateKeyError(err)) {
-      return badRequest("One of these SKUs is already used by another product");
+      return badRequest(t.skuTakenByAnotherProduct);
     }
     throw err;
   }
 
   if (!updated) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: apiDictionaryFor(localeFromRequest(req)).productNotFound },
+      { status: 404 }
+    );
   }
 
   return NextResponse.json(serializeAdminProduct(updated, held));
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<Params> }
 ) {
   const session = await requireAdmin();
   if (!session) {
-    return adminUnauthorized();
+    return adminUnauthorized(req);
   }
 
   const { id } = await params;
   const { db } = await connectToDB();
   const result = await products(db).deleteOne({ id });
   if (result.deletedCount === 0) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: apiDictionaryFor(localeFromRequest(req)).productNotFound },
+      { status: 404 }
+    );
   }
 
   return NextResponse.json({ ok: true });

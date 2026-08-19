@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 import { isAdminEmail } from "@/app/lib/admin";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor } from "@/app/i18n/lookup";
 import { enforceRateLimit, RATE_LIMITS } from "@/app/lib/rate-limit";
 import {
   getCloudinaryUploadFolder,
@@ -11,7 +13,10 @@ import {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email || !isAdminEmail(session.user.email)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: apiDictionaryFor(localeFromRequest(req)).unauthorized },
+      { status: 401 }
+    );
   }
 
   const limited = await enforceRateLimit(
@@ -37,7 +42,7 @@ export async function POST(req: Request) {
     });
   } catch {
     return NextResponse.json(
-      { error: "Cloudinary is not configured" },
+      { error: apiDictionaryFor(localeFromRequest(req)).cloudinaryNotConfigured },
       { status: 500 }
     );
   }

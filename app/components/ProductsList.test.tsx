@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithLocale } from "@/app/test/render";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("next/navigation", () => ({
@@ -83,7 +84,7 @@ describe("the catalog grid", () => {
    * as two pairs of siblings.
    */
   it("renders one card per colourway, spreading siblings by default", () => {
-    render(<ProductsList products={catalog} />);
+    renderWithLocale(<ProductsList products={catalog} />);
 
     expect(headings()).toEqual([
       "Mug",
@@ -97,7 +98,7 @@ describe("the catalog grid", () => {
 
   it("filters on name and description", async () => {
     const user = userEvent.setup();
-    render(<ProductsList products={catalog} />);
+    renderWithLocale(<ProductsList products={catalog} />);
 
     await user.type(screen.getByRole("searchbox"), "ceramic");
 
@@ -108,7 +109,7 @@ describe("the catalog grid", () => {
   /** Searching a colour returns that pair, not every colourway of the shoe. */
   it("filters on colour", async () => {
     const user = userEvent.setup();
-    render(<ProductsList products={catalog} />);
+    renderWithLocale(<ProductsList products={catalog} />);
 
     await user.type(screen.getByRole("searchbox"), "white");
 
@@ -117,7 +118,7 @@ describe("the catalog grid", () => {
 
   it("offers a reset when nothing matches", async () => {
     const user = userEvent.setup();
-    render(<ProductsList products={catalog} />);
+    renderWithLocale(<ProductsList products={catalog} />);
 
     await user.type(screen.getByRole("searchbox"), "zzzz");
     expect(screen.getByText("No products match")).toBeVisible();
@@ -128,7 +129,7 @@ describe("the catalog grid", () => {
 
   it("sorts by price, still spreading a shoe's colourways", async () => {
     const user = userEvent.setup();
-    render(<ProductsList products={catalog} />);
+    renderWithLocale(<ProductsList products={catalog} />);
 
     await user.selectOptions(screen.getByRole("combobox"), "price-asc");
     expect(headings()).toEqual([
@@ -152,7 +153,7 @@ describe("the catalog grid", () => {
   /** Stock sorts on the colourway's own count, which is what its tile shows. */
   it("sorts by stock", async () => {
     const user = userEvent.setup();
-    render(<ProductsList products={catalog} />);
+    renderWithLocale(<ProductsList products={catalog} />);
 
     await user.selectOptions(screen.getByRole("combobox"), "stock-desc");
     expect(headings()).toEqual([
@@ -172,7 +173,7 @@ describe("the catalog grid", () => {
         variant.color === "White" ? { ...variant, price: 129.99 } : variant
       ),
     };
-    render(<ProductsList products={[premium, mug, soldOut, trail]} />);
+    renderWithLocale(<ProductsList products={[premium, mug, soldOut, trail]} />);
 
     await user.selectOptions(screen.getByRole("combobox"), "price-asc");
     expect(headings()).toEqual([
@@ -185,14 +186,14 @@ describe("the catalog grid", () => {
   });
 
   it("hides fully sold-out products from the grid", () => {
-    render(<ProductsList products={catalog} />);
+    renderWithLocale(<ProductsList products={catalog} />);
 
     expect(screen.queryByRole("heading", { name: "Pins" })).toBeNull();
   });
 
   it("surfaces a cart error above the grid", () => {
     useCartStore.setState({ cartError: "Not enough stock for that quantity." });
-    render(<ProductsList products={catalog} />);
+    renderWithLocale(<ProductsList products={catalog} />);
 
     expect(
       screen.getByText("Not enough stock for that quantity.")
