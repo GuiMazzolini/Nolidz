@@ -16,6 +16,14 @@ import {
  * The type checks here are what stop MongoDB operator injection: a body like
  * `{"productId": {"$gt": ""}}` used to pass a truthiness check and reach
  * `findOne({ id: productId })` as a live query operator.
+ *
+ * The messages here stay English, deliberately. Schemas are built once at
+ * module load, so they cannot carry a per-request locale, and Zod's own locale
+ * is global state that would race between concurrent requests. Nothing here is
+ * reachable from our own UI — every form validates first, in the reader's
+ * language, and shapes these refinements reject (a non-DE country, a product
+ * with neither stock nor variants, an empty patch) are ones the forms cannot
+ * produce. What is left is a backstop for hand-made API calls.
  */
 
 /**

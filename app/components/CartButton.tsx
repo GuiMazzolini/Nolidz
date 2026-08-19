@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/app/i18n/Link";
+import { useT } from "@/app/i18n/client";
 import { useCartStore } from "../lib/store/cartStore";
 
 /**
@@ -12,6 +13,7 @@ import { useCartStore } from "../lib/store/cartStore";
  * mismatch and a visible flicker.
  */
 export default function CartButton({ active }: { active: boolean }) {
+  const t = useT();
   const totalItems = useCartStore((s) => s.getTotalItems());
   const hydrated = useCartStore.persist?.hasHydrated() ?? true;
   const count = hydrated ? totalItems : 0;
@@ -19,7 +21,7 @@ export default function CartButton({ active }: { active: boolean }) {
   return (
     <Link
       href="/cart"
-      aria-label={count > 0 ? `Cart, ${count} items` : "Cart"}
+      aria-label={count > 0 ? t.nav.cartWithCount(count) : t.nav.cart}
       className={`relative flex h-10 w-10 items-center justify-center transition-colors ${
         active
           ? "text-cardboard-dark bg-cardboard/25"

@@ -252,11 +252,15 @@ export function imageForColor(
  */
 export function sizesAvailableLabel(
   variants: ProductVariant[],
-  maxListed = 3
+  maxListed = 3,
+  // The only part of this label that is prose. Passed in rather than looked
+  // up so this module keeps no opinion about locales; the English default is
+  // what non-UI callers and the unit tests read.
+  manySizesLabel = "Available in several sizes"
 ): string | null {
   const sizes = sizesInStock(variants);
   if (sizes.length === 0) return null;
-  if (sizes.length > maxListed) return "Available in several sizes";
+  if (sizes.length > maxListed) return manySizesLabel;
 
   const numeric = sizes.every(isNumericSize);
   return numeric ? `EU ${sizes.join(", ")}` : sizes.map(formatSize).join(", ");

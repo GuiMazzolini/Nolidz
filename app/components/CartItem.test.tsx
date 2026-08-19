@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatMoney } from "@/app/lib/money";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithLocale } from "@/app/test/render";
 import userEvent from "@testing-library/user-event";
 
 import CartItem from "@/app/components/CartItem";
@@ -36,12 +37,12 @@ beforeEach(() => {
 
 describe("CartItem", () => {
   it("labels the line with its EU size and colour", () => {
-    render(<CartItem product={line} />);
+    renderWithLocale(<CartItem product={line} />);
     expect(screen.getByText("EU 42 · Black")).toBeVisible();
   });
 
   it("shows no variant label for a single-SKU product", () => {
-    render(
+    renderWithLocale(
       <CartItem
         product={{ ...line, variantSku: undefined, variantSize: undefined, variantColor: undefined }}
       />
@@ -50,15 +51,15 @@ describe("CartItem", () => {
   });
 
   it("prices the line by quantity and shows the unit price", () => {
-    render(<CartItem product={line} />);
+    renderWithLocale(<CartItem product={line} />);
     // Line total and unit share one element, so this is a substring match.
-    expect(screen.getByText(new RegExp(formatMoney(179.98)))).toBeVisible();
-    expect(screen.getByText(new RegExp(`${formatMoney(89.99)} each`))).toBeVisible();
+    expect(screen.getByText(new RegExp(formatMoney(179.98, undefined, "en")))).toBeVisible();
+    expect(screen.getByText(new RegExp(`${formatMoney(89.99, undefined, "en")} each`))).toBeVisible();
   });
 
   it("sends the SKU when changing quantity", async () => {
     const user = userEvent.setup();
-    render(<CartItem product={line} />);
+    renderWithLocale(<CartItem product={line} />);
 
     await user.click(screen.getByLabelText("Increase quantity"));
     expect(updateQuantity).toHaveBeenCalledWith("runner", 3, "runner-eu42-black");
@@ -69,7 +70,7 @@ describe("CartItem", () => {
 
   it("turns the decrement into a remove at quantity 1", async () => {
     const user = userEvent.setup();
-    render(<CartItem product={{ ...line, quantity: 1 }} />);
+    renderWithLocale(<CartItem product={{ ...line, quantity: 1 }} />);
 
     expect(screen.queryByLabelText("Decrease quantity")).toBeNull();
     await user.click(screen.getByLabelText("Remove from cart"));
@@ -78,17 +79,17 @@ describe("CartItem", () => {
   });
 
   it("caps the increment at that variant's stock", () => {
-    render(<CartItem product={{ ...line, quantity: 3 }} />);
+    renderWithLocale(<CartItem product={{ ...line, quantity: 3 }} />);
     expect(screen.getByLabelText("Increase quantity")).toBeDisabled();
   });
 
   it("reports availability from the variant, not the product", () => {
-    render(<CartItem product={line} />);
+    renderWithLocale(<CartItem product={line} />);
     expect(screen.getByText("3 available")).toBeVisible();
   });
 
   it("flags a line whose variant sold out", () => {
-    render(<CartItem product={{ ...line, stock: 0 }} />);
+    renderWithLocale(<CartItem product={{ ...line, stock: 0 }} />);
     expect(screen.getByText("Out of stock")).toBeVisible();
   });
 
@@ -97,7 +98,7 @@ describe("CartItem", () => {
       loading: { "runner::runner-eu42-black": true },
     } as never);
 
-    render(<CartItem product={line} />);
+    renderWithLocale(<CartItem product={line} />);
     expect(screen.getByLabelText("Increase quantity")).toBeDisabled();
     expect(screen.getByLabelText("Decrease quantity")).toBeDisabled();
   });
@@ -107,7 +108,7 @@ describe("CartItem", () => {
       loading: { "runner::runner-eu43-black": true },
     } as never);
 
-    render(<CartItem product={line} />);
+    renderWithLocale(<CartItem product={line} />);
     expect(screen.getByLabelText("Increase quantity")).toBeEnabled();
   });
 });

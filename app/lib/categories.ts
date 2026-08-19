@@ -13,11 +13,11 @@ export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
 /** Filter value on the catalog: a category, or everything. */
 export type CategoryFilter = ProductCategory | "all";
 
-export const CATEGORY_LABELS: Record<ProductCategory, string> = {
-  men: "Men",
-  women: "Women",
-  kids: "Kids",
-};
+/**
+ * Category names are shopper-facing copy, so they live in the locale
+ * dictionaries (`nav.men` / `nav.women` / `nav.kids`) rather than here. The
+ * keys there are these same ids, so a category can be looked up directly.
+ */
 
 export function isProductCategory(value: unknown): value is ProductCategory {
   return (

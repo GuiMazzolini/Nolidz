@@ -1,8 +1,10 @@
 "use client";
 
+import { useT } from "@/app/i18n/client";
 import { useCartStore } from "../lib/store/cartStore";
 
 export default function CartErrorBanner() {
+  const t = useT();
   const cartError = useCartStore((s) => s.cartError);
   const clearCartError = useCartStore((s) => s.clearCartError);
 
@@ -18,7 +20,7 @@ export default function CartErrorBanner() {
         type="button"
         onClick={clearCartError}
         className="shrink-0 font-semibold hover:text-red-900"
-        aria-label="Dismiss error"
+        aria-label={t.cart.dismissError}
       >
         ×
       </button>

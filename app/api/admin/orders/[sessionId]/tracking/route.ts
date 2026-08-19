@@ -1,5 +1,7 @@
 import { connectToDB } from "@/app/api/db";
 import { adminUnauthorized, requireAdmin } from "@/app/lib/admin-auth";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor } from "@/app/i18n/lookup";
 import { describeTrackingStatus, refreshTrackingForOrder } from "@/app/lib/tracking";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -19,11 +21,14 @@ export async function POST(
   { params }: { params: Promise<Params> }
 ) {
   const session = await requireAdmin();
-  if (!session) return adminUnauthorized();
+  if (!session) return adminUnauthorized(req);
 
   const { sessionId } = await params;
   if (!sessionId) {
-    return NextResponse.json({ error: "Missing order id" }, { status: 400 });
+    return NextResponse.json(
+      { error: apiDictionaryFor(localeFromRequest(req)).missingOrderId },
+      { status: 400 }
+    );
   }
 
   // `force` skips the six-hour floor for an admin who has a customer on the

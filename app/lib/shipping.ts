@@ -9,6 +9,10 @@ export type ShippingCountry = (typeof SHIPPING_COUNTRIES)[number];
  * says "the EU" while Checkout accepts only DE reads as a yes to an Austrian
  * shopper right up until Stripe refuses their address, which is worse than
  * saying nothing at all.
+ *
+ * Server-side wording only — anything a customer reads goes through
+ * `common.shippingArea` in the locale dictionaries, which must say the same
+ * thing in both languages.
  */
 export const SHIPPING_AREA_LABEL = "Germany";
 

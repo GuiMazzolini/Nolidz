@@ -7,7 +7,8 @@ export function jsonRequest(
   {
     url = "http://localhost:3000/api/test",
     ip = "203.0.113.1",
-  }: { url?: string; ip?: string } = {}
+    locale = "en",
+  }: { url?: string; ip?: string; locale?: string } = {}
 ): NextRequest {
   return new NextRequest(url, {
     method,
@@ -16,6 +17,11 @@ export function jsonRequest(
       // The rate limiter buckets on this; a fixed value keeps tests in one
       // bucket so budgets are predictable.
       "x-forwarded-for": ip,
+      // Error bodies are localised, so a request has to say which language it
+      // is asking in. These suites assert English; that the header and the
+      // NEXT_LOCALE cookie actually steer the message is covered in
+      // app/i18n/i18n.test.tsx.
+      "accept-language": locale,
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });

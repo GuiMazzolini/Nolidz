@@ -68,7 +68,7 @@ describe("admin authorization", () => {
     setMockSession(BUYER);
 
     const responses = await Promise.all([
-      GET(),
+      GET(jsonRequest("GET")),
       POST(jsonRequest("POST", { ...validBody, stock: 1 })),
       GET_ONE(jsonRequest("GET"), params("mug")),
       PATCH(jsonRequest("PATCH", { price: 1 }), params("mug")),
@@ -83,7 +83,7 @@ describe("admin authorization", () => {
 
   it("locks out a signed-out visitor", async () => {
     setMockSession(null);
-    expect((await GET()).status).toBe(401);
+    expect((await GET(jsonRequest("GET"))).status).toBe(401);
   });
 });
 
@@ -464,7 +464,7 @@ describe("PATCH /api/admin/products/[id]", () => {
 
 describe("GET and DELETE", () => {
   it("lists products with their variants", async () => {
-    const { body } = await readResponse<AdminProduct[]>(await GET());
+    const { body } = await readResponse<AdminProduct[]>(await GET(jsonRequest("GET")));
 
     const runner = body.find((p) => p.id === "runner");
     expect(runner?.variants).toHaveLength(3);
@@ -588,7 +588,7 @@ describe("admin stock while checkouts are in progress", () => {
   });
 
   it("leaves the listing alone when nothing is held", async () => {
-    const { body } = await readResponse<AdminProduct[]>(await GET());
+    const { body } = await readResponse<AdminProduct[]>(await GET(jsonRequest("GET")));
     const runner = body.find((p) => p.id === "runner")!;
 
     expect(runner.variants[0].stock).toBe(3);

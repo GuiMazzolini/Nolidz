@@ -48,7 +48,7 @@ describe("cart API authentication", () => {
     setMockSession(null);
 
     const responses = await Promise.all([
-      GET(),
+      GET(jsonRequest("GET")),
       POST(jsonRequest("POST", { productId: "mug" })),
       PATCH(jsonRequest("PATCH", { productId: "mug", quantity: 1 })),
       DELETE(jsonRequest("DELETE", { productId: "mug" })),
@@ -317,7 +317,7 @@ describe("GET /api/cart", () => {
       { productId: "mug", quantity: 2 },
     ]);
 
-    const { body } = await readResponse<CartLine[]>(await GET());
+    const { body } = await readResponse<CartLine[]>(await GET(jsonRequest("GET")));
 
     expect(body).toEqual([
       expect.objectContaining({ variantSku: "runner-eu42-white", stock: 6 }),
@@ -331,7 +331,7 @@ describe("GET /api/cart", () => {
       { productId: "mug", quantity: 1 },
     ]);
 
-    const { body } = await readResponse<CartLine[]>(await GET());
+    const { body } = await readResponse<CartLine[]>(await GET(jsonRequest("GET")));
 
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe("mug");
@@ -339,12 +339,12 @@ describe("GET /api/cart", () => {
 
   it("drops a line whose product was deleted", async () => {
     seedCart([{ productId: "gone", quantity: 1 }]);
-    const { body } = await readResponse<CartLine[]>(await GET());
+    const { body } = await readResponse<CartLine[]>(await GET(jsonRequest("GET")));
     expect(body).toEqual([]);
   });
 
   it("returns an empty cart for a user who has none", async () => {
-    const { status, body } = await readResponse<CartLine[]>(await GET());
+    const { status, body } = await readResponse<CartLine[]>(await GET(jsonRequest("GET")));
     expect(status).toBe(200);
     expect(body).toEqual([]);
   });
@@ -353,7 +353,7 @@ describe("GET /api/cart", () => {
     seedCart([{ productId: "mug", quantity: 1 }]);
     setMockSession("someone-else@example.com");
 
-    const { body } = await readResponse<CartLine[]>(await GET());
+    const { body } = await readResponse<CartLine[]>(await GET(jsonRequest("GET")));
     expect(body).toEqual([]);
     expect(mugProduct.stock).toBe(2);
   });

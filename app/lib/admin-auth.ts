@@ -2,6 +2,9 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/app/lib/auth";
 import { isAdminEmail } from "@/app/lib/admin";
+import { DEFAULT_LOCALE } from "@/app/i18n/config";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor } from "@/app/i18n/lookup";
 
 /**
  * The admin gate for route handlers.
@@ -20,6 +23,10 @@ export async function requireAdmin() {
 }
 
 /** The 401 every admin route returns, so the body cannot drift between them. */
-export function adminUnauthorized() {
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export function adminUnauthorized(req?: Request) {
+  const locale = req ? localeFromRequest(req) : DEFAULT_LOCALE;
+  return NextResponse.json(
+    { error: apiDictionaryFor(locale).unauthorized },
+    { status: 401 }
+  );
 }

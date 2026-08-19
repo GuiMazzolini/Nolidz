@@ -173,7 +173,7 @@ describe.skipIf(!mongoUri)("cart API against a real MongoDB", () => {
       { productId: "mug", quantity: 2 },
     ]);
 
-    const { body } = await readResponse<CartLine[]>(await GET());
+    const { body } = await readResponse<CartLine[]>(await GET(jsonRequest("GET")));
 
     expect(body).toEqual([
       expect.objectContaining({ variantSku: "runner-eu42-white", stock: 6 }),

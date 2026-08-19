@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { localeFromRequest } from "@/app/i18n/request";
+import { apiDictionaryFor } from "@/app/i18n/lookup";
 import bcrypt from "bcryptjs";
 import { connectToDB } from "@/app/api/db";
 import { users } from "@/app/lib/db-collections";
@@ -25,7 +27,7 @@ export async function POST(request: Request) {
 
   if (existing) {
     return NextResponse.json(
-      { error: "An account with this email already exists." },
+      { error: apiDictionaryFor(localeFromRequest(request)).accountExists },
       { status: 409 },
     );
   }
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
     // index on users.email is what actually enforces uniqueness.
     if (isDuplicateKeyError(err)) {
       return NextResponse.json(
-        { error: "An account with this email already exists." },
+        { error: apiDictionaryFor(localeFromRequest(request)).accountExists },
         { status: 409 },
       );
     }
