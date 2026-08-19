@@ -51,10 +51,20 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/**
+ * Props are spelled out rather than taken from the generated `LayoutProps`
+ * helper. That global only exists once `next typegen` has written .next/types,
+ * which a clean checkout running `tsc --noEmit` before `next build` has not —
+ * so relying on it makes the typecheck pass or fail depending on whether a
+ * build happened to run first.
+ */
 export default async function RootLayout({
   children,
   params,
-}: LayoutProps<'/[lang]'>) {
+}: {
+  children: React.ReactNode;
+  params: Promise<{ lang: string }>;
+}) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
 
