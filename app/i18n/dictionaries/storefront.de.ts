@@ -29,6 +29,7 @@ const storefront: StorefrontDict = {
     loading: "Lädt…",
     saving: "Wird gespeichert…",
     pleaseWait: "Bitte warten…",
+    skipToContent: "Zum Inhalt springen",
   },
 
   nav: {

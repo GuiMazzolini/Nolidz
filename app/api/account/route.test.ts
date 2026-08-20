@@ -24,14 +24,14 @@ vi.mock("@/app/lib/stripe", () => ({
   }),
 }));
 
-import { DELETE as DELETE_ACCOUNT, GET } from "@/app/api/account/route";
+import { DELETE as DELETE_ACCOUNT } from "@/app/api/account/route";
 import { PATCH as PATCH_PROFILE } from "@/app/api/account/profile/route";
 import { PUT as PUT_PASSWORD } from "@/app/api/account/password/route";
 import {
   DELETE as DELETE_ADDRESS,
   PUT as PUT_ADDRESS,
 } from "@/app/api/account/address/route";
-import type { AccountProfile } from "@/app/lib/account";
+import { getAccountProfile, type AccountProfile } from "@/app/lib/account";
 import type { UserDoc } from "@/app/lib/db-collections";
 import { BUYER } from "@/app/test/fixtures";
 import { jsonRequest, readResponse } from "@/app/test/http";
@@ -81,7 +81,6 @@ describe("account access control", () => {
     setMockSession(null);
 
     const responses = await Promise.all([
-      GET(jsonRequest("GET")),
       DELETE_ACCOUNT(jsonRequest("DELETE")),
       PATCH_PROFILE(jsonRequest("PATCH", { name: "Mallory" })),
       PUT_PASSWORD(jsonRequest("PUT", { newPassword: "new-password" })),
@@ -97,21 +96,19 @@ describe("account access control", () => {
 
   it("treats a session with no email as unauthenticated", async () => {
     setEmaillessSession();
-    expect((await GET(jsonRequest("GET"))).status).toBe(401);
+    expect((await DELETE_ACCOUNT(jsonRequest("DELETE"))).status).toBe(401);
   });
 
   it("404s when the session points at a deleted account", async () => {
     setMockSession("ghost@example.com");
-    expect((await GET(jsonRequest("GET"))).status).toBe(404);
     expect((await DELETE_ACCOUNT(jsonRequest("DELETE"))).status).toBe(404);
   });
 });
 
-describe("GET /api/account", () => {
+describe("getAccountProfile", () => {
   it("returns the profile and never the password hash", async () => {
-    const { status, body } = await readResponse<AccountProfile>(await GET(jsonRequest("GET")));
+    const body = await getAccountProfile(BUYER);
 
-    expect(status).toBe(200);
     expect(body).toMatchObject({
       email: BUYER,
       name: "Buyer",
@@ -122,10 +119,9 @@ describe("GET /api/account", () => {
     expect(JSON.stringify(body)).not.toContain("$2");
   });
 
-  it("matches the account regardless of session email casing", async () => {
-    setMockSession("BUYER@Example.com");
-    const { status } = await readResponse(await GET(jsonRequest("GET")));
-    expect(status).toBe(200);
+  it("matches the account regardless of email casing", async () => {
+    const body = await getAccountProfile("BUYER@Example.com");
+    expect(body?.email).toBe(BUYER);
   });
 });
 

@@ -5,7 +5,7 @@ import { formatMoney } from "@/app/lib/money";
 import Link from "@/app/i18n/Link";
 import { useCallback, useMemo, useState } from "react";
 import { getImageSrc, productGallery } from "../lib/images";
-import { colorwayStock, type Colorway } from "../lib/colorways";
+import { colorwayHref, colorwayStock, type Colorway } from "../lib/colorways";
 import { useCartStore } from "../lib/store/cartStore";
 import { useLocale, useT } from "@/app/i18n/client";
 import { colorwayPrice, imageForColor, sizesAvailableLabel, variantsForColor } from "../lib/variants";
@@ -117,10 +117,13 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
 
   // Carries the previewed colour through, so clicking while looking at a
   // sibling opens that colourway rather than the tile's own.
-  const href = activeColor
-    ? `/products/${product.id}?color=${encodeURIComponent(activeColor)}`
-    : `/products/${product.id}`;
-  const label = activeColor ? `${product.name} – ${activeColor}` : product.name;
+  const href = colorwayHref({ ...colorway, color: activeColor });
+  const displayColor = activeColor
+    ? product.colorLabels?.[activeColor] ?? activeColor
+    : null;
+  const label = displayColor
+    ? `${product.name} – ${displayColor}`
+    : product.name;
 
   return (
     <div
@@ -219,6 +222,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
                     (v) => v.stock < 1
                   );
                   const previewing = other === previewColor;
+                  const otherLabel = product.colorLabels?.[other] ?? other;
                   return (
                     <span
                       key={other}
@@ -226,7 +230,11 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
                       // anchor, which already carries the previewed colour's
                       // href, and nesting interactive elements would be invalid.
                       data-color={other}
-                      title={soldOut ? t.productCard.soldOutSwatch(other) : other}
+                      title={
+                        soldOut
+                          ? t.productCard.soldOutSwatch(otherLabel)
+                          : otherLabel
+                      }
                       onMouseEnter={() => setPreviewColor(other)}
                       className={`relative block h-9 w-9 shrink-0 overflow-hidden border bg-paper transition-colors ${
                         previewing
@@ -247,7 +255,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
                 })}
 
                 {otherColors.length > MAX_SWATCHES && (
-                  <span className="px-1 text-xs font-medium text-ink/55">
+                  <span className="px-1 text-xs font-medium text-ink/65">
                     +{otherColors.length - MAX_SWATCHES}
                   </span>
                 )}
@@ -261,7 +269,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
             <Link href={href} title={label}>
               {product.name}
               {activeColor && (
-                <span className="font-normal text-ink/55"> – {activeColor}</span>
+                <span className="font-normal text-ink/65"> – {activeColor}</span>
               )}
             </Link>
           </h2>
@@ -271,7 +279,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
               {formatMoney(displayPrice, undefined, locale)}
             </span>
             {!outOfStock && (
-              <span className="text-xs text-ink/45">
+              <span className="text-xs text-ink/65">
                 {t.productCard.stockLeft(stock)}
               </span>
             )}

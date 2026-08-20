@@ -66,10 +66,18 @@ export default function ProductsList({
     const next = colorways.filter((colorway: Colorway) => {
       if (!q) return true;
       const { product, color } = colorway;
+      const colorLabel = color
+        ? product.colorLabels?.[color] ?? color
+        : "";
+      const anyColorLabel = Object.values(product.colorLabels ?? {}).some(
+        (label) => label.toLowerCase().includes(q)
+      );
       return (
         product.name.toLowerCase().includes(q) ||
         product.description.toLowerCase().includes(q) ||
-        (color?.toLowerCase().includes(q) ?? false)
+        (color?.toLowerCase().includes(q) ?? false) ||
+        colorLabel.toLowerCase().includes(q) ||
+        anyColorLabel
       );
     });
 

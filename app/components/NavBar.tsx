@@ -31,8 +31,8 @@ function NavLink({
           : "block px-3 py-2 text-sm"
       } ${
         active
-          ? "text-cardboard-dark bg-cardboard/25"
-          : "text-ink/65 hover:text-ink hover:bg-ink/5"
+          ? "text-ink bg-cardboard/25 font-semibold"
+          : "text-ink/70 hover:text-ink hover:bg-ink/5"
       }`}
     >
       {label}

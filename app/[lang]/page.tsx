@@ -232,7 +232,7 @@ export default async function LandingPage() {
               <p className="font-display italic font-extrabold text-3xl mb-3">
                 {t.home.emptyHeading}
               </p>
-              <p className="text-ink/55 max-w-md mx-auto leading-relaxed">
+              <p className="text-ink/65 max-w-md mx-auto leading-relaxed">
                 {t.home.emptyBody}
               </p>
             </div>

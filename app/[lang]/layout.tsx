@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import '../globals.css';
 import NavBar from '@/app/components/NavBar';
 import Footer from '@/app/components/Footer';
+import SkipLink from '@/app/components/SkipLink';
 import Providers from '@/app/providers';
 import { I18nProvider } from '@/app/i18n/client';
 import { LOCALES, LOCALE_HTML_LANG, isLocale } from '@/app/i18n/config';
@@ -79,8 +80,9 @@ export default async function RootLayout({
             itself is imported there, so navigation does not re-serialise it. */}
         <I18nProvider locale={lang}>
           <Providers>
+            <SkipLink />
             <NavBar />
-            {children}
+            <main id="main-content">{children}</main>
             <Footer />
           </Providers>
         </I18nProvider>

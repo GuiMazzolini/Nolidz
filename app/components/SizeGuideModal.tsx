@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useId, useRef } from "react";
 import { useT } from "@/app/i18n/client";
 
 const ADULTS = [
@@ -36,7 +37,11 @@ function SizeTable({ rows }: { rows: typeof ADULTS }) {
       <thead>
         <tr className="border-b-2 border-ink/20">
           {HEADERS.map((h) => (
-            <th key={h} className="py-2 px-3 text-left font-semibold text-ink/70 whitespace-nowrap">
+            <th
+              key={h}
+              scope="col"
+              className="py-2 px-3 text-left font-semibold text-ink/70 whitespace-nowrap"
+            >
               {h}
             </th>
           ))}
@@ -45,7 +50,9 @@ function SizeTable({ rows }: { rows: typeof ADULTS }) {
       <tbody>
         {rows.map((r) => (
           <tr key={r.eu} className="border-b border-ink/10 hover:bg-ink/5">
-            <td className="py-2 px-3 font-medium">{r.eu}</td>
+            <th scope="row" className="py-2 px-3 font-medium text-left">
+              {r.eu}
+            </th>
             <td className="py-2 px-3">{r.uk}</td>
             <td className="py-2 px-3">{r.usMen}</td>
             <td className="py-2 px-3">{r.usWomen}</td>
@@ -60,6 +67,44 @@ function SizeTable({ rows }: { rows: typeof ADULTS }) {
 
 export default function SizeGuideModal({ onClose }: { onClose: () => void }) {
   const t = useT();
+  const titleId = useId();
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previous;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
 
   return (
     <div
@@ -67,14 +112,22 @@ export default function SizeGuideModal({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="bg-paper rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b-2 border-ink/10">
-          <h2 className="font-display text-xl font-bold">{t.sizeGuide.title}</h2>
+          <h2 id={titleId} className="font-display text-xl font-bold">
+            {t.sizeGuide.title}
+          </h2>
           <button
+            ref={closeRef}
+            type="button"
             onClick={onClose}
-            className="text-ink/50 hover:text-ink transition-colors text-sm font-medium"
+            className="text-ink/70 hover:text-ink transition-colors text-sm font-medium"
           >
             {t.sizeGuide.close} ×
           </button>
@@ -82,7 +135,7 @@ export default function SizeGuideModal({ onClose }: { onClose: () => void }) {
 
         <div className="overflow-y-auto px-6 py-4 space-y-6">
           <div>
-            <h3 className="font-semibold text-sm text-ink/60 uppercase tracking-wide mb-3">
+            <h3 className="font-semibold text-sm text-ink/70 uppercase tracking-wide mb-3">
               {t.sizeGuide.adults}
             </h3>
             <div className="overflow-x-auto">
@@ -91,7 +144,7 @@ export default function SizeGuideModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <h3 className="font-semibold text-sm text-ink/60 uppercase tracking-wide mb-3">
+            <h3 className="font-semibold text-sm text-ink/70 uppercase tracking-wide mb-3">
               {t.sizeGuide.kids}
             </h3>
             <div className="overflow-x-auto">
@@ -99,7 +152,7 @@ export default function SizeGuideModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          <p className="text-xs text-ink/50 pb-2">{t.sizeGuide.note}</p>
+          <p className="text-xs text-ink/70 pb-2">{t.sizeGuide.note}</p>
         </div>
       </div>
     </div>

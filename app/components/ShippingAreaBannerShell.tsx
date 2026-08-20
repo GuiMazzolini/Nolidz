@@ -67,7 +67,7 @@ export default function ShippingAreaBannerShell({ area }: { area: string }) {
           type="button"
           onClick={dismiss}
           aria-label={t.shippingBanner.dismiss}
-          className="shrink-0 px-1 text-lg leading-none text-ink/50 hover:text-ink"
+          className="shrink-0 px-1 text-lg leading-none text-ink/65 hover:text-ink"
         >
           ×
         </button>

@@ -18,29 +18,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 type Params = { id: string };
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<Params> }
-) {
-  const session = await requireAdmin();
-  if (!session) {
-    return adminUnauthorized(req);
-  }
-
-  const { id } = await params;
-  const { db } = await connectToDB();
-  const product = await products(db).findOne({ id });
-  if (!product) {
-    return NextResponse.json(
-      { error: apiDictionaryFor(localeFromRequest(req)).productNotFound },
-      { status: 404 }
-    );
-  }
-
-  const held = await heldStockFor(db, [id]);
-  return NextResponse.json(serializeAdminProduct(product, held.get(id)));
-}
-
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<Params> }
@@ -140,18 +117,24 @@ export async function PATCH(
     updates.stock = available(stock);
   }
 
+  // Description / colour edits invalidate the DeepL cache; the next German
+  // view retranslates rather than serving stale labels.
+  const clearTranslations =
+    description !== undefined || variants !== undefined;
+
   let updated: ProductDoc | null;
   try {
     updated = await products(db).findOneAndUpdate(
       { id },
       {
         $set: updates,
-        ...(clearVariants || clearColorImages || clearImages
+        ...(clearVariants || clearColorImages || clearImages || clearTranslations
           ? {
               $unset: {
                 ...(clearVariants ? { variants: "" } : {}),
                 ...(clearColorImages ? { colorImages: "" } : {}),
                 ...(clearImages ? { images: "" } : {}),
+                ...(clearTranslations ? { "translations.de": "" } : {}),
               },
             }
           : {}),

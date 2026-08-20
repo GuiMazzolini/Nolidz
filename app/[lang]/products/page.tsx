@@ -5,10 +5,14 @@ import ShippingAreaBanner from "@/app/components/ShippingAreaBanner";
 import { parseCategoryFilter } from "@/app/lib/categories";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products as productsCollection } from "@/app/lib/db-collections";
+import {
+  localizeProductsContent,
+  withLocalizedContent,
+} from "@/app/lib/product-content";
 import { isSellableForPublic } from "@/app/lib/public-products";
 import { serializeVariants } from "@/app/lib/variants";
 import type { Product } from "@/app/product-data";
-import { getT } from "@/app/i18n/server";
+import { getLocale, getT } from "@/app/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -34,11 +38,13 @@ export default async function ProductsPage({ searchParams }: Props) {
   const initialCategory = parseCategoryFilter(rawCategory);
 
   const { db } = await connectToDB();
-  const products = await productsCollection(db).find({}).toArray();
+  const locale = await getLocale();
+  const docs = await productsCollection(db).find({}).toArray();
+  const sellable = docs.filter(isSellableForPublic);
+  const localized = await localizeProductsContent(db, sellable, locale);
 
-  const serialized: Product[] = products
-    .filter(isSellableForPublic)
-    .map((doc) => ({
+  const serialized: Product[] = sellable.map((doc) => {
+    const base: Product = {
       id: doc.id,
       name: doc.name,
       price: doc.price,
@@ -49,7 +55,15 @@ export default async function ProductsPage({ searchParams }: Props) {
       variants: serializeVariants(doc.variants),
       colorImages: doc.colorImages,
       images: doc.images,
-    }));
+    };
+    return withLocalizedContent(
+      base,
+      localized.get(doc.id) ?? {
+        description: doc.description,
+        colorLabels: {},
+      }
+    );
+  });
 
   return (
     <>

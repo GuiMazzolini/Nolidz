@@ -140,7 +140,7 @@ export default function ShoppingCartList({ initialCartProducts }: { initialCartP
                 </div>
 
                 {remainingForFreeShipping > 0 && (
-                  <p className="text-sm text-ink/50">
+                  <p className="text-sm text-ink/65">
                     {t.cart.freeShippingHint(money(remainingForFreeShipping))}
                   </p>
                 )}
@@ -180,7 +180,7 @@ export default function ShoppingCartList({ initialCartProducts }: { initialCartP
                 {checkoutLoading ? t.cart.redirecting : t.cart.payButton}
               </button>
 
-              <p className="mb-4 text-center text-xs text-ink/45">
+              <p className="mb-4 text-center text-xs text-ink/65">
                 {t.cart.secureCheckout}{" "}
                 {isGuest && t.cart.secureCheckoutGuest}
                 {t.cart.secureCheckoutTail}

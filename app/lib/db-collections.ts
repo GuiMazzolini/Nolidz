@@ -13,6 +13,15 @@ import type { ColorImage, ProductVariant } from "@/app/lib/variants";
  * without per-file annotations or casts.
  */
 
+/** Cached DeepL output for one locale. Invalidated via `sourceHash`. */
+export type ProductLocaleTranslation = {
+  description: string;
+  /** Canonical English colour → display label in this locale. */
+  colors: Record<string, string>;
+  /** Hash of English description + sorted colour names when this was written. */
+  sourceHash: string;
+};
+
 export type ProductDoc = {
   id: string;
   name: string;
@@ -32,6 +41,14 @@ export type ProductDoc = {
    * The main `imageUrl` is not repeated here — see productGallery in lib/images.
    */
   images?: string[];
+  /**
+   * Lazy DeepL cache. English stays the source of truth on the doc; German
+   * (and any future locale) is filled on first German view and cleared when
+   * admin edits description or colour names.
+   */
+  translations?: {
+    de?: ProductLocaleTranslation;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 };

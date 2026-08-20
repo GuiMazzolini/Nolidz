@@ -31,6 +31,7 @@ const storefront = {
     loading: "Loading…",
     saving: "Saving…",
     pleaseWait: "Please wait…",
+    skipToContent: "Skip to content",
   },
 
   nav: {

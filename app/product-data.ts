@@ -20,6 +20,11 @@ export interface Product {
   colorImages?: ColorImage[];
   /** Extra gallery shots, in display order. The main `imageUrl` is not repeated. */
   images?: string[];
+  /**
+   * Display labels for `variants[].color` in the active locale. Canonical
+   * English colour strings stay on the variants for URLs and matching.
+   */
+  colorLabels?: Record<string, string>;
   /** Cart line quantity (not stored on the product catalog doc). */
   quantity?: number;
   /** Cart line variant, denormalized so the cart renders without a lookup. */

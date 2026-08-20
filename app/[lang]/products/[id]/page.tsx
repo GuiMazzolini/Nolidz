@@ -4,6 +4,10 @@ import { connectToDB } from "@/app/api/db";
 import { productGallery } from "@/app/lib/images";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products } from "@/app/lib/db-collections";
+import {
+  localizeProductContent,
+  withLocalizedContent,
+} from "@/app/lib/product-content";
 import { isSellableForPublic } from "@/app/lib/public-products";
 import {
   serializeVariants,
@@ -12,7 +16,8 @@ import {
 } from "@/app/lib/variants";
 import ShippingAreaBanner from "@/app/components/ShippingAreaBanner";
 import ProductDetail from "./ProductDetail";
-import { getT } from "@/app/i18n/server";
+import { getLocale, getT } from "@/app/i18n/server";
+import type { Product } from "@/app/product-data";
 
 type Params = { id: string };
 
@@ -29,6 +34,7 @@ type DBProduct = {
   variants?: ProductVariant[];
   colorImages?: ColorImage[];
   images?: string[];
+  colorLabels?: Record<string, string>;
 };
 
 async function getProduct(id: string): Promise<DBProduct | null> {
@@ -37,7 +43,10 @@ async function getProduct(id: string): Promise<DBProduct | null> {
   // Sold-out pairs stay in admin only — shoppers get a 404, not an empty PDP.
   if (!product || !isSellableForPublic(product)) return null;
 
-  return {
+  const locale = await getLocale();
+  const localized = await localizeProductContent(db, product, locale);
+
+  const base: Product = {
     id: product.id,
     name: product.name,
     price: product.price,
@@ -48,6 +57,8 @@ async function getProduct(id: string): Promise<DBProduct | null> {
     colorImages: product.colorImages,
     images: product.images,
   };
+
+  return withLocalizedContent(base, localized);
 }
 
 export async function generateMetadata({

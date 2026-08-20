@@ -70,7 +70,7 @@ export default function CartItem({ product }: CartItemProps) {
                     ? "text-red-600"
                     : quantity > product.stock
                       ? "text-amber-600"
-                      : "text-ink/45"
+                      : "text-ink/65"
                 }`}
               >
                 {product.stock < 1
@@ -85,7 +85,7 @@ export default function CartItem({ product }: CartItemProps) {
               {money(product.price * quantity)}
 
               {quantity > 1 && (
-                <span className="text-sm text-ink/45 ml-2 not-italic font-sans font-normal">
+                <span className="text-sm text-ink/65 ml-2 not-italic font-sans font-normal">
                   {t.cart.eachPrice(money(product.price))}
                 </span>
               )}

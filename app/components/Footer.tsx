@@ -21,7 +21,7 @@ export default function Footer() {
           />
           <span className="font-display italic font-extrabold text-xl">nolidz</span>
         </div>
-        <nav className="flex gap-5 text-xs text-ink/50">
+        <nav className="flex gap-5 text-xs text-ink/70">
           <NextLink href="/impressum" className="hover:text-ink transition-colors">
             {t.footer.impressum}
           </NextLink>

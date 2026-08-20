@@ -48,13 +48,13 @@ All 17 `useCartStore` call sites use selectors. `ProductsList.tsx` no longer tou
 Not re-verified in the P1 pass — the items below are as recorded at the P0 review and some may already be stale.
 
 - **Wrong GitHub URL.** `app/page.tsx:6` and the README point at `github.com/GuiMazzolini/e-commerce-NextJs`, and the README credits `GuiMazzolini`. Every "Inspect the code" button sends visitors to someone else's repo.
-- **Dead API routes.** `/api/products` and `/api/products/[id]` are unused (nothing fetches them) and return raw Mongo docs including `_id`. `GET /api/admin/products` is also unused. Delete or align them.
+- ~~**Dead API routes.**~~ **Done.** Removed unused `GET /api/products`, `GET /api/products/[id]`, `GET /api/admin/products`, `GET /api/admin/products/[id]`, and `GET /api/account` (storefront/admin load via RSC; account profile via `getAccountProfile`).
 - **Inline Tailwind duplication.** The primary-button class string appears in ~9 files with drift (`px-6` vs `px-8`, etc.). Three components — `<Button>`, `<Card>`, `<Input>` — plus `clsx` would fix it. Note `ProductsList.tsx:216` has `${loading && "..."}`, which renders the string `"false"` into `className`.
 - **Two large files.** `ProductForm.tsx` (395 lines — split out the upload field and a `useProductForm` hook) and `app/page.tsx` (361 lines of marketing markup — extract `<Hero>`, `<CaseStudy>`, `<Featured>`, `<CTA>`).
 - **`unoptimized` on all 6 `<Image>` call sites** bypasses Next's optimizer and `srcset`. Mobile downloads a 1200px asset for a 96px thumbnail. Either drop the flag or add a Cloudinary loader so `sizes` produces a real srcset.
 - **Money as floats.** Rounding at the Stripe boundary is correct, so no charge is wrong today, but subtotals accumulate in floats before the free-shipping comparison. Store integer cents.
 - **One `error.tsx` at root only.** Add per-segment boundaries for `products/`, `cart/`, `orders/`, `admin/` — `loading.tsx` coverage is already good, mirror it.
-- **No Prettier/Husky.** Formatting drifts (`app/api/products/*` is 4-space, everything else 2-space). Add Prettier + lint-staged so the CI typecheck gate isn't the first thing to catch a mistake.
+- **No Prettier/Husky.** Formatting drifts across files. Add Prettier + lint-staged so the CI typecheck gate isn't the first thing to catch a mistake.
 - **No error tracking.** 8 `console.error`/`warn` calls go nowhere. The `console.warn` at `orders.ts` (stock decrement skipped on a *paid* order) is money-affecting and should alert. Add Sentry.
 - ~~**Stock isn't reserved**~~ — **obsolete.** Stock is now held at checkout and either committed or released exactly once (`app/lib/stock-hold.ts`, `app/lib/reservations.ts`); the Stripe webhook releases the hold on `checkout.session.expired` and `async_payment_failed`, and the checkout route puts it back if Stripe fails to create the session. The admin product form reconciles against held units rather than writing shelf counts verbatim.
 

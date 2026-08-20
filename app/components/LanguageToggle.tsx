@@ -71,7 +71,7 @@ export default function LanguageToggle() {
             className={`px-2 py-1 text-xs font-semibold uppercase transition-colors ${
               current
                 ? "bg-ink text-paper"
-                : "text-ink/55 hover:text-ink hover:bg-ink/5"
+                : "text-ink/70 hover:text-ink hover:bg-ink/5"
             }`}
           >
             {locale}

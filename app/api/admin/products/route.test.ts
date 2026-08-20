@@ -12,10 +12,9 @@ vi.mock("next-auth", async () => {
 
 vi.mock("@/app/lib/auth", () => ({ authOptions: {} }));
 
-import { GET, POST } from "@/app/api/admin/products/route";
+import { POST } from "@/app/api/admin/products/route";
 import {
   DELETE as DELETE_ONE,
-  GET as GET_ONE,
   PATCH,
 } from "@/app/api/admin/products/[id]/route";
 import { ADMIN, BUYER, catalog } from "@/app/test/fixtures";
@@ -25,7 +24,13 @@ import { setMockSession } from "@/app/test/session";
 import { MAX_PRODUCT_IMAGES } from "@/app/lib/images";
 import type { ProductDoc } from "@/app/lib/db-collections";
 import type { ProductVariant } from "@/app/lib/variants";
-import { commitHold, holdStock, releaseHold } from "@/app/lib/stock-hold";
+import { serializeAdminProduct } from "@/app/lib/admin-products";
+import {
+  commitHold,
+  heldStockFor,
+  holdStock,
+  releaseHold,
+} from "@/app/lib/stock-hold";
 
 type AdminProduct = {
   id: string;
@@ -68,9 +73,7 @@ describe("admin authorization", () => {
     setMockSession(BUYER);
 
     const responses = await Promise.all([
-      GET(jsonRequest("GET")),
       POST(jsonRequest("POST", { ...validBody, stock: 1 })),
-      GET_ONE(jsonRequest("GET"), params("mug")),
       PATCH(jsonRequest("PATCH", { price: 1 }), params("mug")),
       DELETE_ONE(jsonRequest("DELETE"), params("mug")),
     ]);
@@ -83,7 +86,9 @@ describe("admin authorization", () => {
 
   it("locks out a signed-out visitor", async () => {
     setMockSession(null);
-    expect((await GET(jsonRequest("GET"))).status).toBe(401);
+    expect(
+      (await POST(jsonRequest("POST", { ...validBody, stock: 1 }))).status
+    ).toBe(401);
   });
 });
 
@@ -462,23 +467,7 @@ describe("PATCH /api/admin/products/[id]", () => {
   });
 });
 
-describe("GET and DELETE", () => {
-  it("lists products with their variants", async () => {
-    const { body } = await readResponse<AdminProduct[]>(await GET(jsonRequest("GET")));
-
-    const runner = body.find((p) => p.id === "runner");
-    expect(runner?.variants).toHaveLength(3);
-    expect(body.find((p) => p.id === "mug")?.variants).toEqual([]);
-  });
-
-  it("reads one product", async () => {
-    const { status, body } = await readResponse<AdminProduct>(
-      await GET_ONE(jsonRequest("GET"), params("runner"))
-    );
-    expect(status).toBe(200);
-    expect(body.id).toBe("runner");
-  });
-
+describe("DELETE /api/admin/products/[id]", () => {
   it("deletes a product, then 404s the second attempt", async () => {
     expect(
       (await DELETE_ONE(jsonRequest("DELETE"), params("mug"))).status
@@ -507,9 +496,8 @@ describe("admin stock while checkouts are in progress", () => {
     // The catalog now offers one; the stockroom still has three.
     expect(stored("runner")!.variants![0].stock).toBe(1);
 
-    const { body } = await readResponse<AdminProduct & { heldForCheckout: number }>(
-      await GET_ONE(jsonRequest("GET"), params("runner"))
-    );
+    const held = (await heldStockFor(testDb as never, ["runner"])).get("runner");
+    const body = serializeAdminProduct(stored("runner")!, held);
 
     expect(body.variants[0].stock).toBe(3);
     expect(body.heldForCheckout).toBe(2);
@@ -588,9 +576,8 @@ describe("admin stock while checkouts are in progress", () => {
   });
 
   it("leaves the listing alone when nothing is held", async () => {
-    const { body } = await readResponse<AdminProduct[]>(await GET(jsonRequest("GET")));
-    const runner = body.find((p) => p.id === "runner")!;
-
-    expect(runner.variants[0].stock).toBe(3);
+    const body = serializeAdminProduct(stored("runner")!);
+    expect(body.variants[0].stock).toBe(3);
+    expect(body.heldForCheckout).toBe(0);
   });
 });

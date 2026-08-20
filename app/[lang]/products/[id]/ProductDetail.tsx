@@ -31,6 +31,14 @@ type ProductDetailProps = {
   initialColor?: string | null;
 };
 
+function colorLabel(
+  product: Product,
+  color: string | null | undefined
+): string {
+  if (!color) return "";
+  return product.colorLabels?.[color] ?? color;
+}
+
 export default function ProductDetail({
   product,
   initialColor = null,
@@ -203,7 +211,10 @@ export default function ProductDetail({
                 images={gallery}
                 alt={
                   color
-                    ? t.productDetail.inColour(product.name, color)
+                    ? t.productDetail.inColour(
+                        product.name,
+                        colorLabel(product, color)
+                      )
                     : product.name
                 }
               />
@@ -214,7 +225,10 @@ export default function ProductDetail({
                 <h1 className="font-display italic font-extrabold text-4xl lg:text-5xl text-ink mb-4 tracking-tight">
                   {product.name}
                   {color && (
-                    <span className="font-normal not-italic text-ink/50"> – {color}</span>
+                    <span className="font-normal not-italic text-ink/65">
+                      {" "}
+                      – {colorLabel(product, color)}
+                    </span>
                   )}
                 </h1>
                 <div className="flex items-baseline gap-2">
@@ -233,7 +247,9 @@ export default function ProductDetail({
                     <div>
                       <p className="mb-2 text-sm font-semibold text-ink">
                         {t.productDetail.colourLabel}{" "}
-                        <span className="font-normal text-ink/60">{color}</span>
+                        <span className="font-normal text-ink/60">
+                          {colorLabel(product, color)}
+                        </span>
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {colors.map((option) => (
@@ -253,7 +269,7 @@ export default function ProductDetail({
                                 : "border-ink/15 text-ink/80 hover:border-cardboard-dark"
                             }`}
                           >
-                            {option}
+                            {colorLabel(product, option)}
                           </button>
                         ))}
                       </div>
@@ -266,7 +282,7 @@ export default function ProductDetail({
                       <button
                         type="button"
                         onClick={() => setSizeGuideOpen(true)}
-                        className="text-xs text-ink/50 underline underline-offset-2 hover:text-ink transition-colors"
+                        className="text-xs text-ink/65 underline underline-offset-2 hover:text-ink transition-colors"
                       >
                         {t.sizeGuide.link}
                       </button>
@@ -293,7 +309,7 @@ export default function ProductDetail({
                       })}
                     </div>
                     {needsSelection && (
-                      <p className="mt-2 text-sm text-ink/50">
+                      <p className="mt-2 text-sm text-ink/65">
                         {t.productDetail.chooseSizeHint}
                       </p>
                     )}

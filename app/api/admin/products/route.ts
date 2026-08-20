@@ -6,26 +6,10 @@ import { products as productsCollection } from "@/app/lib/db-collections";
 import { badRequest, parseBody } from "@/app/lib/api-request";
 import { isDuplicateKeyError } from "@/app/lib/mongo-errors";
 import { adminProductCreateSchema, resolveVariants } from "@/app/lib/schemas";
-import { heldStockFor } from "@/app/lib/stock-hold";
 import { totalVariantStock, type ColorImage } from "@/app/lib/variants";
 import { NextRequest, NextResponse } from "next/server";
 import { localeFromRequest } from "@/app/i18n/request";
 import { apiDictionaryFor } from "@/app/i18n/lookup";
-
-export async function GET(req: NextRequest) {
-  const session = await requireAdmin();
-  if (!session) {
-    return adminUnauthorized(req);
-  }
-
-  const { db } = await connectToDB();
-  const products = await productsCollection(db).find({}).sort({ name: 1 }).toArray();
-  const held = await heldStockFor(db, products.map((p) => p.id));
-
-  return NextResponse.json(
-    products.map((doc) => serializeAdminProduct(doc, held.get(doc.id)))
-  );
-}
 
 export async function POST(req: NextRequest) {
   const t = apiDictionaryFor(localeFromRequest(req));
