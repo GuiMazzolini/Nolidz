@@ -25,7 +25,7 @@ function getConnectionUri(): string {
 }
 
 async function seed() {
-  const dbName = process.env.MONGODB_DB || 'ecommerce-nextjs';
+  const dbName = process.env.MONGODB_DB || 'nolidz';
   const client = new MongoClient(getConnectionUri(), {
     serverApi: {
       version: ServerApiVersion.v1,

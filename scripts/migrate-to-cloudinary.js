@@ -28,7 +28,7 @@ async function main() {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
-  const folder = process.env.CLOUDINARY_UPLOAD_FOLDER || "styleshop/products";
+  const folder = process.env.CLOUDINARY_UPLOAD_FOLDER || "nolidz/products";
 
   if (!cloudName || !apiKey || !apiSecret) {
     throw new Error("Missing Cloudinary env vars");
@@ -49,7 +49,7 @@ async function main() {
     },
   });
 
-  const dbName = process.env.MONGODB_DB || "ecommerce-nextjs";
+  const dbName = process.env.MONGODB_DB || "nolidz";
   const db = client.db(dbName);
 
   const publicDir = path.join(process.cwd(), "public");

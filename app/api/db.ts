@@ -1,8 +1,12 @@
 import { Db, MongoClient, ServerApiVersion } from "mongodb";
+import { isDuplicateKeyError } from "@/app/lib/mongo-errors";
 
 let cachedClient: MongoClient | null = null;
 let cachedDB: Db | null = null;
 let indexesEnsured = false;
+
+/** Default DB name. Existing clusters that still use `ecommerce-nextjs` must set MONGODB_DB. */
+export const DEFAULT_MONGODB_DB = "nolidz";
 
 /**
  * Older writes could persist `variants: []` instead of omitting the field.
@@ -23,56 +27,71 @@ async function ensureIndexes(db: Db) {
 
   await unsetEmptyProductVariants(db);
 
-  await Promise.all([
-    // Prevents duplicate orders when webhook + success page fulfill the same session.
-    db.collection("orders").createIndex({ stripeSessionId: 1 }, { unique: true }),
-    db.collection("orders").createIndex({ userId: 1, createdAt: -1 }),
+  try {
+    await Promise.all([
+      // Prevents duplicate orders when webhook + success page fulfill the same session.
+      db.collection("orders").createIndex({ stripeSessionId: 1 }, { unique: true }),
+      db.collection("orders").createIndex({ userId: 1, createdAt: -1 }),
 
-    // Registration does check-then-insert, which races. This is what actually
-    // enforces one account per email.
-    db.collection("users").createIndex({ email: 1 }, { unique: true }),
+      // Registration does check-then-insert, which races. This is what actually
+      // enforces one account per email.
+      db.collection("users").createIndex({ email: 1 }, { unique: true }),
 
-    db.collection("carts").createIndex({ userId: 1 }, { unique: true }),
+      db.collection("carts").createIndex({ userId: 1 }, { unique: true }),
 
-    // Every product lookup queries by `id`, not `_id`.
-    db.collection("products").createIndex({ id: 1 }, { unique: true }),
+      // Every product lookup queries by `id`, not `_id`.
+      db.collection("products").createIndex({ id: 1 }, { unique: true }),
 
-    /**
-     * A SKU is the identity of a cart line, an order line, and a stock hold, so
-     * two variants sharing one is a mis-shipment waiting to happen. This stops
-     * two products — or two concurrent saves — from landing on the same SKU.
-     *
-     * It does not stop one product from repeating a SKU inside its own array:
-     * a unique multikey index de-duplicates a document's keys before comparing,
-     * so `["x", "x"]` in a single document passes. resolveVariants is what
-     * covers that case, and product-indexes.integration.test.ts pins both halves.
-     *
-     * Partial on `variants.0` rather than plain unique: a single-SKU product has
-     * no `variants` field at all (or, from older writes, `variants: []`), and
-     * every one of those would index the same missing value and collide with
-     * the next. `variants.0` exists only when the array has an element, so
-     * both the missing field and the empty array stay out of the index.
-     */
-    db
-      .collection("products")
-      .createIndex(
-        { "variants.sku": 1 },
-        { unique: true, partialFilterExpression: { "variants.0": { $exists: true } } }
-      ),
+      /**
+       * A SKU is the identity of a cart line, an order line, and a stock hold, so
+       * two variants sharing one is a mis-shipment waiting to happen. This stops
+       * two products — or two concurrent saves — from landing on the same SKU.
+       *
+       * It does not stop one product from repeating a SKU inside its own array:
+       * a unique multikey index de-duplicates a document's keys before comparing,
+       * so `["x", "x"]` in a single document passes. resolveVariants is what
+       * covers that case, and product-indexes.integration.test.ts pins both halves.
+       *
+       * Partial on `variants.0` rather than plain unique: a single-SKU product has
+       * no `variants` field at all (or, from older writes, `variants: []`), and
+       * every one of those would index the same missing value and collide with
+       * the next. `variants.0` exists only when the array has an element, so
+       * both the missing field and the empty array stay out of the index.
+       */
+      db
+        .collection("products")
+        .createIndex(
+          { "variants.sku": 1 },
+          {
+            unique: true,
+            partialFilterExpression: { "variants.0": { $exists: true } },
+          }
+        ),
 
-    // Rate-limit windows expire themselves.
-    db
-      .collection("ratelimits")
-      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+      // Rate-limit windows expire themselves.
+      db
+        .collection("ratelimits")
+        .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
 
-    // Fulfillment and the expiry sweep both look a hold up by this id.
-    db
-      .collection("reservations")
-      .createIndex({ reservationId: 1 }, { unique: true }),
-    // Deliberately not a TTL index: an expired hold still owns stock, and
-    // deleting the document would strand it. The sweep returns it first.
-    db.collection("reservations").createIndex({ status: 1, expiresAt: 1 }),
-  ]);
+      // Fulfillment and the expiry sweep both look a hold up by this id.
+      db
+        .collection("reservations")
+        .createIndex({ reservationId: 1 }, { unique: true }),
+      // Deliberately not a TTL index: an expired hold still owns stock, and
+      // deleting the document would strand it. The sweep returns it first.
+      db.collection("reservations").createIndex({ status: 1, expiresAt: 1 }),
+    ]);
+  } catch (err) {
+    if (isDuplicateKeyError(err)) {
+      throw new Error(
+        "MongoDB refused a unique index because the database already has duplicates " +
+          "(email, product id, or variant SKU). Run `npm run db:check` to list them, " +
+          "dedupe, then restart the app.",
+        { cause: err }
+      );
+    }
+    throw err;
+  }
 
   indexesEnsured = true;
 }
@@ -102,7 +121,7 @@ export async function connectToDB() {
     return { client: cachedClient, db: cachedDB };
   }
 
-  const dbName = process.env.MONGODB_DB || "ecommerce-nextjs";
+  const dbName = process.env.MONGODB_DB || DEFAULT_MONGODB_DB;
   const client = new MongoClient(getConnectionUri(), {
     // The driver defaults to 30s, which makes an unreachable database look
     // like a hung page rather than a failure. Fail fast and surface the error.

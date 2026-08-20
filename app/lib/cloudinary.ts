@@ -13,7 +13,7 @@ export function getCloudinaryConfig() {
 }
 
 export function getCloudinaryUploadFolder() {
-  return process.env.CLOUDINARY_UPLOAD_FOLDER || "styleshop/products";
+  return process.env.CLOUDINARY_UPLOAD_FOLDER || "nolidz/products";
 }
 
 export function signCloudinaryUpload(paramsToSign: Record<string, string>) {

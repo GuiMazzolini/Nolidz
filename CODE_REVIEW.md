@@ -1,4 +1,4 @@
-# StyleShop — Code Review
+# nolidz — Code Review
 
 Reviewed at `10f5094`, updated after the P0 remediation pass, then again at
 `3a0852b` after the P1 pass.
@@ -47,7 +47,7 @@ All 17 `useCartStore` call sites use selectors. `ProductsList.tsx` no longer tou
 
 Not re-verified in the P1 pass — the items below are as recorded at the P0 review and some may already be stale.
 
-- **Wrong GitHub URL.** `app/page.tsx:6` and the README point at `github.com/GuiMazzolini/e-commerce-NextJs`, and the README credits `GuiMazzolini`. Every "Inspect the code" button sends visitors to someone else's repo.
+- ~~**Wrong GitHub URL.**~~ **Stale.** Storefront no longer links an old repo; README is nolidz-only.
 - ~~**Dead API routes.**~~ **Done.** Removed unused `GET /api/products`, `GET /api/products/[id]`, `GET /api/admin/products`, `GET /api/admin/products/[id]`, and `GET /api/account` (storefront/admin load via RSC; account profile via `getAccountProfile`).
 - **Inline Tailwind duplication.** The primary-button class string appears in ~9 files with drift (`px-6` vs `px-8`, etc.). Three components — `<Button>`, `<Card>`, `<Input>` — plus `clsx` would fix it. Note `ProductsList.tsx:216` has `${loading && "..."}`, which renders the string `"false"` into `className`.
 - **Two large files.** `ProductForm.tsx` (395 lines — split out the upload field and a `useProductForm` hook) and `app/page.tsx` (361 lines of marketing markup — extract `<Hero>`, `<CaseStudy>`, `<Featured>`, `<CTA>`).
@@ -63,5 +63,5 @@ Not re-verified in the P1 pass — the items below are as recorded at the P0 rev
 ## Deployment notes
 
 - **CSP ships as report-only.** Check the browser console for violations, then rename the header to `Content-Security-Policy`.
-- **The unique indexes will fail to build against a database that already has duplicate emails or product ids.** Check and dedupe before deploying.
+- ~~**The unique indexes will fail to build against a database that already has duplicate emails or product ids.**~~ Run `npm run db:check` before deploy; `ensureIndexes` now surfaces a clear error pointing at that script if Mongo refuses a unique index.
 - **Leave `STRIPE_WEBHOOK_SECRET` unset in local dev** unless `stripe listen` is running — it now decides whether the webhook or the success page fulfills orders.

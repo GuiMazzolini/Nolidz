@@ -255,7 +255,7 @@ export const useCartStore = create<CartState>()(
         get().cartProducts.reduce((sum, p) => sum + (p.quantity || 1), 0),
     }),
     {
-      name: "styleshop-guest-cart",
+      name: "nolidz-guest-cart",
       partialize: (state) => ({ guestCart: state.guestCart }),
       onRehydrateStorage: () => (state) => {
         if (state && !state.isAuthenticated) {

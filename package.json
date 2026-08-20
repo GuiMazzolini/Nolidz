@@ -1,5 +1,5 @@
 {
-  "name": "ecommerce",
+  "name": "nolidz",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "test:integration": "vitest run integration",
     "seed": "tsx scripts/seed.ts",
+    "db:check": "tsx scripts/check-db-duplicates.ts",
     "db:start": "node scripts/dev-mongo.mjs start",
     "db:stop": "node scripts/dev-mongo.mjs stop"
   },

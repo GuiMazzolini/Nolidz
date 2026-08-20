@@ -75,10 +75,24 @@ without is `MONGODB_URI`; for a local database that is:
 MONGODB_URI=mongodb://127.0.0.1:27017
 ```
 
+The database name defaults to `nolidz`. If an older environment still stores
+data under `ecommerce-nextjs`, set `MONGODB_DB=ecommerce-nextjs` so you do not
+point at an empty database by accident.
+
 `NEXTAUTH_SECRET` also needs any random string — `openssl rand -base64 32`
 generates one. Changing it later signs everyone out. Stripe, Cloudinary, and
 the OAuth keys are optional in development; the app runs without them and only
 the features that use them are unavailable.
+
+Before a production deploy (or after importing data), check that unique indexes
+will build cleanly:
+
+```bash
+npm run db:check
+```
+
+That lists duplicate emails, product ids, and variant SKUs. Fix those first —
+otherwise the app fails when Mongo refuses the unique indexes.
 
 `npm run db:start` needs Docker and does nothing if a database is already
 running on the port. `npm run db:stop` stops it again, and your data survives

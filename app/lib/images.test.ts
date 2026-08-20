@@ -5,10 +5,10 @@ describe("getImageSrc", () => {
   it("injects Cloudinary transforms before the version segment", () => {
     expect(
       getImageSrc(
-        "https://res.cloudinary.com/demo/image/upload/v1786006711/styleshop/products/hat.jpg"
+        "https://res.cloudinary.com/demo/image/upload/v1786006711/nolidz/products/hat.jpg"
       )
     ).toBe(
-      "https://res.cloudinary.com/demo/image/upload/w_1200,q_auto,f_auto/v1786006711/styleshop/products/hat.jpg"
+      "https://res.cloudinary.com/demo/image/upload/w_1200,q_auto,f_auto/v1786006711/nolidz/products/hat.jpg"
     );
   });
 
