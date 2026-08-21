@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   TRACKING_REFRESH_FLOOR_MS,
   canRefreshTracking,
   describeTrackingStatus,
   isTerminalStatus,
+  isTrackerConfigured,
   readCachedTracking,
   type CachedTracking,
 } from "./tracking";
@@ -53,6 +54,48 @@ describe("canRefreshTracking", () => {
     const old = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     expect(canRefreshTracking(cached({ statusCode: "pre-transit", checkedAt: old }), now)).toBe(true);
     expect(canRefreshTracking(cached({ statusCode: "unknown", checkedAt: old }), now)).toBe(true);
+  });
+});
+
+describe("isTrackerConfigured", () => {
+  // Restored key by key rather than by replacing process.env wholesale, which
+  // would swap out Node's live env object for a plain one.
+  const KEYS = [
+    "DHL_API_KEY",
+    "DPD_API_URL",
+    "DPD_DELIS_ID",
+    "DPD_PASSWORD",
+  ] as const;
+  const original = Object.fromEntries(KEYS.map((key) => [key, process.env[key]]));
+
+  afterEach(() => {
+    for (const key of KEYS) {
+      const value = original[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+
+  it("reads each carrier's own credentials", () => {
+    process.env.DHL_API_KEY = "key";
+    delete process.env.DPD_DELIS_ID;
+
+    expect(isTrackerConfigured({ kind: "dhl", service: "parcel-de" })).toBe(true);
+    expect(isTrackerConfigured({ kind: "dpd" })).toBe(false);
+  });
+
+  /**
+   * A DHL key says nothing about DPD. Treating one as proof of the other would
+   * send an unauthenticated lookup and report the parcel missing.
+   */
+  it("does not let one carrier's key stand in for another's", () => {
+    delete process.env.DHL_API_KEY;
+    process.env.DPD_API_URL = "https://dpd.test";
+    process.env.DPD_DELIS_ID = "delis-1";
+    process.env.DPD_PASSWORD = "secret";
+
+    expect(isTrackerConfigured({ kind: "dpd" })).toBe(true);
+    expect(isTrackerConfigured({ kind: "dhl", service: "express" })).toBe(false);
   });
 });
 

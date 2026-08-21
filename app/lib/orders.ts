@@ -13,6 +13,12 @@ import { readCachedTracking, type CachedTracking } from "@/app/lib/tracking";
 import type { Db } from "mongodb";
 import type Stripe from "stripe";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/app/i18n/config";
+import {
+  DEFAULT_SHIPPING_METHOD,
+  getShippingMethod,
+  isShippingMethodId,
+  type ShippingMethodId,
+} from "@/app/lib/shipping";
 
 export { normalizeEmail };
 
@@ -45,6 +51,15 @@ export type Order = {
   currency: string;
   shippingAddress: ShippingAddress | null;
   status: OrderStatus;
+  /**
+   * The delivery the buyer paid for, as chosen on Stripe's page.
+   *
+   * Kept alongside `carrier` rather than replacing it: this one is what was
+   * sold and cannot change, while `carrier` is what the parcel actually went
+   * out with and an admin may correct after the fact. Orders placed before
+   * buyers had a choice fall back to standard.
+   */
+  shippingMethod: ShippingMethodId;
   trackingNumber: string | null;
   carrier: string | null;
   shippedAt: Date | null;
@@ -75,6 +90,9 @@ export function toOrder(doc: Record<string, unknown>): Order {
     currency: String(doc.currency ?? "eur"),
     shippingAddress: (doc.shippingAddress as ShippingAddress | null) ?? null,
     status,
+    shippingMethod: isShippingMethodId(doc.shippingMethod)
+      ? doc.shippingMethod
+      : DEFAULT_SHIPPING_METHOD.id,
     trackingNumber: doc.trackingNumber ? String(doc.trackingNumber) : null,
     carrier: doc.carrier ? String(doc.carrier) : null,
     shippedAt: doc.shippedAt ? new Date(doc.shippedAt as string | Date) : null,
@@ -86,6 +104,24 @@ export function toOrder(doc: Record<string, unknown>): Order {
 
 function centsToDollars(cents: number | null | undefined): number {
   return (cents ?? 0) / 100;
+}
+
+/**
+ * Which delivery the buyer picked on Stripe's page.
+ *
+ * Read from the shipping rate's metadata, which /api/checkout stamps with the
+ * method id. The rate is only an object when the caller expanded
+ * `shipping_cost.shipping_rate`; unexpanded it is a bare id string, and a
+ * session created before buyers had a choice has no rate at all. Both fall
+ * back to standard, which is what those orders were.
+ */
+export function readShippingMethod(
+  session: Stripe.Checkout.Session
+): ShippingMethodId {
+  const rate = session.shipping_cost?.shipping_rate;
+  if (!rate || typeof rate === "string") return DEFAULT_SHIPPING_METHOD.id;
+  const methodId = rate.metadata?.methodId;
+  return isShippingMethodId(methodId) ? methodId : DEFAULT_SHIPPING_METHOD.id;
 }
 
 export function buildOrderFromStripeSession(
@@ -101,6 +137,7 @@ export function buildOrderFromStripeSession(
 
   const shippingDetails = session.collected_information?.shipping_details;
   const shipping = shippingDetails?.address;
+  const shippingMethod = readShippingMethod(session);
 
   return {
     stripeSessionId: session.id,
@@ -123,8 +160,12 @@ export function buildOrderFromStripeSession(
         }
       : null,
     status: "paid",
+    shippingMethod,
     trackingNumber: null,
-    carrier: null,
+    // Prefilled from what was sold, not left for someone to retype. The parcel
+    // is not booked yet, so an admin can still change it in the ship form —
+    // but until they do, tracking already knows who to ask.
+    carrier: getShippingMethod(shippingMethod)?.carrier ?? null,
     shippedAt: null,
     // Nothing to track until someone ships it and DHL is asked.
     tracking: null,
@@ -341,7 +382,9 @@ export async function fulfillCheckoutSession(
 ): Promise<{ paid: boolean; fulfilled: boolean }> {
   const stripe = getStripe();
   const session = await stripe.checkout.sessions.retrieve(sessionId, {
-    expand: ["line_items"],
+    // The shipping rate has to be expanded or it arrives as a bare id, and the
+    // method the buyer paid for is in that object's metadata.
+    expand: ["line_items", "shipping_cost.shipping_rate"],
   });
 
   if (session.payment_status !== "paid") {

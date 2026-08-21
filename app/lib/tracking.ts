@@ -3,9 +3,11 @@ import { orders } from "@/app/lib/db-collections";
 import {
   fetchTrackingStatus,
   isDhlConfigured,
+  type TrackingResult,
   type TrackingStatusCode,
 } from "@/app/lib/dhl";
-import { dhlServiceForCarrier } from "@/app/lib/carriers";
+import { fetchDpdTrackingStatus, isDpdConfigured } from "@/app/lib/dpd";
+import { trackerForCarrier, type CarrierTracker } from "@/app/lib/carriers";
 
 /**
  * Cached DHL status on an order, and the rules for when it may be refetched.
@@ -96,6 +98,34 @@ export type RefreshOutcome =
   | { ok: false; reason: "not-found" | "rate-limited" | "unauthorized" | "error" };
 
 /**
+ * Whether the integration behind a carrier has its credentials.
+ *
+ * Separate from `isTrackableCarrier`, which only asks whether an integration
+ * exists at all: a shop with a DHL contract and no DPD one still ships DPD
+ * parcels, and those must report "not configured" rather than "unsupported"
+ * so the admin sees a setup gap instead of a dead end.
+ */
+export function isTrackerConfigured(tracker: CarrierTracker): boolean {
+  return tracker.kind === "dhl" ? isDhlConfigured() : isDpdConfigured();
+}
+
+/**
+ * One lookup, sent to whichever carrier owns the parcel.
+ *
+ * Both clients return the same TrackingResult union, so everything downstream
+ * — the cache write, the terminal-status rule, the admin UI — stays carrier-
+ * agnostic and a third carrier is a case here rather than a second pipeline.
+ */
+function fetchFromCarrier(
+  tracker: CarrierTracker,
+  trackingNumber: string
+): Promise<TrackingResult> {
+  return tracker.kind === "dhl"
+    ? fetchTrackingStatus(trackingNumber, tracker.service)
+    : fetchDpdTrackingStatus(trackingNumber);
+}
+
+/**
  * Refresh one order's status, honouring the floor.
  *
  * Returns `refreshed: false` with the cached value when the floor blocks the
@@ -114,13 +144,14 @@ export async function refreshTrackingForOrder(
     typeof record?.trackingNumber === "string" ? record.trackingNumber.trim() : "";
   if (!trackingNumber) return { ok: false, reason: "no-tracking-number" };
 
-  // Only DHL is reachable from here. A parcel sent with DPD or UPS has a
-  // perfectly good tracking number that DHL has simply never heard of, so
-  // asking would spend budget to be told "not found" and would read to an
-  // admin as though the parcel were lost.
+  // Each carrier answers to its own integration, and a parcel sent with one we
+  // have none for — UPS, GLS, Hermes — has a perfectly good tracking number
+  // that nobody here can look up. Asking the wrong carrier would spend budget
+  // to be told "not found", which reads to an admin as though the parcel were
+  // lost.
   const carrier = typeof record?.carrier === "string" ? record.carrier : null;
-  const service = dhlServiceForCarrier(carrier);
-  if (!service) return { ok: false, reason: "carrier-not-supported" };
+  const tracker = trackerForCarrier(carrier);
+  if (!tracker) return { ok: false, reason: "carrier-not-supported" };
 
   const cached = readCachedTracking(record);
 
@@ -137,9 +168,9 @@ export async function refreshTrackingForOrder(
       : { ok: false, reason: "throttled" };
   }
 
-  if (!isDhlConfigured()) return { ok: false, reason: "not-configured" };
+  if (!isTrackerConfigured(tracker)) return { ok: false, reason: "not-configured" };
 
-  const result = await fetchTrackingStatus(trackingNumber, service);
+  const result = await fetchFromCarrier(tracker, trackingNumber);
   if (!result.ok) return { ok: false, reason: result.reason };
 
   const tracking: CachedTracking = {
@@ -178,7 +209,7 @@ export type TrackingStatusLabels = {
 };
 
 const DEFAULT_TRACKING_LABELS: TrackingStatusLabels = {
-  preTransit: "Label created — DHL has not scanned it yet",
+  preTransit: "Label created — the carrier has not scanned it yet",
   transit: "On its way",
   delivered: "Delivered",
   failure: "Delivery problem — contact us",

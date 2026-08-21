@@ -8,13 +8,13 @@ import { NextRequest, NextResponse } from "next/server";
 type Params = { sessionId: string };
 
 /**
- * Pull the current DHL status for one order.
+ * Pull the current carrier status for one order.
  *
  * Admin-only, and not because the status is secret — the customer sees it on
  * their own order page. It is because this is the only route in the app that
- * can spend the daily DHL budget, and leaving it open would let anyone drain
- * 250 requests in a minute. Customer-facing pages read the cache instead and
- * never reach DHL.
+ * can spend a carrier's daily request budget, and leaving it open would let
+ * anyone drain DHL's 250 in a minute. Customer-facing pages read the cache
+ * instead and never reach a carrier.
  */
 export async function POST(
   req: NextRequest,
@@ -52,7 +52,7 @@ export async function POST(
   return NextResponse.json({
     refreshed: result.refreshed,
     statusCode: result.tracking.statusCode,
-    // DHL's own line when it has one, our wording when it does not.
+    // The carrier's own line when it has one, our wording when it does not.
     description:
       result.tracking.description ?? describeTrackingStatus(result.tracking.statusCode),
     location: result.tracking.location,
@@ -67,18 +67,24 @@ function describeFailure(reason: string): [number, string] {
     case "no-tracking-number":
       return [400, "This order has no tracking number yet."];
     case "carrier-not-supported":
-      return [400, "We can only check DHL parcels. Track this one on the carrier's own site."];
+      return [
+        400,
+        "We have no tracking integration for this carrier. Track this one on the carrier's own site.",
+      ];
     case "not-configured":
-      return [503, "DHL_API_KEY is not set on this environment."];
+      return [
+        503,
+        "Tracking credentials for this carrier are not set on this environment.",
+      ];
     case "throttled":
       return [429, "Already checked recently — try again later."];
     case "not-found":
-      return [404, "DHL has not registered this tracking number yet."];
+      return [404, "The carrier has not registered this tracking number yet."];
     case "rate-limited":
-      return [429, "DHL daily request limit reached. Try again tomorrow."];
+      return [429, "Carrier daily request limit reached. Try again tomorrow."];
     case "unauthorized":
-      return [502, "DHL rejected our API key."];
+      return [502, "The carrier rejected our credentials."];
     default:
-      return [502, "Could not reach DHL. Try again."];
+      return [502, "Could not reach the carrier. Try again."];
   }
 }

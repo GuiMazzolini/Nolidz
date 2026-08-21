@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_SHIPPING_METHOD,
   FREE_SHIPPING_THRESHOLD,
+  OFFERED_SHIPPING_METHODS,
   SHIPPING_FLAT_RATE,
+  SHIPPING_METHODS,
   getOrderTotal,
   getShippingCost,
+  getShippingCostFor,
+  getShippingMethod,
   isOutsideShippingArea,
+  isShippingMethodId,
   readVisitorCountry,
 } from "./shipping";
 
@@ -28,6 +34,107 @@ describe("getShippingCost", () => {
   it("charges nothing on an empty or negative subtotal", () => {
     expect(getShippingCost(0)).toBe(0);
     expect(getShippingCost(-10)).toBe(0);
+  });
+});
+
+describe("SHIPPING_METHODS", () => {
+  // Stripe preselects the first option, and that has to be the cheap one.
+  it("leads with standard delivery", () => {
+    expect(OFFERED_SHIPPING_METHODS[0]).toBe(DEFAULT_SHIPPING_METHOD);
+    expect(DEFAULT_SHIPPING_METHOD.id).toBe("standard");
+  });
+
+  /**
+   * DPD is built but not sold: the contract is not signed, and offering a
+   * delivery we cannot book or track would be a promise we cannot keep.
+   */
+  it("holds DPD back from what buyers are offered", () => {
+    expect(getShippingMethod("dpd")?.offered).toBe(false);
+    expect(OFFERED_SHIPPING_METHODS.map((m) => m.id)).toEqual([
+      "standard",
+      "express",
+    ]);
+  });
+
+  /**
+   * Withdrawing a method must never remove it from the catalogue, or an order
+   * that chose it while it was on sale would stop reading back.
+   */
+  it("still resolves a method that is no longer offered", () => {
+    expect(getShippingMethod("dpd")?.carrier).toBe("DPD");
+    expect(isShippingMethodId("dpd")).toBe(true);
+  });
+
+  it("offers a subset of everything it knows about", () => {
+    for (const method of OFFERED_SHIPPING_METHODS) {
+      expect(SHIPPING_METHODS).toContain(method);
+    }
+  });
+
+  /**
+   * carriers.ts is what turns these strings back into a tracking integration.
+   * A method whose carrier it cannot place would produce orders nobody can
+   * track, which is invisible until a customer asks where their parcel is.
+   */
+  it("names a carrier for every method", () => {
+    for (const method of SHIPPING_METHODS) {
+      expect(method.carrier.trim()).not.toBe("");
+    }
+  });
+
+  it("has no duplicate ids", () => {
+    const ids = SHIPPING_METHODS.map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("getShippingCostFor", () => {
+  const express = getShippingMethod("express")!;
+  const dpd = getShippingMethod("dpd")!;
+
+  /**
+   * The free-shipping promise is attached to standard delivery only. A free
+   * upgrade to next-day air costs several times the margin the threshold was
+   * meant to buy.
+   */
+  it("keeps charging for express and DPD above the threshold", () => {
+    expect(getShippingCostFor(express, FREE_SHIPPING_THRESHOLD * 2)).toBe(
+      express.rate
+    );
+    expect(getShippingCostFor(dpd, FREE_SHIPPING_THRESHOLD * 2)).toBe(dpd.rate);
+  });
+
+  it("frees standard delivery above the threshold", () => {
+    expect(
+      getShippingCostFor(DEFAULT_SHIPPING_METHOD, FREE_SHIPPING_THRESHOLD)
+    ).toBe(0);
+  });
+
+  // An empty cart is not a shipping bill, whichever method is asked about.
+  it("charges nothing on an empty or negative subtotal", () => {
+    for (const method of SHIPPING_METHODS) {
+      expect(getShippingCostFor(method, 0)).toBe(0);
+      expect(getShippingCostFor(method, -10)).toBe(0);
+    }
+  });
+});
+
+describe("getShippingMethod", () => {
+  it("finds a method by id and rejects anything else", () => {
+    expect(getShippingMethod("express")?.id).toBe("express");
+    expect(getShippingMethod("overnight-balloon")).toBeNull();
+    expect(getShippingMethod(null)).toBeNull();
+  });
+});
+
+describe("isShippingMethodId", () => {
+  // Guards a value read back off a Stripe session, so it must reject junk.
+  it("accepts only ids we offer", () => {
+    expect(isShippingMethodId("standard")).toBe(true);
+    expect(isShippingMethodId("dpd")).toBe(true);
+    expect(isShippingMethodId("free-pony")).toBe(false);
+    expect(isShippingMethodId(undefined)).toBe(false);
+    expect(isShippingMethodId(7)).toBe(false);
   });
 });
 

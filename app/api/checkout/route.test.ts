@@ -54,6 +54,7 @@ import { POST } from "@/app/api/checkout/route";
 import { decodeCartMetadata } from "@/app/lib/cart-metadata";
 import { RATE_LIMITS } from "@/app/lib/rate-limit";
 import { MAX_OPEN_HOLDS_PER_BUYER } from "@/app/lib/reservations";
+import { OFFERED_SHIPPING_METHODS } from "@/app/lib/shipping";
 import { commitHold } from "@/app/lib/stock-hold";
 import { BUYER, catalog, runnerProduct } from "@/app/test/fixtures";
 import { jsonRequest, readResponse } from "@/app/test/http";
@@ -234,6 +235,65 @@ describe("guest checkout", () => {
     expect(
       pricey.shipping_options![0].shipping_rate_data!.fixed_amount!.amount
     ).toBe(0);
+  });
+
+  it("offers every shipping method we sell", async () => {
+    await POST(jsonRequest("POST", { items: [{ productId: "mug", quantity: 1 }] }));
+    const ids = lastSessionArgs().shipping_options!.map(
+      (option) => option.shipping_rate_data!.metadata!.methodId
+    );
+    expect(ids).toEqual(OFFERED_SHIPPING_METHODS.map((method) => method.id));
+  });
+
+  /**
+   * DPD is defined, priced and trackable, but the contract is not signed. It
+   * must not reach a buyer until it is — a rate on the Checkout page is an
+   * offer we have to honour.
+   */
+  it("does not offer a method that is held back", async () => {
+    await POST(jsonRequest("POST", { items: [{ productId: "mug", quantity: 1 }] }));
+    const ids = lastSessionArgs().shipping_options!.map(
+      (option) => option.shipping_rate_data!.metadata!.methodId
+    );
+    expect(ids).not.toContain("dpd");
+  });
+
+  /**
+   * The display name is customer-facing copy that will be reworded and is
+   * sent in the buyer's language. Fulfillment reads the method id instead, so
+   * it has to survive on every option including the free one.
+   */
+  it("stamps each rate with the method id and carrier", async () => {
+    await POST(jsonRequest("POST", { items: [{ productId: "mug", quantity: 1 }] }));
+    for (const option of lastSessionArgs().shipping_options!) {
+      const data = option.shipping_rate_data!;
+      expect(data.metadata!.carrier).toBeTruthy();
+      expect(data.delivery_estimate!.minimum!.unit).toBe("business_day");
+    }
+  });
+
+  /**
+   * Free shipping is a standard-delivery promise. If the threshold zeroed
+   * express too, a €100 basket would ship next-day air at our cost.
+   */
+  it("frees only standard delivery once the basket clears the threshold", async () => {
+    await POST(
+      jsonRequest("POST", {
+        items: [{ productId: "runner", quantity: 2, variantSku: "runner-eu42-black" }],
+      })
+    );
+    const rates = new Map(
+      lastSessionArgs().shipping_options!.map((option) => [
+        option.shipping_rate_data!.metadata!.methodId,
+        option.shipping_rate_data!.fixed_amount!.amount,
+      ])
+    );
+
+    expect(rates.get("standard")).toBe(0);
+    for (const method of OFFERED_SHIPPING_METHODS) {
+      if (method.id === "standard") continue;
+      expect(rates.get(method.id)).toBe(Math.round(method.rate * 100));
+    }
   });
 
   it("surfaces a Stripe outage as a 502 rather than a crash", async () => {

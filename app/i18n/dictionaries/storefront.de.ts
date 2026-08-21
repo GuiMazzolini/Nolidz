@@ -157,7 +157,8 @@ const storefront: StorefrontDict = {
     buyNow: "Jetzt kaufen",
     processing: "Wird verarbeitet…",
     shipsToOnly: (area) => `Versand nur nach ${area}`,
-    shippingRates: "Ab 100 € gratis · sonst 5 €",
+    shippingRates: (standard, threshold, express) =>
+      `Standard ${standard} · ab ${threshold} gratis · Express ${express}`,
     easyReturns: "Einfache Rückgabe",
     returnPolicy: "15 Tage Rückgaberecht",
     inColour: (name, color) => `${name} in ${color}`,
@@ -207,6 +208,7 @@ const storefront: StorefrontDict = {
     subtotal: (items) => `Zwischensumme (${items} Artikel)`,
     shipping: "Versand",
     freeShippingHint: (amount) => `Noch ${amount} bis zum kostenlosen Versand.`,
+    shippingStandardNote: "Standardversand — schnellere Optionen im Checkout.",
     total: "Gesamt",
     deliveryOnly: (area) => `Lieferung nur nach ${area}.`,
     deliveryOnlyTail: (area) =>
@@ -290,7 +292,7 @@ const storefront: StorefrontDict = {
   },
 
   trackingStatus: {
-    preTransit: "Label erstellt – DHL hat es noch nicht gescannt",
+    preTransit: "Label erstellt – der Versanddienst hat es noch nicht gescannt",
     transit: "Unterwegs",
     delivered: "Zugestellt",
     failure: "Problem bei der Zustellung – melde dich bei uns",

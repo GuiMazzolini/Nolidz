@@ -5,7 +5,11 @@ import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { STORE_CURRENCY } from "@/app/lib/money";
 import { getAppUrl, getStripe } from "@/app/lib/stripe";
-import { getShippingCost, SHIPPING_COUNTRIES } from "@/app/lib/shipping";
+import {
+  getShippingCostFor,
+  OFFERED_SHIPPING_METHODS,
+  SHIPPING_COUNTRIES,
+} from "@/app/lib/shipping";
 import { buildCartMetadata } from "@/app/lib/cart-metadata";
 import { localePath } from "@/app/i18n/config";
 import { localeFromRequest } from "@/app/i18n/request";
@@ -164,7 +168,38 @@ export async function POST(req: NextRequest) {
   });
 
   const subtotal = cartProducts.reduce((sum, p) => sum + p.price * p.quantity, 0);
-  const shippingCost = getShippingCost(subtotal);
+
+  // Priced here rather than on Stripe's side so the threshold is applied by
+  // the same function the cart quoted from, and so a buyer cannot pick a rate
+  // we never offered — Checkout will only accept one of these.
+  const shippingOptions = OFFERED_SHIPPING_METHODS.map((method) => {
+    const cost = getShippingCostFor(method, subtotal);
+    const name = t.shippingMethods[method.id];
+    return {
+      shipping_rate_data: {
+        type: "fixed_amount" as const,
+        display_name: cost === 0 ? t.shippingMethods.free(name) : name,
+        fixed_amount: {
+          amount: Math.round(cost * 100),
+          currency: STORE_CURRENCY,
+        },
+        delivery_estimate: {
+          minimum: {
+            unit: "business_day" as const,
+            value: method.deliveryDays.min,
+          },
+          maximum: {
+            unit: "business_day" as const,
+            value: method.deliveryDays.max,
+          },
+        },
+        // The only durable link from the buyer's choice back to a carrier.
+        // Display names are customer-facing copy and will be reworded; this
+        // id is what fulfillment reads, so it must never be derived from them.
+        metadata: { methodId: method.id, carrier: method.carrier },
+      },
+    };
+  });
 
   // Fulfillment decrements stock from this metadata, so a cart that cannot be
   // encoded in full is refused rather than checked out with lines missing.
@@ -234,18 +269,7 @@ export async function POST(req: NextRequest) {
         // Germany only — we do not deliver elsewhere.
         allowed_countries: [...SHIPPING_COUNTRIES],
       },
-      shipping_options: [
-        {
-          shipping_rate_data: {
-            type: "fixed_amount",
-            display_name: shippingCost === 0 ? "Free shipping" : "Standard shipping",
-            fixed_amount: {
-              amount: Math.round(shippingCost * 100),
-              currency: STORE_CURRENCY,
-            },
-          },
-        },
-      ],
+      shipping_options: shippingOptions,
       // Bounds how long an abandoned checkout stays payable. Once stock is
       // held against this session, it also bounds how long that hold lasts.
       expires_at: checkoutSessionExpiresAt(),

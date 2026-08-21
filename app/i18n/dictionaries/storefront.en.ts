@@ -159,7 +159,13 @@ const storefront = {
     buyNow: "Buy Now",
     processing: "Processing…",
     shipsToOnly: (area: string) => `Ships to ${area} only`,
-    shippingRates: "Free over €100 · otherwise €5",
+    /**
+     * Priced from SHIPPING_METHODS rather than written out, so a rate change
+     * is one edit and this line cannot quietly promise a price that checkout
+     * no longer charges.
+     */
+    shippingRates: (standard: string, threshold: string, express: string) =>
+      `Standard ${standard} · free over ${threshold} · express ${express}`,
     easyReturns: "Easy Returns",
     returnPolicy: "15-day return policy",
     inColour: (name: string, color: string) => `${name} in ${color}`,
@@ -209,6 +215,12 @@ const storefront = {
     subtotal: (items: number) => `Subtotal (${items} items)`,
     shipping: "Shipping",
     freeShippingHint: (amount: string) => `Add ${amount} more for free shipping.`,
+    /**
+     * The cart quotes standard delivery because the choice is made one step
+     * later, on Stripe's page. Saying so here stops the total below reading as
+     * a promise a buyer can then watch go up.
+     */
+    shippingStandardNote: "Standard delivery — faster options at checkout.",
     total: "Total",
     deliveryOnly: (area: string) => `Delivery to ${area} only.`,
     deliveryOnlyTail: (area: string) => `Checkout accepts a ${area} address.`,
@@ -288,7 +300,7 @@ const storefront = {
   },
 
   trackingStatus: {
-    preTransit: "Label created — DHL has not scanned it yet",
+    preTransit: "Label created — the carrier has not scanned it yet",
     transit: "On its way",
     delivered: "Delivered",
     failure: "Delivery problem — contact us",

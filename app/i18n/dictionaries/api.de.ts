@@ -33,6 +33,13 @@ const api: ApiDict = {
   onlyNInStock: (stock) => `Nur noch ${stock} auf Lager`,
   itemNotInCart: "Artikel nicht im Warenkorb gefunden",
 
+  shippingMethods: {
+    standard: "Standardversand (DHL)",
+    dpd: "DPD-Versand",
+    express: "Expressversand (DHL Express)",
+    free: (name) => `${name} — gratis`,
+  },
+
   cartEmpty: "Der Warenkorb ist leer",
   cartTooLarge:
     "Der Warenkorb ist zu groß für den Checkout. Bitte entfern ein paar Artikel.",

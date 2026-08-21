@@ -164,7 +164,7 @@ const admin: AdminDict = {
     summary: (total, awaiting) => {
       const count = `${total} ${total === 1 ? "Bestellung" : "Bestellungen"}`;
       const waiting = awaiting > 0 ? ` · ${awaiting} warten auf Versand` : "";
-      return `${count}${waiting}. Sobald du mit DHL (oder einem anderen Dienst) verschickt hast, trag unten die Sendungsnummer ein.`;
+      return `${count}${waiting}. Sobald du das Paket verschickt hast, trag unten die Sendungsnummer ein.`;
     },
     empty:
       "Noch keine Bestellungen. Schließ einen Testkauf ab, um den Versand hier zu sehen.",
@@ -176,17 +176,17 @@ const admin: AdminDict = {
     trackingNumber: (value) => `Sendungsnummer: ${value}`,
     carrier: (name) => `Versanddienst: ${name}`,
     markedShipped: (date) => `Als versendet markiert am ${date}`,
-    dhlPrefix: "DHL:",
+    carrierStatusPrefix: (carrier) => `${carrier}:`,
     checkedAt: (date) => `Geprüft am ${date}`,
 
     shipFormUpdate: "Versand aktualisieren",
     shipFormCreate: "Als versendet markieren",
     shipFormHint:
-      "Sobald du das Paket bei DHL (oder einem anderen Dienst) abgegeben hast, trag hier die Sendungsnummer ein.",
+      "Sobald du das Paket abgegeben hast, trag hier die Sendungsnummer ein. Der Versanddienst ist mit dem vorbelegt, den die Kundschaft bezahlt hat — änder ihn, falls du anders verschickt hast.",
     trackingNumberLabel: "Sendungsnummer",
     trackingNumberPlaceholder: "z. B. JD014600003456789012",
     carrierLabel: "Versanddienst (optional)",
-    carrierPlaceholder: "DHL, CTT…",
+    carrierPlaceholder: "DHL, DPD…",
     emailCustomer: "Kundschaft per E-Mail über die Sendung informieren",
     shippedWithEmail:
       "Als versendet markiert, E-Mail an die Kundschaft ist in der Warteschlange.",
@@ -195,12 +195,13 @@ const admin: AdminDict = {
     updateAndNotify: "Aktualisieren & benachrichtigen",
     markShipped: "Als versendet markieren",
 
-    checkDhl: "DHL-Status abfragen",
-    checkingDhl: "DHL wird abgefragt…",
-    checkUpdated: "Von DHL aktualisiert.",
+    checkStatus: "Sendungsstatus abfragen",
+    checkingStatus: "Wird abgefragt…",
+    checkUpdated: "Vom Versanddienst aktualisiert.",
     checkCached: "Bereits aktuell (aus dem Cache).",
     checkFailed: "Abfrage fehlgeschlagen",
-    carrierUnsupported: "Von hier lassen sich nur DHL-Pakete abfragen",
+    carrierUnsupported:
+      "Diesen Versanddienst können wir von hier nicht abfragen — verfolg die Sendung auf dessen eigener Seite",
     refreshBlocked: "Zugestellt oder in den letzten 6 Stunden bereits abgefragt",
 
     network: "Netzwerkfehler – bitte versuch es erneut.",

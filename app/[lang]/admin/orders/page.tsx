@@ -143,10 +143,12 @@ export default async function AdminOrdersPage() {
                       {order.tracking && (
                         <p className="mt-2 border-t border-green-200 pt-2">
                           <span className="font-semibold">
-                            {t.orders.dhlPrefix}{" "}
-                            {/* DHL's own line first here: an admin chasing a
-                                parcel wants exactly what the carrier said, in
-                                whatever words it said it. */}
+                            {t.orders.carrierStatusPrefix(
+                              order.carrier ?? "—"
+                            )}{" "}
+                            {/* The carrier's own line first here: an admin
+                                chasing a parcel wants exactly what the carrier
+                                said, in whatever words it said it. */}
                             {order.tracking.description ??
                               describeTrackingStatus(
                                 order.tracking.statusCode,

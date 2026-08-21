@@ -37,6 +37,22 @@ const api = {
   onlyNInStock: (stock: number) => `Only ${stock} in stock`,
   itemNotInCart: "Item not found in cart",
 
+  /**
+   * Names for the delivery choices on Stripe's hosted Checkout page.
+   *
+   * Stripe renders `display_name` exactly as given and will not translate it,
+   * so a German buyer only sees German here if we send German — which is why
+   * these live in the dictionary rather than beside the rates in shipping.ts.
+   * Keyed by ShippingMethodId; adding a method without adding a name here is
+   * a type error in both locales.
+   */
+  shippingMethods: {
+    standard: "Standard delivery (DHL)",
+    dpd: "DPD delivery",
+    express: "Express delivery (DHL Express)",
+    free: (name: string) => `${name} — free`,
+  },
+
   cartEmpty: "Cart is empty",
   cartTooLarge: "Cart is too large to check out. Please remove some items.",
   paymentsNotConfigured: "Payments are not configured. Please contact us.",

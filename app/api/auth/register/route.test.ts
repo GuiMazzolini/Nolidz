@@ -25,6 +25,15 @@ beforeEach(() => {
   testDb.reset();
 });
 
+/**
+ * bcryptjs is pure JS at cost 12, so each registration costs a few hundred
+ * milliseconds of real CPU. Exhausting a five-request budget means six of them
+ * back to back, which overruns the default five-second timeout whenever the
+ * rest of the suite is competing for cores. The budget is what these assert,
+ * not the speed, so they get room to finish.
+ */
+const RATE_LIMIT_TEST_TIMEOUT_MS = 30_000;
+
 describe("POST /api/auth/register", () => {
   it("creates an account and stores only a hash of the password", async () => {
     const { status, body } = await readResponse<{ ok: boolean }>(
@@ -104,36 +113,44 @@ describe("POST /api/auth/register", () => {
     expect((await POST(malformedRequest())).status).toBe(400);
   });
 
-  it("is rate limited per IP", async () => {
-    // The register budget is 5 per hour.
-    for (let i = 0; i < 5; i++) {
-      const res = await POST(
-        jsonRequest("POST", { ...credentials, email: `user${i}@example.com` })
+  it(
+    "is rate limited per IP",
+    { timeout: RATE_LIMIT_TEST_TIMEOUT_MS },
+    async () => {
+      // The register budget is 5 per hour.
+      for (let i = 0; i < 5; i++) {
+        const res = await POST(
+          jsonRequest("POST", { ...credentials, email: `user${i}@example.com` })
+        );
+        expect(res.status).toBe(201);
+      }
+
+      const limited = await POST(
+        jsonRequest("POST", { ...credentials, email: "sixth@example.com" })
       );
-      expect(res.status).toBe(201);
+      expect(limited.status).toBe(429);
+      expect(users()).toHaveLength(5);
     }
+  );
 
-    const limited = await POST(
-      jsonRequest("POST", { ...credentials, email: "sixth@example.com" })
-    );
-    expect(limited.status).toBe(429);
-    expect(users()).toHaveLength(5);
-  });
+  it(
+    "keeps separate budgets for separate IPs",
+    { timeout: RATE_LIMIT_TEST_TIMEOUT_MS },
+    async () => {
+      for (let i = 0; i < 5; i++) {
+        await POST(
+          jsonRequest("POST", { ...credentials, email: `user${i}@example.com` })
+        );
+      }
 
-  it("keeps separate budgets for separate IPs", async () => {
-    for (let i = 0; i < 5; i++) {
-      await POST(
-        jsonRequest("POST", { ...credentials, email: `user${i}@example.com` })
+      const other = await POST(
+        jsonRequest(
+          "POST",
+          { ...credentials, email: "elsewhere@example.com" },
+          { ip: "198.51.100.7" }
+        )
       );
+      expect(other.status).toBe(201);
     }
-
-    const other = await POST(
-      jsonRequest(
-        "POST",
-        { ...credentials, email: "elsewhere@example.com" },
-        { ip: "198.51.100.7" }
-      )
-    );
-    expect(other.status).toBe(201);
-  });
+  );
 });
