@@ -203,6 +203,13 @@ shape but has never run against the live API. Expect to check
 switching `offered` on; `dpd.test.ts` pins the current assumptions, so a
 mismatch will show up there.
 
+**DHL production access is currently blocked** — the API request was rejected
+for using a non-business email address, so `DHL_API_KEY` is unset and status
+polling is dark. Everything else about an order works. See
+[SHIPPING.md](SHIPPING.md) for the full picture: prices, the contracts and
+credentials each carrier needs, the go-live checklists, and what to do about
+that rejection.
+
 ## Checks
 
 ```bash
