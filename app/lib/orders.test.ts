@@ -64,6 +64,16 @@ function fakeSession(
   } as Stripe.Checkout.Session;
 }
 
+/**
+ * Stripe's ShippingRate has a dozen fields this code never reads, so the
+ * fixture states only the ones under test and casts past the full shape.
+ */
+function withShippingRate(rate: unknown): Partial<Stripe.Checkout.Session> {
+  return { shipping_cost: { shipping_rate: rate } } as unknown as Partial<
+    Stripe.Checkout.Session
+  >;
+}
+
 describe("buildOrderFromStripeSession", () => {
   it("maps Stripe money and shipping into a persisted order shape", () => {
     const order = buildOrderFromStripeSession(
@@ -83,8 +93,57 @@ describe("buildOrderFromStripeSession", () => {
     expect(order.shippingAddress?.city).toBe("Austin");
     expect(order.status).toBe("paid");
     expect(order.trackingNumber).toBeNull();
-    expect(order.carrier).toBeNull();
+    // No rate metadata to read, so it lands on standard and standard's carrier.
+    expect(order.shippingMethod).toBe("standard");
+    expect(order.carrier).toBe("DHL");
     expect(order.shippedAt).toBeNull();
+  });
+
+  /**
+   * The rate's metadata is the only durable record of what the buyer picked —
+   * display names are translated copy and Stripe reports the amount, not the
+   * choice behind it.
+   */
+  it("reads the chosen method from the expanded shipping rate", () => {
+    const order = buildOrderFromStripeSession(
+      fakeSession(
+        withShippingRate({
+          id: "shr_1",
+          object: "shipping_rate",
+          metadata: { methodId: "express", carrier: "DHL Express" },
+        })
+      ),
+      "guest@example.com"
+    );
+
+    expect(order.shippingMethod).toBe("express");
+    // Prefilled so tracking knows who to ask before anyone opens the ship form.
+    expect(order.carrier).toBe("DHL Express");
+  });
+
+  /**
+   * Orders placed before buyers had a choice, and any session retrieved
+   * without expanding the rate, must not be dropped or guessed at.
+   */
+  it("falls back to standard when no method can be read", () => {
+    expect(buildOrderFromStripeSession(fakeSession(), "g@example.com").shippingMethod)
+      .toBe("standard");
+
+    const unexpanded = buildOrderFromStripeSession(
+      fakeSession(withShippingRate("shr_1")),
+      "g@example.com"
+    );
+    expect(unexpanded.shippingMethod).toBe("standard");
+  });
+
+  it("ignores a method id that is not one we offer", () => {
+    const order = buildOrderFromStripeSession(
+      fakeSession(
+        withShippingRate({ id: "shr_1", metadata: { methodId: "teleport" } })
+      ),
+      "g@example.com"
+    );
+    expect(order.shippingMethod).toBe("standard");
   });
 });
 

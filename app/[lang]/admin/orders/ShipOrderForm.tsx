@@ -4,7 +4,21 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminT } from "@/app/i18n/client";
 
-const CARRIER_SUGGESTIONS = ["DHL", "CTT", "UPS", "FedEx", "Chronopost", "Other"];
+/**
+ * The carriers offered at checkout come first, because those are what the
+ * warehouse actually ships and what tracking can look up. The rest stay on the
+ * list because orders have gone out with them before and the field has always
+ * been free text.
+ */
+const CARRIER_SUGGESTIONS = [
+  "DHL",
+  "DHL Express",
+  "DPD",
+  "UPS",
+  "FedEx",
+  "GLS",
+  "Hermes",
+];
 
 export default function ShipOrderForm({
   sessionId,

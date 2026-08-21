@@ -139,6 +139,10 @@ export default function ShoppingCartList({ initialCartProducts }: { initialCartP
                   )}
                 </div>
 
+                <p className="text-sm text-ink/50">
+                  {t.cart.shippingStandardNote}
+                </p>
+
                 {remainingForFreeShipping > 0 && (
                   <p className="text-sm text-ink/65">
                     {t.cart.freeShippingHint(money(remainingForFreeShipping))}

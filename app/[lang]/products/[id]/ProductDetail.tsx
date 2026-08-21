@@ -7,6 +7,11 @@ import ProductGallery from "./ProductGallery";
 import { productGallery } from "@/app/lib/images";
 
 import { useCartStore } from "@/app/lib/store/cartStore";
+import {
+  FREE_SHIPPING_THRESHOLD,
+  getShippingMethod,
+  SHIPPING_FLAT_RATE,
+} from "@/app/lib/shipping";
 import { useCheckout } from "@/app/lib/use-checkout";
 import {
   colorwayPrice,
@@ -384,7 +389,17 @@ export default function ProductDetail({
                     <span className="block font-semibold text-ink">
                       {t.productDetail.shipsToOnly(t.common.shippingArea)}
                     </span>
-                    <span>{t.productDetail.shippingRates}</span>
+                    <span>
+                      {t.productDetail.shippingRates(
+                        formatMoney(SHIPPING_FLAT_RATE, undefined, locale),
+                        formatMoney(FREE_SHIPPING_THRESHOLD, undefined, locale),
+                        formatMoney(
+                          getShippingMethod("express")?.rate ?? 0,
+                          undefined,
+                          locale
+                        )
+                      )}
+                    </span>
                   </div>
                   <div>
                     <span className="block font-semibold text-ink">

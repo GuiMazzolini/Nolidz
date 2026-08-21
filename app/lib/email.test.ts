@@ -24,6 +24,7 @@ const order: Order = {
     { name: "Mug", quantity: 1, unitAmount: 14.99 },
   ],
   subtotal: 194.97,
+  shippingMethod: "standard",
   shippingCost: 0,
   total: 194.97,
   currency: "eur",

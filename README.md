@@ -158,6 +158,58 @@ Nothing deletes them, so a disputed order can be traced. `app/lib/stock-hold.ts`
 has the details, and `stock-hold.integration.test.ts` fires overlapping writes
 at a real MongoDB to prove only one buyer can win the last pair.
 
+## Shipping and tracking
+
+Buyers pick a delivery on Stripe's Checkout page. The choices, their prices and
+the carrier behind each one live in `SHIPPING_METHODS` in `app/lib/shipping.ts`
+and nowhere else — the cart quote, the product page copy, the Stripe rates and
+the carrier written onto the order are all derived from that one list.
+
+Standard (DHL) and Express (DHL Express) are live. **DPD is defined but held
+back**: it carries `offered: false`, so `OFFERED_SHIPPING_METHODS` leaves it out
+and checkout never shows it. Everything behind it is finished and tested — the
+tracking client, the carrier mapping, the pricing, the admin form — because the
+only thing missing is the DPD business contract. Selling it is that one flag
+plus the credentials below. It stays in the catalogue rather than being deleted
+so any order that ever chose it still reads back correctly.
+
+Free shipping over €100 applies to standard delivery only. The threshold is
+there to nudge basket size, not to give away a next-day air upgrade, so express
+and DPD keep their full rate however large the basket is.
+
+Each rate is stamped with its method id in Stripe metadata, and fulfillment
+reads that id back — never the display name, which is translated copy that will
+be reworded. The order gets both the method that was sold and a prefilled
+`carrier`, which an admin can still correct in the ship form if the parcel
+went out another way.
+
+Tracking then routes by carrier: `app/lib/carriers.ts` turns the free-text
+carrier into either a DHL service code or DPD, and `refreshTrackingForOrder`
+calls the matching client. Both clients return the same result shape, so the
+six-hour refresh floor, the terminal-status rule and the admin UI stay
+carrier-agnostic.
+
+DHL needs only `DHL_API_KEY` and covers standard and express alike. DPD is
+different: there is no self-service signup, so `DPD_API_URL`, `DPD_DELIS_ID`
+and `DPD_PASSWORD` come from a DPD business contract. Without them DPD is
+simply unconfigured — a parcel an admin ships with DPD by hand still shows its
+tracking number, the admin just cannot poll its status. That is a supported
+state, not a broken one, and it is reported differently from a carrier we have
+no integration for at all.
+
+The DPD client is written to DPD's documented login-then-`parcellifecycle`
+shape but has never run against the live API. Expect to check
+`parseDpdResponse` and `mapDpdStatus` against a real sandbox response before
+switching `offered` on; `dpd.test.ts` pins the current assumptions, so a
+mismatch will show up there.
+
+**DHL production access is currently blocked** — the API request was rejected
+for using a non-business email address, so `DHL_API_KEY` is unset and status
+polling is dark. Everything else about an order works. See
+[SHIPPING.md](SHIPPING.md) for the full picture: prices, the contracts and
+credentials each carrier needs, the go-live checklists, and what to do about
+that rejection.
+
 ## Checks
 
 ```bash

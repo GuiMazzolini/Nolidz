@@ -194,13 +194,13 @@ describe("the force flag", () => {
 describe("failure reasons map to the status the admin needs to see", () => {
   const cases: [RefreshOutcome & { ok: false }, number, string][] = [
     [{ ok: false, reason: "no-tracking-number" }, 400, "no tracking number"],
-    [{ ok: false, reason: "carrier-not-supported" }, 400, "only check DHL"],
-    [{ ok: false, reason: "not-configured" }, 503, "DHL_API_KEY"],
+    [{ ok: false, reason: "carrier-not-supported" }, 400, "no tracking integration"],
+    [{ ok: false, reason: "not-configured" }, 503, "credentials for this carrier are not set"],
     [{ ok: false, reason: "throttled" }, 429, "checked recently"],
     [{ ok: false, reason: "not-found" }, 404, "not registered"],
     [{ ok: false, reason: "rate-limited" }, 429, "daily request limit"],
-    [{ ok: false, reason: "unauthorized" }, 502, "rejected our API key"],
-    [{ ok: false, reason: "error" }, 502, "Could not reach DHL"],
+    [{ ok: false, reason: "unauthorized" }, 502, "rejected our credentials"],
+    [{ ok: false, reason: "error" }, 502, "Could not reach the carrier"],
   ];
 
   it.each(cases)("%o becomes %i", async (outcome, expected, fragment) => {
@@ -222,6 +222,6 @@ describe("failure reasons map to the status the admin needs to see", () => {
     );
 
     expect(status).toBe(502);
-    expect(body.error).toContain("Could not reach DHL");
+    expect(body.error).toContain("Could not reach the carrier");
   });
 });

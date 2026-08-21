@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { useAdminT } from "@/app/i18n/client";
 
 /**
- * Asks DHL for the current status of one parcel.
+ * Asks the parcel's carrier for its current status.
  *
  * Deliberately manual. An automatic refresh on page load would spend the
- * daily DHL budget every time an admin opened this list, so the request only
- * happens when someone decides they want it.
+ * daily carrier budget every time an admin opened this list, so the request
+ * only happens when someone decides they want it.
  */
 export default function RefreshTrackingButton({
   sessionId,
@@ -19,7 +19,7 @@ export default function RefreshTrackingButton({
   sessionId: string;
   /** False once the parcel is delivered, or within the six-hour floor. */
   canRefresh: boolean;
-  /** False for a non-DHL carrier, which we cannot ask about at all. */
+  /** False for a carrier we have no integration for at all. */
   carrierSupported?: boolean;
 }) {
   const t = useAdminT();
@@ -82,7 +82,7 @@ export default function RefreshTrackingButton({
         }
         className="border-2 border-ink/15 bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:border-cardboard-dark disabled:opacity-50"
       >
-        {loading ? t.orders.checkingDhl : t.orders.checkDhl}
+        {loading ? t.orders.checkingStatus : t.orders.checkStatus}
       </button>
       {message && (
         <p

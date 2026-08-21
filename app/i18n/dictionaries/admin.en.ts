@@ -162,7 +162,7 @@ const admin = {
     summary: (total: number, awaiting: number) => {
       const count = `${total} order${total === 1 ? "" : "s"}`;
       const waiting = awaiting > 0 ? ` · ${awaiting} awaiting shipment` : "";
-      return `${count}${waiting}. After you ship with DHL (or another carrier), add the tracking number below.`;
+      return `${count}${waiting}. After you ship the parcel, add the tracking number below.`;
     },
     empty: "No orders yet. Complete a test checkout to see fulfillment here.",
     statusShipped: "Shipped",
@@ -173,17 +173,17 @@ const admin = {
     trackingNumber: (value: string) => `Tracking: ${value}`,
     carrier: (name: string) => `Carrier: ${name}`,
     markedShipped: (date: string) => `Marked shipped ${date}`,
-    dhlPrefix: "DHL:",
+    carrierStatusPrefix: (carrier: string) => `${carrier}:`,
     checkedAt: (date: string) => `Checked ${date}`,
 
     shipFormUpdate: "Update shipment",
     shipFormCreate: "Mark as shipped",
     shipFormHint:
-      "After you drop the parcel at DHL (or another carrier), paste the tracking number here.",
+      "After you drop the parcel off, paste the tracking number here. The carrier is prefilled from the delivery the customer paid for — change it if you shipped another way.",
     trackingNumberLabel: "Tracking number",
     trackingNumberPlaceholder: "e.g. JD014600003456789012",
     carrierLabel: "Carrier (optional)",
-    carrierPlaceholder: "DHL, CTT…",
+    carrierPlaceholder: "DHL, DPD…",
     emailCustomer: "Email the customer with tracking details",
     shippedWithEmail: "Marked as shipped and customer email queued.",
     shippedNoEmail: "Marked as shipped (no email sent).",
@@ -191,12 +191,13 @@ const admin = {
     updateAndNotify: "Update & notify",
     markShipped: "Mark shipped",
 
-    checkDhl: "Check DHL status",
-    checkingDhl: "Checking DHL…",
-    checkUpdated: "Updated from DHL.",
+    checkStatus: "Check carrier status",
+    checkingStatus: "Checking…",
+    checkUpdated: "Updated from the carrier.",
     checkCached: "Already up to date (cached).",
     checkFailed: "Check failed",
-    carrierUnsupported: "Only DHL parcels can be checked from here",
+    carrierUnsupported:
+      "We cannot check this carrier from here — track it on the carrier's own site",
     refreshBlocked: "Delivered, or checked within the last 6 hours",
 
     network: "Network error — please try again.",
