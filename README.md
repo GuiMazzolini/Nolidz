@@ -16,8 +16,8 @@ npm test
 ```
 
 That is the whole setup. No database to install, configure, or start — the
-few tests that need a real MongoDB start a throwaway one automatically and
-delete it when they finish. The first run downloads a MongoDB binary (~100 MB,
+tests that need a real MongoDB share one throwaway server, started before the
+run and deleted when it finishes. The first run downloads a MongoDB binary (~100 MB,
 cached afterwards), so it takes a minute longer than the rest.
 
 ```bash
@@ -45,6 +45,15 @@ second signup that arrives at the same moment.
 ```bash
 npm run test:integration    # just those
 ```
+
+One of them, `app/test/smoke.integration.test.ts`, is not about a single
+handler at all: it walks one purchase through the real routes from signup to
+order confirmation — sign in, an admin publishes a product with its image, a
+basket, a checkout that holds stock, and Stripe's webhook. Everything it
+touches has its own tests; what it catches is those parts no longer meeting.
+When a webhook stops reaching fulfillment the stock stays held, the product
+drops off the storefront and the buyer has no order to look up, and every
+narrower test still passes.
 
 To run them against a database you already have instead of a throwaway one:
 
