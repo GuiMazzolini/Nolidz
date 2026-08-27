@@ -288,6 +288,9 @@ const storefront = {
     guestLookupCta: "Guest order lookup",
     backToOrdersPlain: "Back to orders",
 
+    returnsNote: "Something not right? You have 15 days to send it back, and we pay the return postage.",
+    returnsCta: "How to send it back",
+
     lookupMetaTitle: "Guest Order Lookup",
     lookupHeading: "Guest order lookup",
     lookupIntro:
@@ -398,11 +401,85 @@ const storefront = {
     errorGeneric: "Something went wrong",
   },
 
+  /**
+   * The practical companion to the Widerrufsbelehrung at /widerruf.
+   *
+   * That page is the statutory text and says what we owe; this one says what
+   * the customer actually does about it. The two must never drift apart — in
+   * particular "we pay the postage" here is the same promise as "Wir tragen
+   * die Kosten der Rücksendung" there, and neither can be softened alone:
+   * return costs can only be moved onto the customer for orders placed after
+   * the legal text says so.
+   */
+  returns: {
+    metaTitle: "Returns",
+    heading: "How to send it back",
+    intro:
+      "Changed your mind, or the fit is wrong? Send the pair back within 15 days. Return postage is on us — a return never costs you anything.",
+
+    deadlineHeading: "You have 15 days",
+    /**
+     * 14 days is the statutory floor in /widerruf; the 15th is ours to give.
+     * Saying which is which keeps the extra day readable as generosity rather
+     * than as a contradiction of the legal page.
+     */
+    deadlineBody:
+      "The law gives you 14 days from the day your parcel arrives to change your mind, no reason needed. We give you 15. You only have to send the parcel back within those 15 days — it does not have to reach us by then.",
+
+    stepsHeading: "Four steps",
+    step1Heading: "Tell us",
+    step1Body: (email: string) =>
+      `Email ${email} with your order reference and which pair is coming back.`,
+    step1Aside:
+      "Your order reference is in your confirmation email and at the top of your order page.",
+    step2Heading: "We send you a label",
+    step2Body:
+      "You get a prepaid DHL return label by email, usually within one working day. There is nothing to pay.",
+    step3Heading: "Pack it and drop it off",
+    step3Body:
+      "Put the shoes back in their box, print the label and tape it to the parcel, then hand it in at any DHL Paketshop or Packstation.",
+    step3Aside:
+      "Keep the drop-off receipt until your refund lands — it is your proof the parcel is on its way.",
+    step4Heading: "We refund you",
+    step4Body:
+      "Once the parcel reaches us we refund you within 14 days, to the card or account you paid with.",
+
+    postageHeading: "Who pays the postage",
+    postageBody:
+      "We do. The label we send you is prepaid, so returning an order costs you nothing. Ask us for the label before you post anything — a parcel sent without one is slower for both of us.",
+
+    refundHeading: "What you get back",
+    refundWholeOrder:
+      "Send the whole order back and you get the full amount, including the standard delivery you paid.",
+    /** Priced from SHIPPING_METHODS, like the product page, so a rate change is one edit. */
+    refundExpress: (standard: string) =>
+      `If you chose express delivery, we refund delivery up to the standard rate of ${standard} — the extra you paid for speed is not refunded.`,
+    refundPartial:
+      "Keep any part of the order and the delivery charge stays with it.",
+
+    conditionHeading: "Condition",
+    conditionBody:
+      "Send the shoes back unworn and in their original box. Trying a pair on indoors is expected and completely fine — that is what the 15 days are for. We only reduce a refund if a pair comes back worn or damaged beyond that.",
+
+    addressHeading: "Our address",
+    addressBody:
+      "Ask for a label before sending anything here — an unannounced parcel is hard to match to an order, and that slows your refund down.",
+
+    questionsHeading: "Questions",
+    questionsBody: (email: string) => `Write to ${email} and we will answer.`,
+
+    /** Split around the link, which renders between the two halves. */
+    legalBefore: "This page is the practical version. The binding text is the ",
+    legalLinkLabel: "Widerrufsbelehrung",
+    legalAfter: ", which is also where you will find the cancellation address and the exclusions.",
+  },
+
   footer: {
     copyright: (year: number) => `© ${year} Kristiyan Valin`,
     impressum: "Impressum",
     datenschutz: "Datenschutz",
     widerruf: "Widerruf",
+    returns: "Returns",
   },
 
   sizeGuide: {

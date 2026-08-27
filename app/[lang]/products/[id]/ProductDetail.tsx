@@ -25,6 +25,7 @@ import {
   type ProductVariant,
 } from "@/app/lib/variants";
 import type { Product } from "@/app/product-data";
+import Link from "@/app/i18n/Link";
 import { useLocale, useT } from "@/app/i18n/client";
 import dynamic from "next/dynamic";
 
@@ -405,7 +406,10 @@ export default function ProductDetail({
                     <span className="block font-semibold text-ink">
                       {t.productDetail.easyReturns}
                     </span>
-                    <span>{t.productDetail.returnPolicy}</span>
+                    {/* The promise made here is spelled out on /returns. */}
+                    <Link href="/returns" className="underline hover:text-ink">
+                      {t.productDetail.returnPolicy}
+                    </Link>
                   </div>
                 </div>
               </div>

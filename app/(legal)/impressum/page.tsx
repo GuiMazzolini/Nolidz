@@ -1,4 +1,9 @@
 import type { Metadata } from "next";
+import {
+  BUSINESS,
+  BUSINESS_ADDRESS_INLINE,
+  BUSINESS_ADDRESS_LINES,
+} from "@/app/lib/business";
 
 export const metadata: Metadata = { title: "Impressum" };
 
@@ -11,10 +16,10 @@ export default function ImpressumPage() {
 
       <section className="space-y-1 text-sm text-ink/80">
         <p className="font-semibold text-ink">Angaben gemäß § 5 TMG</p>
-        <p>Kristiyan Valin</p>
-        <p>Schönleinstraße 15</p>
-        <p>10967 Berlin</p>
-        <p>Deutschland</p>
+        {BUSINESS_ADDRESS_LINES.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+        <p>{BUSINESS.country}</p>
       </section>
 
       <section className="mt-8 space-y-1 text-sm text-ink/80">
@@ -22,10 +27,10 @@ export default function ImpressumPage() {
         <p>
           E-Mail:{" "}
           <a
-            href="mailto:kristiyanval@gmail.com"
+            href={`mailto:${BUSINESS.email}`}
             className="underline hover:text-ink"
           >
-            kristiyanval@gmail.com
+            {BUSINESS.email}
           </a>
         </p>
       </section>
@@ -34,7 +39,7 @@ export default function ImpressumPage() {
         <p className="font-semibold text-ink">
           Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV
         </p>
-        <p>Kristiyan Valin, Schönleinstraße 15, 10967 Berlin</p>
+        <p>{BUSINESS_ADDRESS_INLINE}</p>
       </section>
 
       <section className="mt-8 text-sm text-ink/60">

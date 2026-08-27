@@ -106,6 +106,31 @@ describe("the locale proxy", () => {
     expect(res.cookies.get(LOCALE_COOKIE)?.value).toBe("en");
   });
 
+  it("leaves the German-only legal pages on their bare URL", () => {
+    // These live in app/(legal), not app/[lang]: prefixing /impressum would
+    // point it at /de/impressum, which does not exist. A 404 on the Impressum
+    // and the Widerrufsbelehrung is not a cosmetic bug for a German shop.
+    for (const path of ["/impressum", "/datenschutz", "/widerruf"]) {
+      const res = proxy(request(path, { "accept-language": "en" }));
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    }
+  });
+
+  it("ignores a trailing slash on a legal page", () => {
+    expect(proxy(request("/widerruf/")).status).toBe(200);
+  });
+
+  it("still redirects a path that merely starts like a legal one", () => {
+    // The exemption is a whole-path match, not a prefix: /widerrufsformular
+    // would be an ordinary storefront route and must keep its locale.
+    const res = proxy(request("/widerrufsformular", { "accept-language": "de" }));
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe(
+      "http://localhost:3000/de/widerrufsformular"
+    );
+  });
+
   it("prefers a remembered choice over the browser's preference", () => {
     const res = proxy(
       request("/products", {

@@ -279,6 +279,9 @@ const storefront: StorefrontDict = {
     guestLookupCta: "Gast-Bestellsuche",
     backToOrdersPlain: "Zurück zu den Bestellungen",
 
+    returnsNote: "Passt etwas nicht? Du hast 15 Tage, um es zurückzuschicken — das Porto übernehmen wir.",
+    returnsCta: "So schickst du zurück",
+
     lookupMetaTitle: "Gast-Bestellsuche",
     lookupHeading: "Gast-Bestellsuche",
     lookupIntro:
@@ -391,11 +394,68 @@ const storefront: StorefrontDict = {
     errorGeneric: "Etwas ist schiefgelaufen",
   },
 
+  returns: {
+    metaTitle: "Rücksendung",
+    heading: "So schickst du zurück",
+    intro:
+      "Umentschieden, oder passt nicht? Schick das Paar innerhalb von 15 Tagen zurück. Das Porto übernehmen wir — eine Rücksendung kostet dich nichts.",
+
+    deadlineHeading: "Du hast 15 Tage",
+    deadlineBody:
+      "Das Gesetz gibt dir 14 Tage ab dem Tag, an dem dein Paket ankommt, um es dir ohne Angabe von Gründen anders zu überlegen. Wir geben dir 15. Absenden musst du das Paket innerhalb dieser 15 Tage — ankommen muss es bis dahin nicht.",
+
+    stepsHeading: "Vier Schritte",
+    step1Heading: "Sag uns Bescheid",
+    step1Body: (email: string) =>
+      `Schreib an ${email} — mit deiner Bestellnummer und dem Paar, das zurückgeht.`,
+    step1Aside:
+      "Deine Bestellnummer steht in der Bestellbestätigung und oben auf deiner Bestellseite.",
+    step2Heading: "Wir schicken dir ein Label",
+    step2Body:
+      "Du bekommst per E-Mail ein frankiertes DHL-Retourenlabel, in der Regel innerhalb eines Werktags. Zu zahlen ist nichts.",
+    step3Heading: "Einpacken und abgeben",
+    step3Body:
+      "Leg die Schuhe zurück in ihren Karton, druck das Label aus, kleb es auf das Paket und gib es in einem DHL-Paketshop oder an einer Packstation ab.",
+    step3Aside:
+      "Heb den Einlieferungsbeleg auf, bis deine Rückzahlung da ist — er ist dein Nachweis, dass das Paket unterwegs ist.",
+    step4Heading: "Wir zahlen zurück",
+    step4Body:
+      "Sobald das Paket bei uns ankommt, erstatten wir dir den Betrag innerhalb von 14 Tagen — auf dieselbe Karte oder dasselbe Konto, mit dem du bezahlt hast.",
+
+    postageHeading: "Wer das Porto zahlt",
+    postageBody:
+      "Wir. Das Label, das wir dir schicken, ist frankiert — die Rücksendung kostet dich nichts. Fordere es an, bevor du etwas verschickst: ein Paket ohne Label ist für uns beide langsamer.",
+
+    refundHeading: "Was du zurückbekommst",
+    refundWholeOrder:
+      "Geht die ganze Bestellung zurück, erstatten wir den vollen Betrag einschließlich der bezahlten Standardlieferung.",
+    refundExpress: (standard: string) =>
+      `Hast du Express gewählt, erstatten wir die Versandkosten bis zur Höhe des Standardversands von ${standard} — der Aufpreis für die schnellere Zustellung wird nicht erstattet.`,
+    refundPartial:
+      "Behältst du einen Teil der Bestellung, bleiben die Versandkosten bei ihr.",
+
+    conditionHeading: "Zustand",
+    conditionBody:
+      "Schick die Schuhe ungetragen und im Originalkarton zurück. Drinnen anprobieren ist selbstverständlich in Ordnung — dafür sind die 15 Tage da. Nur wenn ein Paar sichtbar getragen oder darüber hinaus beschädigt zurückkommt, mindern wir die Erstattung.",
+
+    addressHeading: "Unsere Adresse",
+    addressBody:
+      "Fordere bitte erst ein Label an, bevor du etwas hierher schickst — ein unangekündigtes Paket lässt sich schwer einer Bestellung zuordnen, und das verzögert deine Rückzahlung.",
+
+    questionsHeading: "Fragen",
+    questionsBody: (email: string) => `Schreib an ${email}, wir antworten dir.`,
+
+    legalBefore: "Diese Seite ist die praktische Fassung. Verbindlich ist die ",
+    legalLinkLabel: "Widerrufsbelehrung",
+    legalAfter: " — dort stehen auch die Widerrufsadresse und die Ausnahmen.",
+  },
+
   footer: {
     copyright: (year: number) => `© ${year} Kristiyan Valin`,
     impressum: "Impressum",
     datenschutz: "Datenschutz",
     widerruf: "Widerruf",
+    returns: "Rücksendung",
   },
 
   sizeGuide: {

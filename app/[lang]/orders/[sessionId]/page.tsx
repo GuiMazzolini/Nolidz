@@ -112,6 +112,16 @@ export default async function OrderDetailPage({
             <OrderTracking order={order} />
           </div>
         </article>
+
+        <aside className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-ink/10 bg-white px-6 py-4">
+          <p className="text-sm text-gray-600">{t.orders.returnsNote}</p>
+          <Link
+            href="/returns"
+            className="font-semibold text-blue-600 hover:text-blue-700"
+          >
+            {t.orders.returnsCta}
+          </Link>
+        </aside>
       </div>
     </div>
   );

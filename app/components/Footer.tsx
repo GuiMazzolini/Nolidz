@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import NextLink from "next/link";
+import Link from "@/app/i18n/Link";
 import { useT } from "@/app/i18n/client";
 
 export default function Footer() {
@@ -21,7 +22,15 @@ export default function Footer() {
           />
           <span className="font-display italic font-extrabold text-xl">nolidz</span>
         </div>
-        <nav className="flex gap-5 text-xs text-ink/70">
+        <nav className="flex flex-wrap justify-center gap-5 text-xs text-ink/70">
+          {/*
+            The locale-aware Link: /returns lives under app/[lang]. The three
+            legal pages below do not, so they keep plain next/link and their
+            bare URLs.
+          */}
+          <Link href="/returns" className="hover:text-ink transition-colors">
+            {t.footer.returns}
+          </Link>
           <NextLink href="/impressum" className="hover:text-ink transition-colors">
             {t.footer.impressum}
           </NextLink>

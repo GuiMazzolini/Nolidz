@@ -45,6 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entry("/products", "daily", 0.9),
     entry("/cart", "weekly", 0.5),
     entry("/orders/lookup", "monthly", 0.4),
+    entry("/returns", "yearly", 0.4),
   ];
 
   try {
