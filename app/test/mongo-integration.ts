@@ -1,4 +1,5 @@
 import { MongoClient, type Db } from "mongodb";
+import { inject } from "vitest";
 
 /**
  * Support for tests that run against a real MongoDB instead of the in-memory
@@ -9,8 +10,8 @@ import { MongoClient, type Db } from "mongodb";
  * think, or that a unique index fires on a racing insert. These tests do, and
  * they exist mainly to keep the double honest.
  *
- * Nothing needs installing to run them. With no configuration, each test file
- * starts a throwaway MongoDB of its own and throws it away afterwards, so
+ * Nothing needs installing to run them. With no configuration the run starts
+ * one throwaway MongoDB in `global-mongo.ts` and throws it away afterwards, so
  * `npm test` behaves the same on a fresh clone as it does here. Set
  * `TEST_MONGODB_URI` to point at a server you already have — CI does, so it
  * uses its service container rather than downloading anything.
@@ -22,10 +23,6 @@ import { MongoClient, type Db } from "mongodb";
  * server can never delete its data.
  */
 const TEST_DB_PREFIX = "nolidz_test_";
-
-/** Set when this process started its own server, so it can be stopped again. */
-let memoryServer: { getUri: () => string; stop: () => Promise<boolean> } | null =
-  null;
 
 async function isReachable(uri: string): Promise<boolean> {
   const client = new MongoClient(uri, { serverSelectionTimeoutMS: 1500 });
@@ -41,30 +38,18 @@ async function isReachable(uri: string): Promise<boolean> {
 }
 
 /**
- * A MongoDB to test against, or null if one could not be obtained — in which
- * case the caller skips rather than fails, so a machine with no network on
- * first run is not blocked.
+ * The MongoDB this run has to test against, or null if there is none — in
+ * which case the caller skips rather than fails, so a machine with no network
+ * on first run is not blocked.
  *
- * Downloading the server binary happens once, on first use, and is cached in
- * node_modules for every run after.
+ * The server itself is started once per run by `global-mongo.ts`; this checks
+ * that it is actually answering, which is what catches a `TEST_MONGODB_URI`
+ * pointing at something that is not there.
  */
 export async function getIntegrationMongo(): Promise<string | null> {
-  const configured = process.env.TEST_MONGODB_URI;
-  if (configured) {
-    return (await isReachable(configured)) ? configured : null;
-  }
-
-  try {
-    const { MongoMemoryServer } = await import("mongodb-memory-server");
-    memoryServer = await MongoMemoryServer.create();
-    return memoryServer.getUri();
-  } catch (err) {
-    console.warn(
-      "Integration tests skipped: could not start a MongoDB.",
-      err instanceof Error ? err.message : err
-    );
-    return null;
-  }
+  const uri = inject("mongoUri");
+  if (!uri) return null;
+  return (await isReachable(uri)) ? uri : null;
 }
 
 export type TestDatabase = {
@@ -72,7 +57,7 @@ export type TestDatabase = {
   name: string;
   /** Empty every collection, keeping the indexes the app created. */
   clear: () => Promise<void>;
-  /** Drop the database, close the client, and stop a server we started. */
+  /** Drop the database and close the client. The server outlives this. */
   teardown: () => Promise<void>;
 };
 
@@ -111,8 +96,6 @@ export async function useTestDatabase(
       }
       await db.dropDatabase().catch(() => {});
       await client.close().catch(() => {});
-      await memoryServer?.stop().catch(() => {});
-      memoryServer = null;
     },
   };
 }

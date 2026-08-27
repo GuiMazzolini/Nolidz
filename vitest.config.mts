@@ -14,6 +14,8 @@ export default defineConfig({
     environment: "node",
     include: ["app/**/*.test.ts", "app/**/*.test.tsx"],
     setupFiles: ["app/test/setup.ts"],
+    // Starts the one MongoDB the *.integration.test.ts files share.
+    globalSetup: ["app/test/global-mongo.ts"],
   },
   resolve: {
     alias: {
