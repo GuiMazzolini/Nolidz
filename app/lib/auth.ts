@@ -7,6 +7,7 @@ import { isAdminEmail } from "@/app/lib/admin";
 import { users } from "@/app/lib/db-collections";
 import { checkRateLimit, RATE_LIMITS } from "@/app/lib/rate-limit";
 import { normalizeEmail } from "@/app/lib/normalize-email";
+import { isGoogleConfigured } from "@/app/lib/oauth";
 
 /**
  * NextAuth hands `authorize` a request-like object whose headers are a plain
@@ -24,10 +25,16 @@ function getLoginIp(req: { headers?: Record<string, string> | unknown }): string
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_ID!,
-      clientSecret: process.env.GOOGLE_SECRET!,
-    }),
+    // Spread-or-nothing rather than a filtered array, so the Google entry is
+    // absent (not merely disabled) when it has no credentials to use.
+    ...(isGoogleConfigured()
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_ID!,
+            clientSecret: process.env.GOOGLE_SECRET!,
+          }),
+        ]
+      : []),
     Credentials({
       name: "Email",
       credentials: {

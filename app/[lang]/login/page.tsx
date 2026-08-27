@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import LoginForm from "./LoginForm";
 import { getT } from "@/app/i18n/server";
+import { isGoogleConfigured } from "@/app/lib/oauth";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -20,7 +21,7 @@ export default function LoginPage() {
         </div>
       }
     >
-      <LoginForm />
+      <LoginForm googleEnabled={isGoogleConfigured()} />
     </Suspense>
   );
 }
