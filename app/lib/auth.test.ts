@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import bcrypt from "bcryptjs";
 
 vi.mock("@/app/api/db", async () => {
@@ -127,6 +127,39 @@ describe("credentials sign-in", () => {
         { headers: { "x-forwarded-for": "198.51.100.200" } }
       )
     ).toBeNull();
+  });
+});
+
+/**
+ * `authOptions` builds its provider list once at module load, so each case
+ * re-imports the module with the environment already stubbed rather than
+ * mutating a list that is shared with every other test in this file.
+ */
+describe("provider registration", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  async function providerIds(): Promise<string[]> {
+    vi.resetModules();
+    const { authOptions: fresh } = await import("@/app/lib/auth");
+    return fresh.providers.map((p) => p.id);
+  }
+
+  it("offers Google once both credentials are set", async () => {
+    vi.stubEnv("GOOGLE_ID", "client-id");
+    vi.stubEnv("GOOGLE_SECRET", "client-secret");
+    expect(await providerIds()).toEqual(["google", "credentials"]);
+  });
+
+  // Registering Google with an undefined client id would still render the
+  // button and still start the redirect, stranding the user on a Google error
+  // page instead of leaving them the email form that does work.
+  it("omits Google entirely when its credentials are missing", async () => {
+    vi.stubEnv("GOOGLE_ID", "");
+    vi.stubEnv("GOOGLE_SECRET", "");
+    expect(await providerIds()).toEqual(["credentials"]);
   });
 });
 

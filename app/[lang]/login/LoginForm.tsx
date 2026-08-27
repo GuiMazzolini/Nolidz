@@ -9,7 +9,7 @@ import { useLocalePath, useT } from "@/app/i18n/client";
 
 type Mode = "login" | "signup";
 
-export default function LoginPage() {
+export default function LoginPage({ googleEnabled }: { googleEnabled: boolean }) {
   const t = useT();
   const localePath = useLocalePath();
   const router = useRouter();
@@ -206,23 +206,27 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-ink/10" />
-            <span className="text-xs font-medium uppercase tracking-wide text-ink/40">
-              {t.common.or}
-            </span>
-            <div className="h-px flex-1 bg-ink/10" />
-          </div>
+          {googleEnabled && (
+            <>
+              <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-ink/10" />
+                <span className="text-xs font-medium uppercase tracking-wide text-ink/40">
+                  {t.common.or}
+                </span>
+                <div className="h-px flex-1 bg-ink/10" />
+              </div>
 
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => signIn("google", { callbackUrl })}
-              className="flex w-full items-center justify-center gap-2 border-2 border-ink/15 bg-white py-2.5 text-sm font-semibold text-ink hover:border-cardboard transition-colors"
-            >
-              {t.login.continueWithGoogle}
-            </button>
-          </div>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => signIn("google", { callbackUrl })}
+                  className="flex w-full items-center justify-center gap-2 border-2 border-ink/15 bg-white py-2.5 text-sm font-semibold text-ink hover:border-cardboard transition-colors"
+                >
+                  {t.login.continueWithGoogle}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <p className="mt-6 text-center text-sm text-ink/50">
