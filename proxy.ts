@@ -10,6 +10,22 @@ import {
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 /**
+ * Routes that live outside `app/[lang]` and must keep their bare URL.
+ *
+ * The statutory pages in `app/(legal)` are German-only by design — an
+ * Impressum and a Widerrufsbelehrung are the German text of the offer, not
+ * storefront copy to translate — so they sit at the app root. Sending them
+ * through the locale redirect below points `/impressum` at `/de/impressum`,
+ * which is a route that does not exist: the three pages a German shop is
+ * legally required to keep reachable would all answer 404.
+ */
+const UNPREFIXED_PATHS = ["/impressum", "/datenschutz", "/widerruf"];
+
+function isUnprefixed(pathname: string): boolean {
+  return UNPREFIXED_PATHS.includes(pathname.replace(/\/+$/, "") || "/");
+}
+
+/**
  * Puts every request on a locale-prefixed URL, and remembers which one.
  *
  * Two jobs, in this order:
@@ -21,9 +37,13 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
  * 2. A URL without one is resolved from the cookie first and `Accept-Language`
  *    second, then redirected. The cookie takes precedence so an explicit switch
  *    survives a later visit to a bare `/`.
+ *
+ * The legal pages are exempt from both, and pass through untouched.
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  if (isUnprefixed(pathname)) return NextResponse.next();
 
   const pathLocale = localeFromPath(pathname);
 

@@ -1,6 +1,7 @@
 import { Barlow_Condensed, Inter } from "next/font/google";
 import Link from "next/link";
 import Image from "next/image";
+import { DEFAULT_LOCALE, localePath } from "@/app/i18n/config";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const barlow = Barlow_Condensed({
@@ -31,7 +32,11 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
       </header>
       <main className="flex-1">{children}</main>
       <footer className="border-t-2 border-ink/10 py-6">
-        <div className="mx-auto max-w-2xl px-4 flex gap-5 text-xs text-ink/50">
+        <div className="mx-auto max-w-2xl px-4 flex flex-wrap gap-5 text-xs text-ink/50">
+          {/* Back into the storefront, which is where the locale lives again. */}
+          <Link href={localePath(DEFAULT_LOCALE, "/returns")} className="hover:text-ink">
+            Rücksendung
+          </Link>
           <Link href="/impressum" className="hover:text-ink">Impressum</Link>
           <Link href="/datenschutz" className="hover:text-ink">Datenschutz</Link>
           <Link href="/widerruf" className="hover:text-ink">Widerruf</Link>

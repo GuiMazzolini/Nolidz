@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { DEFAULT_LOCALE, localePath } from "@/app/i18n/config";
+import { BUSINESS, BUSINESS_ADDRESS_LINES } from "@/app/lib/business";
 
 export const metadata: Metadata = { title: "Widerrufsbelehrung" };
 
@@ -8,6 +11,23 @@ export default function WiderrufPage() {
       <h1 className="font-barlow text-4xl font-extrabold uppercase tracking-tight text-ink">
         Widerrufsbelehrung
       </h1>
+
+      {/*
+        The statutory text says what we owe; it does not say where to get a
+        label. The default locale is hard-coded into the href because this page
+        is not under app/[lang] and so has no locale of its own to inherit.
+      */}
+      <p className="rounded-lg border-2 border-ink/10 bg-white p-4 text-sm">
+        Wie eine Rücksendung praktisch abläuft — Label, Fristen, Adresse und
+        wer das Porto zahlt — steht auf{" "}
+        <Link
+          href={localePath(DEFAULT_LOCALE, "/returns")}
+          className="font-semibold underline hover:text-ink"
+        >
+          So schickst du zurück
+        </Link>
+        .
+      </p>
 
       <section>
         <h2 className="mb-2 font-semibold text-ink text-base">Widerrufsrecht</h2>
@@ -24,16 +44,16 @@ export default function WiderrufPage() {
           Um Ihr Widerrufsrecht auszuüben, müssen Sie uns
         </p>
         <address className="mt-1 not-italic pl-4 border-l-2 border-ink/20 space-y-0.5">
-          <p>Kristiyan Valin</p>
-          <p>Schönleinstraße 15</p>
-          <p>10967 Berlin</p>
+          {BUSINESS_ADDRESS_LINES.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
           <p>
             E-Mail:{" "}
             <a
-              href="mailto:kristiyanval@gmail.com"
+              href={`mailto:${BUSINESS.email}`}
               className="underline hover:text-ink"
             >
-              kristiyanval@gmail.com
+              {BUSINESS.email}
             </a>
           </p>
         </address>
@@ -77,6 +97,12 @@ export default function WiderrufPage() {
           wenn Sie die Waren vor Ablauf der Frist von vierzehn Tagen
           absenden.
         </p>
+        {/*
+          The postage promise. It is repeated in plain language on /returns
+          (storefront.returns.postageBody, both locales), and the two must say
+          the same thing: return costs can only be moved onto the customer for
+          orders placed after this sentence says so.
+        */}
         <p className="mt-2 font-semibold text-ink">
           Wir tragen die Kosten der Rücksendung.
         </p>
