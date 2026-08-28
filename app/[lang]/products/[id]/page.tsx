@@ -9,6 +9,7 @@ import {
   withLocalizedContent,
 } from "@/app/lib/product-content";
 import { isSellableForPublic } from "@/app/lib/public-products";
+import type { ProductCategory } from "@/app/lib/categories";
 import {
   serializeVariants,
   type ColorImage,
@@ -31,6 +32,7 @@ type DBProduct = {
   description: string;
   imageUrl: string;
   stock: number;
+  category?: ProductCategory;
   variants?: ProductVariant[];
   colorImages?: ColorImage[];
   images?: string[];
@@ -53,6 +55,7 @@ async function getProduct(id: string): Promise<DBProduct | null> {
     description: product.description,
     imageUrl: product.imageUrl,
     stock: getAvailableStock(product.stock),
+    category: product.category,
     variants: serializeVariants(product.variants),
     colorImages: product.colorImages,
     images: product.images,

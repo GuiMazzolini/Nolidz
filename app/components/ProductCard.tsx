@@ -301,7 +301,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
             {outOfStock
               ? t.productCard.outOfStock
               : unitsInCart > 0
-                ? t.productCard.inCartAddSize(unitsInCart)
+                ? t.productCard.inCart(unitsInCart)
                 : t.productCard.chooseSize}
           </Link>
         ) : inCart ? (

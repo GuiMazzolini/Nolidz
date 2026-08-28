@@ -311,7 +311,7 @@ describe("the cart state a card reflects", () => {
     renderWithLocale(<ProductCard colorway={cardFor("Black")} />);
 
     expect(
-      screen.getByRole("link", { name: "In cart (3) · Add size" })
+      screen.getByRole("link", { name: "In cart (3)" })
     ).toBeVisible();
   });
 

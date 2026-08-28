@@ -28,6 +28,11 @@ import type { Product } from "@/app/product-data";
 import Link from "@/app/i18n/Link";
 import { useLocale, useT } from "@/app/i18n/client";
 import dynamic from "next/dynamic";
+import {
+  categoryHref,
+  isProductCategory,
+  type ProductCategory,
+} from "@/app/lib/categories";
 
 const SizeGuideModal = dynamic(() => import("@/app/components/SizeGuideModal"), { ssr: false });
 
@@ -36,6 +41,23 @@ type ProductDetailProps = {
   /** Colourway chosen on the catalog card, via `?color=`. */
   initialColor?: string | null;
 };
+
+function catalogBackHref(category?: ProductCategory): string {
+  return category ? categoryHref(category) : "/products";
+}
+
+function catalogBackLabel(
+  category: ProductCategory | undefined,
+  t: ReturnType<typeof useT>
+): string {
+  if (category && isProductCategory(category)) {
+    const name = { men: t.nav.men, women: t.nav.women, kids: t.nav.kids }[
+      category
+    ];
+    return t.productDetail.backToCategory(name);
+  }
+  return t.productDetail.backToCatalog;
+}
 
 function colorLabel(
   product: Product,
@@ -205,6 +227,13 @@ export default function ProductDetail({
     <>
     <div className="min-h-screen bg-paper py-12">
       <div className="container mx-auto px-4 max-w-6xl">
+        <Link
+          href={catalogBackHref(product.category)}
+          className="mb-6 inline-flex items-center gap-1 text-sm font-semibold text-ink/70 hover:text-ink transition-colors"
+        >
+          <span aria-hidden>←</span>
+          {catalogBackLabel(product.category, t)}
+        </Link>
         <CartErrorBanner />
         <div className="bg-white border-2 border-ink/10 overflow-hidden">
           <div className="flex flex-col lg:flex-row">

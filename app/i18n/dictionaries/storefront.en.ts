@@ -129,7 +129,7 @@ const storefront = {
     outOfStockBadge: "Out of stock",
     outOfStock: "Out of Stock",
     chooseSize: "Choose Size",
-    inCartAddSize: (units: number) => `In cart (${units}) · Add size`,
+    inCart: (units: number) => `In cart (${units})`,
     addToCart: "Add to Cart",
     adding: "Adding…",
     stockLeft: (count: number) => `${count} left`,
@@ -145,6 +145,8 @@ const storefront = {
   },
 
   productDetail: {
+    backToCatalog: "Back to shop",
+    backToCategory: (name: string) => `Back to ${name}`,
     notFoundTitle: "Product not found",
     colourLabel: "Colour:",
     sizeHeadingEu: "EU size",

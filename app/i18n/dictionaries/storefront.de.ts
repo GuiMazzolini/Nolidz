@@ -128,7 +128,7 @@ const storefront: StorefrontDict = {
     outOfStockBadge: "Ausverkauft",
     outOfStock: "Ausverkauft",
     chooseSize: "Größe wählen",
-    inCartAddSize: (units) => `Im Warenkorb (${units}) · Größe hinzufügen`,
+    inCart: (units) => `Im Warenkorb (${units})`,
     addToCart: "In den Warenkorb",
     adding: "Wird hinzugefügt…",
     stockLeft: (count) => `Noch ${count}`,
@@ -143,6 +143,8 @@ const storefront: StorefrontDict = {
   },
 
   productDetail: {
+    backToCatalog: "Zurück zum Shop",
+    backToCategory: (name) => `Zurück zu ${name}`,
     notFoundTitle: "Produkt nicht gefunden",
     colourLabel: "Farbe:",
     sizeHeadingEu: "EU-Größe",
