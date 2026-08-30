@@ -4,6 +4,10 @@ import { localeFromRequest } from "@/app/i18n/request";
 import { apiDictionaryFor } from "@/app/i18n/lookup";
 import { serializeAdminProduct } from "@/app/lib/admin-products";
 import { adminUnauthorized, requireAdmin } from "@/app/lib/admin-auth";
+import {
+  collectCloudinaryUrlsFromProduct,
+  deleteCloudinaryImages,
+} from "@/app/lib/cloudinary";
 import { products, type ProductDoc } from "@/app/lib/db-collections";
 import { badRequest, parseBody } from "@/app/lib/api-request";
 import { isDuplicateKeyError } from "@/app/lib/mongo-errors";
@@ -171,6 +175,15 @@ export async function DELETE(
 
   const { id } = await params;
   const { db } = await connectToDB();
+  const product = await products(db).findOne({ id });
+  if (!product) {
+    return NextResponse.json(
+      { error: apiDictionaryFor(localeFromRequest(req)).productNotFound },
+      { status: 404 }
+    );
+  }
+
+  const imageUrls = collectCloudinaryUrlsFromProduct(product);
   const result = await products(db).deleteOne({ id });
   if (result.deletedCount === 0) {
     return NextResponse.json(
@@ -178,6 +191,8 @@ export async function DELETE(
       { status: 404 }
     );
   }
+
+  await deleteCloudinaryImages(imageUrls);
 
   return NextResponse.json({ ok: true });
 }

@@ -12,6 +12,20 @@ vi.mock("next-auth", async () => {
 
 vi.mock("@/app/lib/auth", () => ({ authOptions: {} }));
 
+const { deleteCloudinaryImagesMock } = vi.hoisted(() => ({
+  deleteCloudinaryImagesMock: vi.fn(),
+}));
+
+vi.mock("@/app/lib/cloudinary", async () => {
+  const actual = await vi.importActual<typeof import("@/app/lib/cloudinary")>(
+    "@/app/lib/cloudinary"
+  );
+  return {
+    ...actual,
+    deleteCloudinaryImages: deleteCloudinaryImagesMock,
+  };
+});
+
 import { POST } from "@/app/api/admin/products/route";
 import {
   DELETE as DELETE_ONE,
@@ -66,6 +80,7 @@ beforeEach(() => {
   testDb.reset();
   testDb.seed("products", catalog);
   setMockSession(ADMIN);
+  deleteCloudinaryImagesMock.mockReset();
 });
 
 describe("admin authorization", () => {
@@ -476,6 +491,14 @@ describe("DELETE /api/admin/products/[id]", () => {
     expect(
       (await DELETE_ONE(jsonRequest("DELETE"), params("mug"))).status
     ).toBe(404);
+  });
+
+  it("removes Cloudinary images after the product is gone", async () => {
+    await DELETE_ONE(jsonRequest("DELETE"), params("mug"));
+
+    expect(deleteCloudinaryImagesMock).toHaveBeenCalledWith([
+      "https://res.cloudinary.com/demo/image/upload/mug.png",
+    ]);
   });
 });
 
