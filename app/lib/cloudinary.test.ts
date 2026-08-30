@@ -40,7 +40,7 @@ describe("collectCloudinaryUrlsFromProduct", () => {
     expect(
       collectCloudinaryUrlsFromProduct({
         imageUrl: shared,
-        colorImages: [{ color: "Black", imageUrl: shared }],
+        colorImages: [{ imageUrl: shared }],
         images: [
           shared,
           "https://res.cloudinary.com/demo/image/upload/v1/nolidz/products/sole.jpg",
