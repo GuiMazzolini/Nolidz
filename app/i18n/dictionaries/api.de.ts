@@ -9,6 +9,8 @@ const api: ApiDict = {
 
   accountExists: "Mit dieser E-Mail-Adresse existiert bereits ein Konto.",
   accountNotFound: "Konto nicht gefunden",
+  invalidResetToken:
+    "Dieser Link ist ungültig oder abgelaufen. Fordere einen neuen an.",
   currentPasswordWrong: "Dein aktuelles Passwort ist falsch",
   currentPasswordRequired: "Dein aktuelles Passwort ist erforderlich",
   newPasswordMustDiffer:

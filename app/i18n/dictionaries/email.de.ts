@@ -31,6 +31,17 @@ const email: EmailDict = {
   },
 
   orderReference: (id) => `Bestellreferenz: ${id}`,
+
+  passwordReset: {
+    subject: "Setze dein nolidz-Passwort zurück",
+    heading: "Passwort zurücksetzen",
+    intro:
+      "Du hast angefragt, das Passwort für dein nolidz-Konto zurückzusetzen. Der Button unten ist eine Stunde gültig.",
+    cta: "Neues Passwort wählen",
+    ignore:
+      "Wenn du das nicht warst, ignorier die Mail einfach — dein Passwort bleibt unverändert.",
+    expiry: "Der Link läuft in einer Stunde ab.",
+  },
 };
 
 export default email;

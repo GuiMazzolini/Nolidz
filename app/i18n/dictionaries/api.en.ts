@@ -13,6 +13,7 @@ const api = {
 
   accountExists: "An account with this email already exists.",
   accountNotFound: "Account not found",
+  invalidResetToken: "This reset link is invalid or has expired. Request a new one.",
   currentPasswordWrong: "Your current password is incorrect",
   currentPasswordRequired: "Your current password is required",
   newPasswordMustDiffer: "The new password must be different",

@@ -35,6 +35,17 @@ const email = {
   },
 
   orderReference: (id: string) => `Order reference: ${id}`,
+
+  passwordReset: {
+    subject: "Reset your nolidz password",
+    heading: "Reset your password",
+    intro:
+      "We received a request to reset the password for your nolidz account. The button below works for one hour.",
+    cta: "Choose a new password",
+    ignore:
+      "If you did not ask for this, you can ignore this email — your password will not change.",
+    expiry: "This link expires in one hour.",
+  },
 };
 
 export type EmailDict = typeof email;

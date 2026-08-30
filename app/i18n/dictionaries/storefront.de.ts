@@ -333,6 +333,45 @@ const storefront: StorefrontDict = {
     errorSignupLoginFailed:
       "Konto erstellt, aber die Anmeldung hat nicht geklappt. Melde dich bitte normal an.",
     errorGeneric: "Etwas ist schiefgelaufen. Bitte versuch es erneut.",
+    forgotPassword: "Passwort vergessen?",
+  },
+
+  forgotPassword: {
+    metaTitle: "Passwort vergessen",
+    metaDescription: "Fordere einen Link an, um dein nolidz-Passwort zurückzusetzen.",
+    title: "Passwort vergessen?",
+    intro:
+      "Gib die E-Mail ein, mit der du dich anmeldest. Wenn ein Konto existiert, schicken wir dir einen Link.",
+    emailLabel: "E-Mail",
+    emailPlaceholder: "du@beispiel.de",
+    submit: "Link senden",
+    backToLogin: "Zurück zur Anmeldung",
+    successTitle: "Schau in dein Postfach",
+    successBody:
+      "Wenn es ein Konto mit dieser E-Mail gibt, haben wir dir einen Link geschickt. Er ist eine Stunde gültig.",
+    errorGeneric: "Etwas ist schiefgelaufen. Bitte versuch es erneut.",
+  },
+
+  resetPassword: {
+    metaTitle: "Passwort zurücksetzen",
+    metaDescription: "Wähle ein neues Passwort für dein nolidz-Konto.",
+    title: "Neues Passwort wählen",
+    intro: "Gib ein neues Passwort mit mindestens 8 Zeichen ein.",
+    passwordLabel: "Neues Passwort",
+    passwordPlaceholder: "Mindestens 8 Zeichen",
+    confirmLabel: "Passwort bestätigen",
+    submit: "Passwort speichern",
+    backToLogin: "Zurück zur Anmeldung",
+    successTitle: "Passwort aktualisiert",
+    successBody: "Du kannst dich jetzt mit deinem neuen Passwort anmelden.",
+    passwordsDoNotMatch: "Die Passwörter stimmen nicht überein.",
+    missingTokenTitle: "Ungültiger Link",
+    missingTokenBody:
+      "Dieser Link fehlt oder ist unvollständig. Fordere auf der Passwort-vergessen-Seite einen neuen an.",
+    requestNewLink: "Neuen Link anfordern",
+    errorGeneric: "Etwas ist schiefgelaufen. Bitte versuch es erneut.",
+    errorInvalidToken:
+      "Dieser Link ist ungültig oder abgelaufen. Fordere einen neuen an.",
   },
 
   account: {

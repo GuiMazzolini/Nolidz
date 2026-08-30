@@ -2,7 +2,7 @@ import { Resend } from "resend";
 import type { Order } from "@/app/lib/orders";
 import { formatMoney } from "@/app/lib/money";
 import { getAppUrl } from "@/app/lib/stripe";
-import { localePath } from "@/app/i18n/config";
+import { localePath, type Locale } from "@/app/i18n/config";
 import { emailDictionaryFor, type EmailDict } from "@/app/i18n/lookup";
 
 /**
@@ -232,5 +232,69 @@ export async function sendShippingNotificationEmail(order: Order): Promise<void>
     });
   } catch (err) {
     console.error("Failed to send shipping notification email:", err);
+  }
+}
+
+function buildPasswordResetHtml(resetUrl: string, t: EmailDict) {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#f9fafb;font-family:Arial,sans-serif;color:#111827;">
+    <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+      <div style="background:#ffffff;border-radius:16px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2563eb;">
+          ${t.brand}
+        </p>
+        <h1 style="margin:0 0 12px;font-size:28px;line-height:1.2;">${t.passwordReset.heading}</h1>
+        <p style="margin:0 0 24px;color:#6b7280;line-height:1.6;">
+          ${t.passwordReset.intro}
+        </p>
+        <a href="${resetUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:700;">
+          ${t.passwordReset.cta}
+        </a>
+        <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">
+          ${t.passwordReset.expiry}
+        </p>
+        <p style="margin:12px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">
+          ${t.passwordReset.ignore}
+        </p>
+      </div>
+    </div>
+  </body>
+</html>`;
+}
+
+/**
+ * Sends a one-time password reset link. No-op without Resend config.
+ */
+export async function sendPasswordResetEmail({
+  to,
+  token,
+  locale,
+}: {
+  to: string;
+  token: string;
+  locale: Locale;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
+  const t = emailDictionaryFor(locale);
+  const from =
+    process.env.RESEND_FROM_EMAIL || `${t.brand} <onboarding@resend.dev>`;
+  const shopUrl = getAppUrl();
+  const resetUrl = `${shopUrl}${localePath(locale, "/reset-password")}?token=${encodeURIComponent(token)}`;
+
+  const resend = new Resend(apiKey);
+
+  try {
+    await resend.emails.send({
+      from,
+      to,
+      subject: t.passwordReset.subject,
+      html: buildPasswordResetHtml(resetUrl, t),
+    });
+  } catch (err) {
+    console.error("Failed to send password reset email:", err);
   }
 }

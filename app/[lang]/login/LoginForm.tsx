@@ -185,6 +185,16 @@ export default function LoginPage({ googleEnabled }: { googleEnabled: boolean })
                     : t.login.passwordPlaceholderLogin
                 }
               />
+              {mode === "login" && (
+                <div className="mt-2 text-right">
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm font-medium text-cardboard-dark hover:text-ink"
+                  >
+                    {t.login.forgotPassword}
+                  </Link>
+                </div>
+              )}
             </div>
 
             {error && (

@@ -84,6 +84,15 @@ export const registerSchema = z.object({
   password: z.string().min(8).max(200),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().pipe(z.email()),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().trim().min(1).max(500),
+  newPassword: z.string().min(8).max(200),
+});
+
 export const profileSchema = z.object({
   name: z.string().trim().min(1).max(100),
 });

@@ -339,6 +339,44 @@ const storefront = {
     errorInvalidCredentials: "Invalid email or password.",
     errorSignupLoginFailed: "Account created, but login failed. Try logging in.",
     errorGeneric: "Something went wrong. Please try again.",
+    forgotPassword: "Forgot password?",
+  },
+
+  forgotPassword: {
+    metaTitle: "Forgot password",
+    metaDescription: "Request a link to reset your nolidz password.",
+    title: "Forgot your password?",
+    intro:
+      "Enter the email you use to sign in. If an account exists, we will send a reset link.",
+    emailLabel: "Email",
+    emailPlaceholder: "you@example.com",
+    submit: "Send reset link",
+    backToLogin: "Back to log in",
+    successTitle: "Check your inbox",
+    successBody:
+      "If an account with that email exists, we sent a link to reset your password. It expires in one hour.",
+    errorGeneric: "Something went wrong. Please try again.",
+  },
+
+  resetPassword: {
+    metaTitle: "Reset password",
+    metaDescription: "Choose a new password for your nolidz account.",
+    title: "Choose a new password",
+    intro: "Enter a new password of at least 8 characters.",
+    passwordLabel: "New password",
+    passwordPlaceholder: "At least 8 characters",
+    confirmLabel: "Confirm password",
+    submit: "Update password",
+    backToLogin: "Back to log in",
+    successTitle: "Password updated",
+    successBody: "You can now sign in with your new password.",
+    passwordsDoNotMatch: "The passwords do not match.",
+    missingTokenTitle: "Invalid link",
+    missingTokenBody:
+      "This reset link is missing or incomplete. Request a new one from the forgot-password page.",
+    requestNewLink: "Request a new link",
+    errorGeneric: "Something went wrong. Please try again.",
+    errorInvalidToken: "This reset link is invalid or has expired. Request a new one.",
   },
 
   account: {

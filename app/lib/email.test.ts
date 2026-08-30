@@ -10,6 +10,7 @@ vi.mock("resend", () => ({
 
 import {
   sendOrderConfirmationEmail,
+  sendPasswordResetEmail,
   sendShippingNotificationEmail,
 } from "@/app/lib/email";
 import { formatMoney } from "@/app/lib/money";
@@ -124,5 +125,20 @@ describe("shipping notification email", () => {
     vi.stubEnv("RESEND_API_KEY", "");
     await sendShippingNotificationEmail(shipped);
     expect(sendMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("password reset email", () => {
+  it("includes the reset link with the token", async () => {
+    await sendPasswordResetEmail({
+      to: "buyer@example.com",
+      token: "reset-token",
+      locale: "en",
+    });
+
+    const email = sentEmail();
+    expect(email.to).toBe("buyer@example.com");
+    expect(email.html).toContain("reset-token");
+    expect(email.subject).toContain("password");
   });
 });

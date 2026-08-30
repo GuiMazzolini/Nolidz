@@ -88,6 +88,9 @@ export type UserDoc = {
    * branch on this rather than assume it exists.
    */
   passwordHash?: string;
+  /** SHA-256 of the one-time token emailed to the user. Cleared after use. */
+  passwordResetTokenHash?: string;
+  passwordResetExpiresAt?: Date;
   address?: SavedAddress | null;
   /** Set lazily when an address is first saved; used to prefill Checkout. */
   stripeCustomerId?: string;

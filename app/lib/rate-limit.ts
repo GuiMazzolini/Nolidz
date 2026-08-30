@@ -100,6 +100,8 @@ export async function enforceRateLimit(
 export const RATE_LIMITS = {
   register: { limit: 5, windowSec: 3600 },
   login: { limit: 10, windowSec: 900 },
+  forgotPassword: { limit: 5, windowSec: 3600 },
+  resetPassword: { limit: 10, windowSec: 3600 },
   // Each checkout takes stock out of sale for half an hour, so this budget
   // bounds inventory as well as load. Generous for a shopper, tedious for a
   // script — see MAX_OPEN_HOLDS_PER_BUYER, which bounds it further.
