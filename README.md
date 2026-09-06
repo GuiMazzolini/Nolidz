@@ -198,11 +198,13 @@ calls the matching client. Both clients return the same result shape, so the
 six-hour refresh floor, the terminal-status rule and the admin UI stay
 carrier-agnostic.
 
-DHL needs only `DHL_API_KEY` and covers standard and express alike. DPD is
-different: there is no self-service signup, so `DPD_API_URL`, `DPD_DELIS_ID`
-and `DPD_PASSWORD` come from a DPD business contract. Without them DPD is
-simply unconfigured — a parcel an admin ships with DPD by hand still shows its
-tracking number, the admin just cannot poll its status. That is a supported
+DHL needs only `DHL_API_KEY` and covers standard and express alike. **One-click
+DHL Paket labels** (admin) need Parcel DE Shipping credentials — see
+`SHIPPING.md` and `.env.example`. Express labels are not built; paste tracking
+manually. DPD is different: there is no self-service signup, so `DPD_API_URL`,
+`DPD_DELIS_ID` and `DPD_PASSWORD` come from a DPD business contract. Without them
+DPD is simply unconfigured — a parcel an admin ships with DPD by hand still shows
+its tracking number, the admin just cannot poll its status. That is a supported
 state, not a broken one, and it is reported differently from a carrier we have
 no integration for at all.
 
@@ -212,12 +214,8 @@ shape but has never run against the live API. Expect to check
 switching `offered` on; `dpd.test.ts` pins the current assumptions, so a
 mismatch will show up there.
 
-**DHL production access is currently blocked** — the API request was rejected
-for using a non-business email address, so `DHL_API_KEY` is unset and status
-polling is dark. Everything else about an order works. See
-[SHIPPING.md](SHIPPING.md) for the full picture: prices, the contracts and
-credentials each carrier needs, the go-live checklists, and what to do about
-that rejection.
+See [SHIPPING.md](SHIPPING.md) for prices, contracts, label setup, and go-live
+checklists.
 
 ## Checks
 

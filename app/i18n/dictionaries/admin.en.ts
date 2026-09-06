@@ -200,6 +200,26 @@ const admin = {
       "We cannot check this carrier from here — track it on the carrier's own site",
     refreshBlocked: "Delivered, or checked within the last 6 hours",
 
+    createLabelTitle: "DHL Paket label",
+    createLabelHint:
+      "Creates a real DHL label for this order (postage may be charged). Only for standard Paket — Express stays manual below. Check the street includes a house number.",
+    createLabel: "Create DHL label",
+    creatingLabel: "Creating label…",
+    labelNotConfigured:
+      "Parcel DE Shipping credentials are not set. Add them in the environment to enable one-click labels.",
+    labelStreet: "Street + house number",
+    labelStreetPlaceholder: "e.g. Schönleinstraße 15",
+    labelStreetHint:
+      "DHL needs the house number. Fix it here if the customer left it out.",
+    labelPostal: "Postcode",
+    labelCity: "City",
+    labelReady: "Label ready",
+    downloadLabel: "Download / print label (PDF)",
+    labelCreatedWithEmail: "Label created, order marked shipped, customer email queued.",
+    labelCreatedNoEmail: "Label created and order marked shipped (no email sent).",
+    labelAlreadyExists: "This order already has a label.",
+    labelFailed: "Could not create the label",
+
     network: "Network error — please try again.",
   },
 

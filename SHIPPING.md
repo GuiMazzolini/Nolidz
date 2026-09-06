@@ -17,9 +17,10 @@ Written 2026-08-21. Code references are to `app/lib/shipping.ts`,
 | Standard delivery (DHL) sold at checkout | ✅ live | — |
 | Express delivery (DHL Express) sold at checkout | ✅ live | — |
 | DPD sold at checkout | ⏸️ **held back** | DPD business contract not signed |
-| DHL tracking (both services) | ⚠️ **code ready, no key** | **DHL rejected our production API request — see below** |
+| DHL tracking (both services) | ⚠️ **code ready** | Set `DHL_API_KEY` (Tracking Unified) |
 | DPD tracking | ⚠️ code ready, unverified, no credentials | DPD contract |
-| Label creation / booking (any carrier) | ❌ not built | Out of scope so far; parcels are booked by hand |
+| DHL Paket one-click labels (admin) | ⚠️ **code ready** | Parcel DE Shipping credentials + billing number |
+| DHL Express / other label creation | ❌ not built | Different APIs; paste tracking manually |
 
 Two independent things are missing, and they fail differently. Read
 [Carrier access](#carrier-access-contracts-and-credentials) before assuming
@@ -233,8 +234,43 @@ One endpoint, one header, covers **both** standard (`parcel-de`) and express
 > The **sandbox/test** environment does not have the business-email requirement
 > and can be used to exercise the client in the meantime.
 
-**Not needed:** `DHL_API_SECRET`. That is for Parcel DE Shipping v2 (label
-creation, OAuth2), which needs a full DHL business contract and is not built.
+### DHL — Parcel DE Shipping (one-click Paket labels)
+
+Admin-only: after reviewing a paid **standard** order, **Create DHL label**
+calls Parcel DE Shipping v2, stores the PDF, marks the order shipped, and can
+email the customer. Labels are **never** created on Stripe payment.
+
+Same developer app as Tracking — subscribe to **Parcel DE Shipping** (and use
+the Authentication ROPC flow). **DHL Express labels are out of scope** (MyDHL /
+Express API); keep pasting Express tracking by hand.
+
+Credentials (all required together; see `.env.example`):
+
+| Variable | Purpose |
+|---|---|
+| `DHL_SHIPPING_CLIENT_ID` | App API key / client_id |
+| `DHL_SHIPPING_CLIENT_SECRET` | App secret |
+| `DHL_GKP_USERNAME` | Business portal user (system user preferred) |
+| `DHL_GKP_PASSWORD` | Business portal password |
+| `DHL_BILLING_NUMBER` | 14-char Paket Abrechnungsnummer (EKP + Verfahren + Teilnahme) |
+| `DHL_SHIPPING_SANDBOX` | `true` until production Parcel DE access is approved |
+| `DHL_DEFAULT_WEIGHT_KG` | Optional; default `1` |
+
+Shipper address comes from `app/lib/business.ts`. Product code: `V01PAK`.
+
+**EKP vs billing number:** the portal customer number is 10 digits (EKP). The
+API needs the full **14-character** billing number from Abrechnungsnummern
+(Parcel & Goods → Ship → Settings).
+
+Sandbox hosts: `api-sandbox.dhl.com`. Production: `api-eu.dhl.com`. Develop
+against sandbox first; then set `DHL_SHIPPING_SANDBOX=false` and the real
+billing number on Vercel.
+
+In **sandbox**, the shop authenticates with **Basic Auth**
+(`user-valid` / `SandboxPasswort2023!`) plus `dhl-api-key` — that is what DHL
+documents for integration testing. Production uses OAuth (ROPC) with the real
+GKP system user. Sandbox billing numbers are DHL’s test ones (e.g. often
+starting with `3333333333…`), not necessarily his live Abrechnungsnummer.
 
 ### DPD Germany — parcel tracking
 
@@ -285,8 +321,8 @@ DPD's contract only makes sense at volume. Cheaper routes to the same tracking:
 
 | Variable | Required? | Purpose |
 |---|---|---|
-| `DHL_API_KEY` | for DHL tracking | Shipment Tracking Unified. Covers standard **and** express. **Currently unobtainable — see blocker above.** |
-| `DHL_API_SECRET` | no | Label creation (Parcel DE Shipping v2). Not built. |
+| `DHL_API_KEY` | for DHL tracking | Shipment Tracking Unified. Covers standard **and** express. |
+| `DHL_SHIPPING_*` + `DHL_GKP_*` + `DHL_BILLING_NUMBER` | for Paket labels | Parcel DE Shipping; see section above. |
 | `DPD_API_URL` | all three together | DPD host, confirmed by DPD |
 | `DPD_DELIS_ID` | all three together | DPD-issued account id |
 | `DPD_PASSWORD` | all three together | DPD-issued password |
@@ -300,12 +336,21 @@ treated as unconfigured. All are documented in `.env.example`.
 
 ### Switching DHL tracking on
 
-1. Get a mailbox on the nolidz domain.
-2. Resubmit DHL request 202115 from that address, same app name, same 250/day.
-3. Set `DHL_API_KEY` in the deployment environment.
-4. Ship a real parcel, hit **Check carrier status** in the admin, confirm a
+1. Get a mailbox on the nolidz domain if production Tracking was rejected for email.
+2. Set `DHL_API_KEY` in the deployment environment.
+3. Ship a real parcel, hit **Check carrier status** in the admin, confirm a
    status comes back. Both service codes are worth testing — a standard parcel
    and an express one.
+
+### Switching DHL Paket one-click labels on
+
+1. Same developer app → add **Parcel DE Shipping** (sandbox).
+2. Copy the 14-char Paket billing number from the Geschäftskundenportal.
+3. Set all `DHL_SHIPPING_*` / `DHL_GKP_*` / `DHL_BILLING_NUMBER` vars;
+   `DHL_SHIPPING_SANDBOX=true`.
+4. Admin → paid standard order → **Create DHL label** → download PDF.
+5. Request production Parcel DE access; set sandbox to false + real billing
+   number on Vercel.
 
 ### Switching DPD on
 
@@ -358,5 +403,5 @@ treated as unconfigured. All are documented in `.env.example`.
 | Express price | €15 placeholder | Real DHL Express rate card |
 | DPD price | €4 placeholder | Real DPD rate card |
 | Is DPD worth a contract at our volume? | Assumed yes, held back | Volume forecast, or pick an aggregator |
-| Label creation / booking | Not built, parcels booked by hand | Decide when manual booking stops scaling |
-| Business email for DHL | Missing | Mailbox on the nolidz domain |
+| Label creation / booking | Paket one-click in admin; Express manual | Express / auto-on-payment later if needed |
+| Business email for DHL | Needed for some production API approvals | Mailbox on the nolidz domain |

@@ -63,6 +63,17 @@ export type Order = {
   trackingNumber: string | null;
   carrier: string | null;
   shippedAt: Date | null;
+  /** Cloudinary (or other) URL for the generated DHL Paket label PDF. */
+  labelUrl: string | null;
+  /** Cloudinary public id for the label PDF (raw resource). */
+  labelPublicId: string | null;
+  /**
+   * Base64 of the label PDF. Primary download source — Cloudinary raw URLs
+   * are unreliable in browsers, so we keep the bytes on the order.
+   */
+  labelPdfBase64: string | null;
+  /** DHL shipment number from Parcel DE Shipping (usually equals tracking). */
+  dhlShipmentNo: string | null;
   /** Last DHL status we fetched. Never fetched during a render — see tracking.ts. */
   tracking: CachedTracking | null;
   /**
@@ -96,6 +107,10 @@ export function toOrder(doc: Record<string, unknown>): Order {
     trackingNumber: doc.trackingNumber ? String(doc.trackingNumber) : null,
     carrier: doc.carrier ? String(doc.carrier) : null,
     shippedAt: doc.shippedAt ? new Date(doc.shippedAt as string | Date) : null,
+    labelUrl: doc.labelUrl ? String(doc.labelUrl) : null,
+    labelPublicId: doc.labelPublicId ? String(doc.labelPublicId) : null,
+    labelPdfBase64: doc.labelPdfBase64 ? String(doc.labelPdfBase64) : null,
+    dhlShipmentNo: doc.dhlShipmentNo ? String(doc.dhlShipmentNo) : null,
     tracking: readCachedTracking(doc),
     locale: isLocale(doc.locale) ? doc.locale : DEFAULT_LOCALE,
     createdAt: new Date(doc.createdAt as string | Date),
@@ -167,6 +182,10 @@ export function buildOrderFromStripeSession(
     // but until they do, tracking already knows who to ask.
     carrier: getShippingMethod(shippingMethod)?.carrier ?? null,
     shippedAt: null,
+    labelUrl: null,
+    labelPublicId: null,
+    labelPdfBase64: null,
+    dhlShipmentNo: null,
     // Nothing to track until someone ships it and DHL is asked.
     tracking: null,
     // Written into session metadata when checkout started; see /api/checkout.

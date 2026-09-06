@@ -204,6 +204,28 @@ const admin: AdminDict = {
       "Diesen Versanddienst können wir von hier nicht abfragen — verfolg die Sendung auf dessen eigener Seite",
     refreshBlocked: "Zugestellt oder in den letzten 6 Stunden bereits abgefragt",
 
+    createLabelTitle: "DHL-Paket-Etikett",
+    createLabelHint:
+      "Erstellt ein echtes DHL-Etikett für diese Bestellung (Porto kann berechnet werden). Nur für Standard-Paket — Express bleibt manuell darunter. Die Straße muss eine Hausnummer enthalten.",
+    createLabel: "DHL-Etikett erstellen",
+    creatingLabel: "Etikett wird erstellt…",
+    labelNotConfigured:
+      "Parcel-DE-Shipping-Zugangsdaten fehlen. Trag sie in der Umgebung ein, um Ein-Klick-Etiketten zu nutzen.",
+    labelStreet: "Straße + Hausnummer",
+    labelStreetPlaceholder: "z. B. Schönleinstraße 15",
+    labelStreetHint:
+      "DHL braucht die Hausnummer. Korrigier sie hier, falls sie fehlt.",
+    labelPostal: "PLZ",
+    labelCity: "Ort",
+    labelReady: "Etikett bereit",
+    downloadLabel: "Etikett herunterladen / drucken (PDF)",
+    labelCreatedWithEmail:
+      "Etikett erstellt, Bestellung als versendet markiert, E-Mail in der Warteschlange.",
+    labelCreatedNoEmail:
+      "Etikett erstellt und Bestellung als versendet markiert (keine E-Mail).",
+    labelAlreadyExists: "Für diese Bestellung gibt es schon ein Etikett.",
+    labelFailed: "Etikett konnte nicht erstellt werden",
+
     network: "Netzwerkfehler – bitte versuch es erneut.",
   },
 

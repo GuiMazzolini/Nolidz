@@ -5,8 +5,10 @@ import { getAllOrders } from "@/app/lib/orders";
 import { formatOrderDate } from "@/app/components/order-ui";
 import { canRefreshTracking, describeTrackingStatus } from "@/app/lib/tracking";
 import { isTrackableCarrier } from "@/app/lib/carriers";
+import { isDhlShippingConfigured } from "@/app/lib/dhl-shipping";
 import ShipOrderForm from "./ShipOrderForm";
 import RefreshTrackingButton from "./RefreshTrackingButton";
+import CreateDhlLabelButton from "./CreateDhlLabelButton";
 import { getAdminI18n, getI18n } from "@/app/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,6 +25,7 @@ export default async function AdminOrdersPage() {
   const { t: storefront } = await getI18n();
   const orders = await getAllOrders();
   const awaitingShipment = orders.filter((o) => o.status !== "shipped").length;
+  const dhlShippingConfigured = isDhlShippingConfigured();
 
   return (
     <div className="space-y-6">
@@ -177,12 +180,27 @@ export default async function AdminOrdersPage() {
                   )}
                 </div>
 
-                <ShipOrderForm
-                  sessionId={order.stripeSessionId}
-                  initialTracking={order.trackingNumber ?? ""}
-                  initialCarrier={order.carrier ?? ""}
-                  alreadyShipped={order.status === "shipped"}
-                />
+                <div className="space-y-4">
+                  <CreateDhlLabelButton
+                    sessionId={order.stripeSessionId}
+                    configured={dhlShippingConfigured}
+                    eligible={
+                      order.status === "paid" &&
+                      order.shippingMethod === "standard" &&
+                      Boolean(order.shippingAddress)
+                    }
+                    hasLabel={Boolean(order.labelUrl || order.labelPdfBase64)}
+                    initialLine1={order.shippingAddress?.line1 ?? ""}
+                    initialPostalCode={order.shippingAddress?.postalCode ?? ""}
+                    initialCity={order.shippingAddress?.city ?? ""}
+                  />
+                  <ShipOrderForm
+                    sessionId={order.stripeSessionId}
+                    initialTracking={order.trackingNumber ?? ""}
+                    initialCarrier={order.carrier ?? ""}
+                    alreadyShipped={order.status === "shipped"}
+                  />
+                </div>
               </div>
             </article>
           ))}
