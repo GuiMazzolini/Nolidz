@@ -48,6 +48,15 @@ vi.mock("@/app/lib/stripe", () => ({
     return { checkout: { sessions: { create: createSessionMock } } };
   },
   getAppUrl: () => "http://localhost:3000",
+  isMissingStripeCustomer: (err: unknown) => {
+    if (!err || typeof err !== "object") return false;
+    const e = err as { code?: string; message?: string };
+    return (
+      e.code === "resource_missing" &&
+      typeof e.message === "string" &&
+      /no such customer/i.test(e.message)
+    );
+  },
 }));
 
 import { POST } from "@/app/api/checkout/route";
@@ -380,6 +389,40 @@ describe("authenticated checkout", () => {
     expect(args.customer).toBe("cus_123");
     // Stripe rejects customer and customer_email together.
     expect(args.customer_email).toBeUndefined();
+  });
+
+  it("clears a stale test-mode customer and retries with email", async () => {
+    testDb.seed("users", [
+      {
+        email: BUYER,
+        name: "Buyer",
+        createdAt: new Date(),
+        stripeCustomerId: "cus_test_stale",
+      },
+    ]);
+    createSessionMock
+      .mockRejectedValueOnce({
+        code: "resource_missing",
+        message:
+          "No such customer: 'cus_test_stale'; a similar object exists in test mode, but a live mode key was used to make this request.",
+      })
+      .mockResolvedValueOnce({
+        id: "cs_retry",
+        url: "https://checkout.stripe.com/c/pay/cs_retry",
+      });
+
+    const { status, body } = await readResponse<{ url: string }>(
+      await POST(jsonRequest("POST"))
+    );
+
+    expect(status).toBe(200);
+    expect(body.url).toContain("cs_retry");
+    expect(createSessionMock).toHaveBeenCalledTimes(2);
+    expect(lastSessionArgs().customer).toBeUndefined();
+    expect(lastSessionArgs().customer_email).toBe(BUYER);
+    expect(
+      testDb.all("users").find((u) => u.email === BUYER)?.stripeCustomerId
+    ).toBeUndefined();
   });
 
   it("falls back to customer_email without a saved customer", async () => {

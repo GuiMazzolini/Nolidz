@@ -8,6 +8,18 @@ export function getStripe(): Stripe {
   return new Stripe(key);
 }
 
+/**
+ * True when Stripe rejected a Customer id that does not exist in this mode
+ * (typical after switching from test keys to live on the same user records).
+ */
+export function isMissingStripeCustomer(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { code?: string; param?: string; message?: string };
+  if (e.code !== "resource_missing") return false;
+  if (e.param === "customer") return true;
+  return typeof e.message === "string" && /no such customer/i.test(e.message);
+}
+
 export function getAppUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
   if (explicit) return explicit;

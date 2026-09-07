@@ -1,7 +1,7 @@
 import { connectToDB } from "@/app/api/db";
 import { users, type SavedAddress, type UserDoc } from "@/app/lib/db-collections";
 import { normalizeEmail } from "@/app/lib/normalize-email";
-import { getStripe } from "@/app/lib/stripe";
+import { getStripe, isMissingStripeCustomer } from "@/app/lib/stripe";
 
 /** What the account page is allowed to see. Never leaks passwordHash. */
 export type AccountProfile = {
@@ -67,8 +67,17 @@ export async function syncStripeCustomerAddress(
 
   try {
     if (existingCustomerId) {
-      await stripe.customers.update(existingCustomerId, { name, shipping });
-      return existingCustomerId;
+      try {
+        await stripe.customers.update(existingCustomerId, { name, shipping });
+        return existingCustomerId;
+      } catch (err) {
+        if (!isMissingStripeCustomer(err)) throw err;
+        // Stale test-mode id after switching to live keys — create a live one.
+        console.warn(
+          "Recreating Stripe customer after stale id:",
+          existingCustomerId
+        );
+      }
     }
     const customer = await stripe.customers.create({ email, name, shipping });
     return customer.id;

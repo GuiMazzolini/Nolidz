@@ -4,7 +4,7 @@ import { carts, products, users } from "@/app/lib/db-collections";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { STORE_CURRENCY } from "@/app/lib/money";
-import { getAppUrl, getStripe } from "@/app/lib/stripe";
+import { getAppUrl, getStripe, isMissingStripeCustomer } from "@/app/lib/stripe";
 import {
   getShippingCostFor,
   OFFERED_SHIPPING_METHODS,
@@ -258,57 +258,89 @@ export async function POST(req: NextRequest) {
   }
 
   let checkoutSession;
-  try {
-    checkoutSession = await stripe.checkout.sessions.create({
-      mode: "payment",
-      // Card + PayPal (enable PayPal under Dashboard → Payment methods).
-      // Listing them here keeps Checkout aligned with what we support in the UI.
-      payment_method_types: ["card", "paypal"],
-      line_items,
-      shipping_address_collection: {
-        // Germany only — we do not deliver elsewhere.
-        allowed_countries: [...SHIPPING_COUNTRIES],
-      },
-      shipping_options: shippingOptions,
-      // Bounds how long an abandoned checkout stays payable. Once stock is
-      // held against this session, it also bounds how long that hold lasts.
-      expires_at: checkoutSessionExpiresAt(),
-      // Stripe hosts the payment page itself, so it is told the language too —
-      // otherwise the buyer crosses from a German shop into an English form.
+  const sessionBuyerFields = (customerId: string | undefined) =>
+    email
+      ? {
+          client_reference_id: email,
+          // A Customer carries the saved shipping address, so Checkout
+          // prefills it. Stripe rejects `customer` and `customer_email`
+          // together, so only one is ever sent.
+          ...(customerId
+            ? { customer: customerId }
+            : { customer_email: email }),
+          metadata: { userId: email, reservationId, locale, ...cartMetadata },
+        }
+      : {
+          metadata: {
+            isGuest: "true",
+            reservationId,
+            locale,
+            ...cartMetadata,
+          },
+        };
+
+  const sessionCreateParams = (customerId: string | undefined) => ({
+    mode: "payment" as const,
+    // Card + PayPal (enable PayPal under Dashboard → Payment methods).
+    // Listing them here keeps Checkout aligned with what we support in the UI.
+    payment_method_types: ["card", "paypal"] as ("card" | "paypal")[],
+    line_items,
+    shipping_address_collection: {
+      // Germany only — we do not deliver elsewhere.
+      allowed_countries: [...SHIPPING_COUNTRIES],
+    },
+    shipping_options: shippingOptions,
+    // Bounds how long an abandoned checkout stays payable. Once stock is
+    // held against this session, it also bounds how long that hold lasts.
+    expires_at: checkoutSessionExpiresAt(),
+    // Stripe hosts the payment page itself, so it is told the language too —
+    // otherwise the buyer crosses from a German shop into an English form.
+    locale,
+    success_url: `${origin}${localePath(
       locale,
-      success_url: `${origin}${localePath(
-        locale,
-        "/checkout/success"
-      )}?session_id={CHECKOUT_SESSION_ID}`,
-      // Cancelling returns to the cart, which is now the only review step.
-      cancel_url: `${origin}${localePath(locale, "/cart")}`,
-      ...(email
-        ? {
-            client_reference_id: email,
-            // A Customer carries the saved shipping address, so Checkout
-            // prefills it. Stripe rejects `customer` and `customer_email`
-            // together, so only one is ever sent.
-            ...(stripeCustomerId
-              ? { customer: stripeCustomerId }
-              : { customer_email: email }),
-            metadata: { userId: email, reservationId, locale, ...cartMetadata },
-          }
-        : {
-            metadata: {
-              isGuest: "true",
-              reservationId,
-              locale,
-              ...cartMetadata,
-            },
-          }),
-    });
-  } catch (err) {
-    console.error("Stripe checkout session creation failed:", err);
-    await releaseHold(db, reservationId, "session-create-failed");
-    return NextResponse.json(
-      { error: t.paymentProviderUnavailable },
-      { status: 502 }
+      "/checkout/success"
+    )}?session_id={CHECKOUT_SESSION_ID}`,
+    // Cancelling returns to the cart, which is now the only review step.
+    cancel_url: `${origin}${localePath(locale, "/cart")}`,
+    ...sessionBuyerFields(customerId),
+  });
+
+  try {
+    checkoutSession = await stripe.checkout.sessions.create(
+      sessionCreateParams(stripeCustomerId)
     );
+  } catch (err) {
+    // Test→live cutover leaves test Customer ids on user docs; live keys reject
+    // them. Drop the stale id and retry once with customer_email.
+    if (email && stripeCustomerId && isMissingStripeCustomer(err)) {
+      console.warn(
+        "Clearing stale Stripe customer id after mode mismatch:",
+        stripeCustomerId
+      );
+      await users(db).updateOne(
+        { email },
+        { $unset: { stripeCustomerId: "" } }
+      );
+      try {
+        checkoutSession = await stripe.checkout.sessions.create(
+          sessionCreateParams(undefined)
+        );
+      } catch (retryErr) {
+        console.error("Stripe checkout session creation failed:", retryErr);
+        await releaseHold(db, reservationId, "session-create-failed");
+        return NextResponse.json(
+          { error: t.paymentProviderUnavailable },
+          { status: 502 }
+        );
+      }
+    } else {
+      console.error("Stripe checkout session creation failed:", err);
+      await releaseHold(db, reservationId, "session-create-failed");
+      return NextResponse.json(
+        { error: t.paymentProviderUnavailable },
+        { status: 502 }
+      );
+    }
   }
 
   if (!checkoutSession.url) {
