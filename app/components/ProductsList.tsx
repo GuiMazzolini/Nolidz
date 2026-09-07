@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Product } from "../product-data";
 import {
-  PRODUCT_CATEGORIES,
   categoryHref,
   matchesCategory,
   type CategoryFilter,
@@ -155,34 +154,6 @@ export default function ProductsList({
               </select>
             </label>
           </div>
-        </div>
-
-        <div className="mb-8 hidden sm:flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => selectCategory("all")}
-            className={`border-2 px-4 py-2 text-sm font-semibold transition-colors ${
-              category === "all"
-                ? "border-ink bg-ink text-paper"
-                : "border-ink/15 bg-white text-ink/75 hover:border-cardboard-dark"
-            }`}
-          >
-            {t.nav.all}
-          </button>
-          {PRODUCT_CATEGORIES.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => selectCategory(option)}
-              className={`border-2 px-4 py-2 text-sm font-semibold transition-colors ${
-                category === option
-                  ? "border-ink bg-ink text-paper"
-                  : "border-ink/15 bg-white text-ink/75 hover:border-cardboard-dark"
-              }`}
-            >
-              {t.nav[option]}
-            </button>
-          ))}
         </div>
 
         <CartErrorBanner />
