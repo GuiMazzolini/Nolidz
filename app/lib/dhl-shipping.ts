@@ -55,7 +55,7 @@ export type CreatedPaketLabel = {
 
 export type CreatePaketLabelResult =
   | { ok: true; label: CreatedPaketLabel }
-  | { ok: false; reason: "unauthorized" }
+  | { ok: false; reason: "unauthorized"; detail?: string }
   | { ok: false; reason: "validation"; detail: string }
   | { ok: false; reason: "error"; detail: string };
 
@@ -68,19 +68,24 @@ export function resetDhlShippingAuthCache(): void {
 }
 
 export function readDhlShippingConfig(): DhlShippingConfig | null {
-  const clientId = process.env.DHL_SHIPPING_CLIENT_ID?.trim();
-  const clientSecret = process.env.DHL_SHIPPING_CLIENT_SECRET?.trim();
-  const username = process.env.DHL_GKP_USERNAME?.trim();
-  const password = process.env.DHL_GKP_PASSWORD?.trim();
-  const billingNumber = process.env.DHL_BILLING_NUMBER?.trim();
+  const clientId = stripEnv(process.env.DHL_SHIPPING_CLIENT_ID);
+  const clientSecret = stripEnv(process.env.DHL_SHIPPING_CLIENT_SECRET);
+  const username = stripEnv(process.env.DHL_GKP_USERNAME);
+  const password = stripEnv(process.env.DHL_GKP_PASSWORD);
+  const billingNumber = stripEnv(process.env.DHL_BILLING_NUMBER);
   if (!clientId || !clientSecret || !username || !password || !billingNumber) {
     return null;
   }
 
-  const weightRaw = process.env.DHL_DEFAULT_WEIGHT_KG?.trim();
+  const weightRaw = stripEnv(process.env.DHL_DEFAULT_WEIGHT_KG);
   const parsed = weightRaw ? Number(weightRaw) : 1;
   const defaultWeightKg =
     Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+
+  const sandboxRaw = stripEnv(process.env.DHL_SHIPPING_SANDBOX)?.toLowerCase();
+  // Only an explicit false/0/no turns production on; unset defaults to sandbox
+  // so a misconfigured deploy cannot quietly bill live postage.
+  const sandbox = !sandboxRaw || !["false", "0", "no"].includes(sandboxRaw);
 
   return {
     clientId,
@@ -88,9 +93,22 @@ export function readDhlShippingConfig(): DhlShippingConfig | null {
     username,
     password,
     billingNumber,
-    sandbox: process.env.DHL_SHIPPING_SANDBOX !== "false",
+    sandbox,
     defaultWeightKg,
   };
+}
+
+/** Trim and drop wrapping quotes that Vercel/UI paste sometimes keeps. */
+function stripEnv(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim() || undefined;
+  }
+  return trimmed;
 }
 
 export function isDhlShippingConfigured(): boolean {
@@ -358,7 +376,18 @@ export async function createPaketLabel(
   let bearerToken: string | null = null;
   if (!config.sandbox) {
     bearerToken = await getAccessToken(config);
-    if (!bearerToken) return { ok: false, reason: "unauthorized" };
+    if (!bearerToken) {
+      return {
+        ok: false,
+        reason: "unauthorized",
+        detail:
+          "DHL OAuth failed (client id/secret or GKP user/password). Check Vercel Production env and redeploy.",
+      };
+    }
+  } else {
+    console.warn(
+      "DHL Parcel DE Shipping is using SANDBOX hosts (DHL_SHIPPING_SANDBOX is not exactly \"false\")"
+    );
   }
 
   const url = new URL(`${shippingBase(config.sandbox)}/orders`);
@@ -382,7 +411,11 @@ export async function createPaketLabel(
 
   if (response.status === 401 || response.status === 403) {
     cachedToken = null;
-    return { ok: false, reason: "unauthorized" };
+    return {
+      ok: false,
+      reason: "unauthorized",
+      detail: `DHL shipping API returned HTTP ${response.status} (sandbox=${config.sandbox}).`,
+    };
   }
 
   let body: unknown;

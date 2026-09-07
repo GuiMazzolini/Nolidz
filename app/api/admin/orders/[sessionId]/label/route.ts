@@ -203,7 +203,10 @@ function describeFailure(
     case "no-address":
       return [400, "This order has no shipping address."];
     case "unauthorized":
-      return [502, "DHL rejected our shipping credentials."];
+      return [
+        502,
+        detail ?? "DHL rejected our shipping credentials.",
+      ];
     case "validation":
       return [400, detail ?? "DHL rejected the shipment details."];
     default:

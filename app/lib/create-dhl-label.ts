@@ -155,7 +155,11 @@ export async function createLabelForOrder({
 
   if (!dhlResult.ok) {
     if (dhlResult.reason === "unauthorized") {
-      return { ok: false, reason: "unauthorized" };
+      return {
+        ok: false,
+        reason: "unauthorized",
+        detail: dhlResult.detail,
+      };
     }
     if (dhlResult.reason === "validation") {
       return { ok: false, reason: "validation", detail: dhlResult.detail };

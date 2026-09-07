@@ -30,6 +30,19 @@ function stubShippingEnv() {
 beforeEach(() => {
   resetDhlShippingAuthCache();
   vi.unstubAllEnvs();
+  // Clear any DHL_* loaded from the developer .env.local so "missing"
+  // cases are deterministic.
+  for (const key of [
+    "DHL_SHIPPING_CLIENT_ID",
+    "DHL_SHIPPING_CLIENT_SECRET",
+    "DHL_GKP_USERNAME",
+    "DHL_GKP_PASSWORD",
+    "DHL_BILLING_NUMBER",
+    "DHL_SHIPPING_SANDBOX",
+    "DHL_DEFAULT_WEIGHT_KG",
+  ]) {
+    vi.stubEnv(key, "");
+  }
 });
 
 afterEach(() => {
@@ -58,6 +71,14 @@ describe("isDhlShippingConfigured / readDhlShippingConfig", () => {
   it("treats sandbox as on unless explicitly false", () => {
     stubShippingEnv();
     vi.stubEnv("DHL_SHIPPING_SANDBOX", "false");
+    expect(readDhlShippingConfig()?.sandbox).toBe(false);
+  });
+
+  it("treats quoted false and False as production", () => {
+    stubShippingEnv();
+    vi.stubEnv("DHL_SHIPPING_SANDBOX", '"false"');
+    expect(readDhlShippingConfig()?.sandbox).toBe(false);
+    vi.stubEnv("DHL_SHIPPING_SANDBOX", "False");
     expect(readDhlShippingConfig()?.sandbox).toBe(false);
   });
 
@@ -214,7 +235,7 @@ describe("createPaketLabel", () => {
         country: "DE",
       },
     });
-    expect(result).toEqual({ ok: false, reason: "unauthorized" });
+    expect(result).toMatchObject({ ok: false, reason: "unauthorized" });
   });
 
   it("creates a sandbox label with Basic Auth (no OAuth token call)", async () => {
