@@ -202,7 +202,7 @@ const admin: AdminDict = {
 
     createLabelTitle: "DHL-Paket-Etikett",
     createLabelHint:
-      "Erstellt ein echtes DHL-Etikett für diese Bestellung (Porto kann berechnet werden). Nur für Standard-Paket — Express bleibt manuell darunter. Die Straße muss eine Hausnummer enthalten.",
+      "Erstellt ein echtes DHL-Etikett für diese Bestellung (Porto kann berechnet werden). Nur Standard-Paket. Die Straße muss eine Hausnummer enthalten.",
     createLabel: "DHL-Etikett erstellen",
     creatingLabel: "Etikett wird erstellt…",
     labelNotConfigured:

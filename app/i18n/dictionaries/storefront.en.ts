@@ -166,8 +166,8 @@ const storefront = {
      * is one edit and this line cannot quietly promise a price that checkout
      * no longer charges.
      */
-    shippingRates: (standard: string, threshold: string, express: string) =>
-      `Standard ${standard} · free over ${threshold} · express ${express}`,
+    shippingRates: (standard: string, threshold: string) =>
+      `Standard ${standard} · free over ${threshold}`,
     easyReturns: "Easy Returns",
     returnPolicy: "15-day return policy",
     inColour: (name: string, color: string) => `${name} in ${color}`,

@@ -173,17 +173,15 @@ the carrier behind each one live in `SHIPPING_METHODS` in `app/lib/shipping.ts`
 and nowhere else — the cart quote, the product page copy, the Stripe rates and
 the carrier written onto the order are all derived from that one list.
 
-Standard (DHL) and Express (DHL Express) are live. **DPD is defined but held
-back**: it carries `offered: false`, so `OFFERED_SHIPPING_METHODS` leaves it out
-and checkout never shows it. Everything behind it is finished and tested — the
-tracking client, the carrier mapping, the pricing, the admin form — because the
-only thing missing is the DPD business contract. Selling it is that one flag
-plus the credentials below. It stays in the catalogue rather than being deleted
-so any order that ever chose it still reads back correctly.
+Standard (DHL Paket) is live. **Express (DHL Express) and DPD are defined but
+held back**: both carry `offered: false`, so checkout never shows them.
+Everything behind them stays in the catalogue so older orders still read back;
+selling either again is that one flag (plus DPD credentials when the contract
+is signed).
 
 Free shipping over €100 applies to standard delivery only. The threshold is
-there to nudge basket size, not to give away a next-day air upgrade, so express
-and DPD keep their full rate however large the basket is.
+there to nudge basket size; held-back methods would keep their full rate
+however large the basket is.
 
 Each rate is stamped with its method id in Stripe metadata, and fulfillment
 reads that id back — never the display name, which is translated copy that will

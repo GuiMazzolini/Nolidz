@@ -202,7 +202,7 @@ const admin = {
 
     createLabelTitle: "DHL Paket label",
     createLabelHint:
-      "Creates a real DHL label for this order (postage may be charged). Only for standard Paket — Express stays manual below. Check the street includes a house number.",
+      "Creates a real DHL label for this order (postage may be charged). Standard Paket only. Check the street includes a house number.",
     createLabel: "Create DHL label",
     creatingLabel: "Creating label…",
     labelNotConfigured:

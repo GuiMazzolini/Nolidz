@@ -159,8 +159,8 @@ const storefront: StorefrontDict = {
     buyNow: "Jetzt kaufen",
     processing: "Wird verarbeitet…",
     shipsToOnly: (area) => `Versand nur nach ${area}`,
-    shippingRates: (standard, threshold, express) =>
-      `Standard ${standard} · ab ${threshold} gratis · Express ${express}`,
+    shippingRates: (standard, threshold) =>
+      `Standard ${standard} · ab ${threshold} gratis`,
     easyReturns: "Einfache Rückgabe",
     returnPolicy: "15 Tage Rückgaberecht",
     inColour: (name, color) => `${name} in ${color}`,

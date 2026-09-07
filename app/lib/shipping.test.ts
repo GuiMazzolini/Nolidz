@@ -50,10 +50,11 @@ describe("SHIPPING_METHODS", () => {
    */
   it("holds DPD back from what buyers are offered", () => {
     expect(getShippingMethod("dpd")?.offered).toBe(false);
-    expect(OFFERED_SHIPPING_METHODS.map((m) => m.id)).toEqual([
-      "standard",
-      "express",
-    ]);
+    expect(OFFERED_SHIPPING_METHODS.map((m) => m.id)).toEqual(["standard"]);
+  });
+
+  it("holds Express back from what buyers are offered", () => {
+    expect(getShippingMethod("express")?.offered).toBe(false);
   });
 
   /**

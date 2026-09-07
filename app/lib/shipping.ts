@@ -87,12 +87,15 @@ export const SHIPPING_METHODS: readonly ShippingMethod[] = [
     offered: false,
   },
   {
+    // Held back for now: Express labels are a different API (MyDHL) and the
+    // shop is Paket-only. Kept in the catalogue so older Express orders still
+    // read back; turning it on again is this flag.
     id: "express",
     carrier: "DHL Express",
     rate: 15,
     freeOverThreshold: false,
     deliveryDays: { min: 1, max: 2 },
-    offered: true,
+    offered: false,
   },
 ];
 
