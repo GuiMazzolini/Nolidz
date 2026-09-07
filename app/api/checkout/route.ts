@@ -281,10 +281,8 @@ export async function POST(req: NextRequest) {
 
   const sessionCreateParams = (customerId: string | undefined) => ({
     mode: "payment" as const,
-    // Card only until PayPal is enabled under Stripe Dashboard (Live) →
-    // Settings → Payment methods. Listing an inactive method makes session
-    // create fail for every checkout, guest and signed-in alike.
-    payment_method_types: ["card"] as ("card")[],
+    // Card + PayPal (enable PayPal under Stripe Dashboard → Payment methods).
+    payment_method_types: ["card", "paypal"] as ("card" | "paypal")[],
     line_items,
     shipping_address_collection: {
       // Germany only — we do not deliver elsewhere.
