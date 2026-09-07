@@ -49,7 +49,7 @@ const white43: Product = {
 
 /** The one button that leaves the site. Named once: its wording follows
  *  whichever payment methods Checkout is offering. */
-const PAY_BUTTON = { name: /Pay with card or PayPal/ };
+const PAY_BUTTON = { name: /Pay with card/ };
 
 beforeEach(() => {
   vi.clearAllMocks();

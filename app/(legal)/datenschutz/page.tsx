@@ -60,7 +60,7 @@ export default function DatenschutzPage() {
         <ul className="mt-1 list-disc pl-5 space-y-1">
           <li>
             <strong>Stripe Payments Europe, Ltd.</strong> – Zahlungsabwicklung
-            (Karte &amp; PayPal); Datenschutzrichtlinie:{" "}
+            (Karte); Datenschutzrichtlinie:{" "}
             <a
               href="https://stripe.com/de/privacy"
               target="_blank"

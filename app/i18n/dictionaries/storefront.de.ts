@@ -215,9 +215,9 @@ const storefront: StorefrontDict = {
     deliveryOnly: (area) => `Lieferung nur nach ${area}.`,
     deliveryOnlyTail: (area) =>
       `Beim Checkout brauchen wir eine Adresse in ${area}.`,
-    payButton: "Mit Karte oder PayPal bezahlen",
+    payButton: "Mit Karte bezahlen",
     redirecting: "Weiterleitung…",
-    secureCheckout: "Sichere Zahlung über Stripe (Karte oder PayPal).",
+    secureCheckout: "Sichere Zahlung über Stripe (Karte).",
     secureCheckoutGuest: "Kein Konto nötig – ",
     secureCheckoutTail: "Lieferadresse und E-Mail werden dort erfasst.",
     holdNotice: (minutes) =>

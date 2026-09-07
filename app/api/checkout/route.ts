@@ -281,9 +281,10 @@ export async function POST(req: NextRequest) {
 
   const sessionCreateParams = (customerId: string | undefined) => ({
     mode: "payment" as const,
-    // Card + PayPal (enable PayPal under Dashboard → Payment methods).
-    // Listing them here keeps Checkout aligned with what we support in the UI.
-    payment_method_types: ["card", "paypal"] as ("card" | "paypal")[],
+    // Card only until PayPal is enabled under Stripe Dashboard (Live) →
+    // Settings → Payment methods. Listing an inactive method makes session
+    // create fail for every checkout, guest and signed-in alike.
+    payment_method_types: ["card"] as ("card")[],
     line_items,
     shipping_address_collection: {
       // Germany only — we do not deliver elsewhere.

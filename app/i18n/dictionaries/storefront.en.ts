@@ -226,9 +226,9 @@ const storefront = {
     total: "Total",
     deliveryOnly: (area: string) => `Delivery to ${area} only.`,
     deliveryOnlyTail: (area: string) => `Checkout accepts a ${area} address.`,
-    payButton: "Pay with card or PayPal",
+    payButton: "Pay with card",
     redirecting: "Redirecting…",
-    secureCheckout: "Secure checkout on Stripe (card or PayPal).",
+    secureCheckout: "Secure checkout on Stripe (card).",
     secureCheckoutGuest: "No account needed — ",
     secureCheckoutTail: "shipping and email are collected there.",
     holdNotice: (minutes: number) =>
