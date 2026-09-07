@@ -11,8 +11,9 @@ import {
   EU_SIZES,
   MAX_PRODUCT_VARIANTS,
   listColors,
+  normalizeColorImage,
   variantComboKey,
-  type ColorImage,
+  type ColorImageInput,
   type ProductVariant,
 } from "@/app/lib/variants";
 import { useAdminT, useLocalePath, useT } from "@/app/i18n/client";
@@ -26,16 +27,13 @@ export type ProductFormValues = {
   stock: number;
   category?: ProductCategory;
   variants?: ProductVariant[];
-  colorImages?: ColorImage[];
+  colorImages?: ColorImageInput[];
   images?: string[];
 };
 
 type FieldErrors = {
   name?: string;
   description?: string;
-  imageUrl?: string;
-  price?: string;
-  stock?: string;
   variants?: string;
   images?: string;
 };
@@ -77,16 +75,12 @@ export default function ProductForm({
   initial?: ProductFormValues;
 }) {
   const t = useAdminT();
-  // Category names are shopper-facing wording, shared with the storefront nav.
   const storefront = useT();
   const localePath = useLocalePath();
   const router = useRouter();
   const [name, setName] = useState(initial?.name ?? "");
   const [id, setId] = useState(initial?.id ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
-  const [price, setPrice] = useState(initial?.price?.toString() ?? "");
-  const [stock, setStock] = useState(initial?.stock?.toString() ?? "10");
   const [category, setCategory] = useState<ProductCategory>(
     initial?.category ?? "men"
   );
@@ -94,37 +88,47 @@ export default function ProductForm({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [previewBroken, setPreviewBroken] = useState(false);
 
   /**
-   * Extra gallery shots, in display order. Held as a plain array of URLs — a
-   * blank row is a slot the admin has opened but not filled yet, and it is
-   * dropped on submit rather than sent as an empty string.
+   * Optional shared extras (sole, box). Colour shoots live on each colour card;
+   * these are appended after every colour's own photos on the storefront.
    */
   const [galleryImages, setGalleryImages] = useState<string[]>(
     () => initial?.images ?? []
   );
 
-  const [useVariants, setUseVariants] = useState(
-    (initial?.variants?.length ?? 0) > 0
-  );
   const [variantRows, setVariantRows] = useState<VariantRow[]>(() =>
     toRows(initial?.variants)
   );
-  // Size-run builder: pick a colour and a default count, then tap sizes.
   const [runColor, setRunColor] = useState("");
   const [runStock, setRunStock] = useState("3");
 
   /**
-   * One photo per colourway, keyed by colour name so a row rename does not
-   * strand the picture. Colours with no entry fall back to the main image.
+   * Legacy single-SKU edits still have a product-level photo/price. The first
+   * time a colour is stocked, seed that colour from those so the admin is not
+   * forced to re-upload.
    */
-  const [colorPhotos, setColorPhotos] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      (initial?.colorImages ?? []).map((entry) => [entry.color, entry.imageUrl])
-    )
+  const legacySeed =
+    mode === "edit" && !(initial?.variants?.length)
+      ? {
+          imageUrl: initial?.imageUrl?.trim() || "",
+          price:
+            typeof initial?.price === "number" && Number.isFinite(initial.price)
+              ? String(initial.price)
+              : "",
+        }
+      : null;
+
+  const [colorPhotos, setColorPhotos] = useState<Record<string, string[]>>(
+    () => {
+      const out: Record<string, string[]> = {};
+      for (const entry of initial?.colorImages ?? []) {
+        const normalized = normalizeColorImage(entry);
+        if (normalized) out[normalized.color] = [...normalized.imageUrls];
+      }
+      return out;
+    }
   );
-  /** Price per colourway. Empty means inherit the product price. */
   const [colorPrices, setColorPrices] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
     for (const variant of initial?.variants ?? []) {
@@ -136,7 +140,6 @@ export default function ProductForm({
     return out;
   });
 
-  /** Colours currently present in the variant rows, in entry order. */
   const variantColors = useMemo(
     () =>
       listColors(
@@ -161,11 +164,28 @@ export default function ProductForm({
     [variantRows]
   );
 
-  /** Filled gallery entries, which is what the server is sent. */
   const filledGallery = useMemo(
     () => galleryImages.map((url) => url.trim()).filter(Boolean),
     [galleryImages]
   );
+
+  function filledColorPhotos(color: string): string[] {
+    return (colorPhotos[color] ?? []).map((url) => url.trim()).filter(Boolean);
+  }
+
+  function seedColourFromLegacy(color: string) {
+    if (!legacySeed) return;
+    setColorPhotos((prev) => {
+      if ((prev[color]?.length ?? 0) > 0) return prev;
+      if (!legacySeed.imageUrl.startsWith("http")) return prev;
+      return { ...prev, [color]: [legacySeed.imageUrl] };
+    });
+    setColorPrices((prev) => {
+      if (prev[color]?.trim()) return prev;
+      if (!legacySeed.price) return prev;
+      return { ...prev, [color]: legacySeed.price };
+    });
+  }
 
   function updateGalleryImage(index: number, value: string) {
     setFieldErrors((prev) => ({ ...prev, images: undefined }));
@@ -184,7 +204,6 @@ export default function ProductForm({
     );
   }
 
-  /** Reorder by one slot; the gallery renders in array order. */
   function moveGalleryImage(index: number, delta: number) {
     setGalleryImages((urls) => {
       const target = index + delta;
@@ -192,6 +211,42 @@ export default function ProductForm({
       const next = [...urls];
       [next[index], next[target]] = [next[target], next[index]];
       return next;
+    });
+  }
+
+  function updateColorPhoto(color: string, index: number, value: string) {
+    setFieldErrors((prev) => ({ ...prev, variants: undefined }));
+    setColorPhotos((prev) => {
+      const urls = [...(prev[color] ?? [])];
+      urls[index] = value;
+      return { ...prev, [color]: urls };
+    });
+  }
+
+  function removeColorPhoto(color: string, index: number) {
+    setFieldErrors((prev) => ({ ...prev, variants: undefined }));
+    setColorPhotos((prev) => ({
+      ...prev,
+      [color]: (prev[color] ?? []).filter((_, i) => i !== index),
+    }));
+  }
+
+  function addColorPhotoSlot(color: string) {
+    setFieldErrors((prev) => ({ ...prev, variants: undefined }));
+    setColorPhotos((prev) => {
+      const urls = prev[color] ?? [];
+      if (urls.length >= MAX_PRODUCT_IMAGES) return prev;
+      return { ...prev, [color]: [...urls, ""] };
+    });
+  }
+
+  function moveColorPhoto(color: string, index: number, delta: number) {
+    setColorPhotos((prev) => {
+      const urls = [...(prev[color] ?? [])];
+      const target = index + delta;
+      if (target < 0 || target >= urls.length) return prev;
+      [urls[index], urls[target]] = [urls[target], urls[index]];
+      return { ...prev, [color]: urls };
     });
   }
 
@@ -209,61 +264,21 @@ export default function ProductForm({
 
   function addRow(size: string, color: string, stock: string) {
     setFieldErrors((prev) => ({ ...prev, variants: undefined }));
+    const trimmed = color.trim();
+    seedColourFromLegacy(trimmed);
     setVariantRows((rows) => {
       if (rows.length >= MAX_PRODUCT_VARIANTS) return rows;
-      // Tapping a size already in the run toggles it back off, so building a
-      // size run stays a single row of clicks.
       const existing = rows.findIndex(
-        (row) => variantComboKey(row.size, row.color) === variantComboKey(size, color)
+        (row) =>
+          variantComboKey(row.size, row.color) === variantComboKey(size, trimmed)
       );
       if (existing >= 0) {
         return rows.filter((_, i) => i !== existing);
       }
-      return [...rows, { uid: nextUid(), size, color, stock }];
+      return [...rows, { uid: nextUid(), size, color: trimmed, stock }];
     });
   }
 
-  // Use the raw HTTPS URL for the admin preview so a bad transform
-  // (or Next/Image quirks) never blank out the thumbnail.
-  const previewSrc = useMemo(() => {
-    const url = imageUrl.trim();
-    return url.startsWith("http") ? url : null;
-  }, [imageUrl]);
-
-  function validate(): FieldErrors {
-    const next: FieldErrors = {};
-    if (!name.trim()) next.name = t.form.errors.nameRequired;
-    if (!description.trim()) next.description = t.form.errors.descriptionRequired;
-    if (!imageUrl.trim().startsWith("http")) {
-      next.imageUrl = t.form.errors.imageUrlInvalid;
-    }
-    const priceNum = Number(price);
-    if (!Number.isFinite(priceNum) || priceNum < 0) {
-      next.price = t.form.errors.priceInvalid;
-    }
-    next.images = validateGallery();
-
-    if (useVariants) {
-      next.variants = validateVariants();
-    } else {
-      const stockNum = Number(stock);
-      if (!Number.isInteger(stockNum) || stockNum < 0) {
-        next.stock = t.form.errors.stockInvalid;
-      }
-    }
-
-    // Drop the keys we deliberately left undefined so the caller's
-    // "any errors?" check stays a simple key count.
-    return Object.fromEntries(
-      Object.entries(next).filter(([, value]) => value !== undefined)
-    ) as FieldErrors;
-  }
-
-  /**
-   * Blank rows are ignored rather than rejected: opening a slot and changing
-   * your mind is not an error, and submit drops them. MAX_PRODUCT_IMAGES is
-   * the ceiling the ticket asked for (4–5 extra shots).
-   */
   function validateGallery(): string | undefined {
     if (filledGallery.length > MAX_PRODUCT_IMAGES) {
       return t.form.errors.tooManyPhotos(MAX_PRODUCT_IMAGES);
@@ -299,28 +314,49 @@ export default function ProductForm({
       combos.add(combo);
     }
 
-    for (const color of [...new Set(variantRows.map((row) => row.color.trim()).filter(Boolean))]) {
+    for (const color of variantColors) {
       const raw = colorPrices[color];
-      if (raw === undefined || raw.trim() === "") continue;
+      if (raw === undefined || raw.trim() === "") {
+        return t.form.errors.colourPriceRequired(color);
+      }
       const value = Number(raw);
       if (!Number.isFinite(value) || value < 0) {
         return t.form.errors.colourPriceInvalid(color);
+      }
+
+      const urls = filledColorPhotos(color);
+      if (urls.length === 0) {
+        return t.form.errors.colourPhotoRequired(color);
+      }
+      if (urls.length > MAX_PRODUCT_IMAGES) {
+        return t.form.errors.tooManyColourPhotos(color, MAX_PRODUCT_IMAGES);
+      }
+      if (urls.some((url) => !url.startsWith("http"))) {
+        return t.form.errors.colourPhotoUrlInvalid(color);
       }
     }
     return undefined;
   }
 
+  function validate(): FieldErrors {
+    const next: FieldErrors = {};
+    if (!name.trim()) next.name = t.form.errors.nameRequired;
+    if (!description.trim()) next.description = t.form.errors.descriptionRequired;
+    next.images = validateGallery();
+    next.variants = validateVariants();
+    return Object.fromEntries(
+      Object.entries(next).filter(([, value]) => value !== undefined)
+    ) as FieldErrors;
+  }
+
   async function uploadToCloudinary(
     file: File,
-    onUploaded: (url: string) => void = setImageUrl,
-    // Which field an upload failure is reported under, so a gallery upload does
-    // not put its error message beside the main image input.
-    errorField: "imageUrl" | "images" = "imageUrl"
+    onUploaded: (url: string) => void,
+    errorField: "variants" | "images" = "variants"
   ) {
     setError(null);
     setFieldErrors((prev) => ({ ...prev, [errorField]: undefined }));
     setUploading(true);
-    setPreviewBroken(false);
 
     try {
       const signRes = await fetch("/api/admin/uploads/sign", {
@@ -384,40 +420,32 @@ export default function ProductForm({
 
     setLoading(true);
 
+    const firstColor = variantColors[0];
+    const firstPhotos = filledColorPhotos(firstColor);
+    const firstPrice = Number(colorPrices[firstColor]);
+
     const payload = {
       name: name.trim(),
       description: description.trim(),
-      imageUrl: imageUrl.trim(),
-      price: Number(price),
+      // Derived for cart / OG / admin thumbnails — shoppers see colour photos.
+      imageUrl: firstPhotos[0],
+      price: firstPrice,
       category,
-      // Always sent: an empty array is how editing clears an existing gallery.
       images: filledGallery,
-      ...(useVariants
-        ? {
-            // Only colours that still have a variant row, so removing a
-            // colourway takes its photo with it.
-            colorImages: variantColors
-              .filter((color) => colorPhotos[color]?.trim())
-              .map((color) => ({ color, imageUrl: colorPhotos[color].trim() })),
-            // The server derives the product-level stock from these rows.
-            variants: variantRows.map((row) => {
-              const colour = row.color.trim();
-              const colourPrice = Number(colorPrices[colour] || price);
-              return {
-                ...(row.sku ? { sku: row.sku } : {}),
-                size: row.size.trim(),
-                color: colour,
-                stock: Number(row.stock),
-                ...(Number.isFinite(colourPrice) ? { price: colourPrice } : {}),
-              };
-            }),
-          }
-        : {
-            stock: Number(stock),
-            // An empty array clears variants when editing a product that had
-            // them; harmless on create.
-            ...(mode === "edit" ? { variants: [], colorImages: [] } : {}),
-          }),
+      colorImages: variantColors.map((color) => ({
+        color,
+        imageUrls: filledColorPhotos(color),
+      })),
+      variants: variantRows.map((row) => {
+        const colour = row.color.trim();
+        return {
+          ...(row.sku ? { sku: row.sku } : {}),
+          size: row.size.trim(),
+          color: colour,
+          stock: Number(row.stock),
+          price: Number(colorPrices[colour]),
+        };
+      }),
       ...(mode === "create" && id.trim() ? { id: id.trim() } : {}),
     };
 
@@ -540,82 +568,321 @@ export default function ProductForm({
         )}
       </div>
 
-      <div>
-        <label
-          htmlFor="imageUrl"
-          className="mb-1 block text-sm font-medium text-ink/80"
-        >
-          {t.form.productImage}
-        </label>
-        <input
-          id="imageUrl"
-          value={imageUrl}
-          onChange={(e) => {
-            setImageUrl(e.target.value);
-            setPreviewBroken(false);
-            setFieldErrors((prev) => ({ ...prev, imageUrl: undefined }));
-          }}
-          required
-          placeholder={t.form.cloudinaryPlaceholder}
-          aria-invalid={!!fieldErrors.imageUrl}
-          className={`w-full border-2 px-3 py-2 ${
-            fieldErrors.imageUrl ? "border-red-400" : "border-ink/15"
-          }`}
-        />
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <label className="inline-flex cursor-pointer items-center justify-center border-2 border-ink/15 bg-white px-4 py-2 text-sm font-medium text-ink/80 hover:bg-paper">
-            {uploading ? t.form.uploading : t.form.uploadImage}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={uploading}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  void uploadToCloudinary(file);
-                }
-                e.currentTarget.value = "";
-              }}
-            />
-          </label>
-          <p className="text-xs text-ink/45">{t.form.uploadHint}</p>
-        </div>
-        {fieldErrors.imageUrl && (
-          <p className="mt-1 text-sm text-red-600">{fieldErrors.imageUrl}</p>
+      <fieldset className="border-2 border-ink/10 p-4">
+        <legend className="px-1 text-sm font-medium text-ink/80">
+          {t.form.variantsLegend}
+        </legend>
+        <p className="mb-4 text-xs text-ink/45">{t.form.variantsIntro}</p>
+
+        {legacySeed && variantRows.length === 0 && (
+          <p className="mb-4 border-2 border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {t.form.legacySingleSkuHint}
+          </p>
         )}
 
-        <div className="mt-4 border-2 border-ink/10 bg-paper p-3">
-          {previewSrc ? (
-            <div className="flex items-center gap-4">
-              {/* eslint-disable-next-line @next/next/no-img-element -- admin preview of arbitrary remote URLs */}
-              <img
-                key={previewSrc}
-                src={previewSrc}
-                alt={name || t.form.productPreview}
-                className="h-28 w-28 shrink-0 object-cover bg-white ring-1 ring-ink/10"
-                onError={() => setPreviewBroken(true)}
-                onLoad={() => setPreviewBroken(false)}
-              />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-ink">
-                  {t.form.imagePreview}
-                </p>
-                <p className="mt-1 truncate text-xs text-ink/45">{imageUrl}</p>
-                {previewBroken && (
-                  <p className="mt-2 text-sm text-red-600">
-                    {t.form.previewBroken}
-                  </p>
+        <div className="space-y-5">
+          <div className="border-2 border-ink/10 bg-paper p-3">
+            <p className="mb-2 text-sm font-medium text-ink/80">
+              {t.form.addSizeRun}
+            </p>
+            <p className="mb-2 text-xs text-ink/45">{t.form.addSizeRunHint}</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs text-ink/60">
+                  {t.form.colour}
+                </span>
+                <input
+                  value={runColor}
+                  onChange={(e) => setRunColor(e.target.value)}
+                  placeholder={t.form.colourPlaceholder}
+                  className="w-44 border-2 border-ink/15 bg-white px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-ink/60">
+                  {t.form.stockPerSize}
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={runStock}
+                  onChange={(e) => setRunStock(e.target.value)}
+                  className="w-28 border-2 border-ink/15 bg-white px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {EU_SIZES.map((size) => {
+                const active = variantRows.some(
+                  (row) =>
+                    variantComboKey(row.size, row.color) ===
+                    variantComboKey(size, runColor)
+                );
+                return (
+                  <button
+                    key={size}
+                    type="button"
+                    disabled={!runColor.trim()}
+                    onClick={() => addRow(size, runColor.trim(), runStock || "0")}
+                    className={`border-2 px-2.5 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                      active
+                        ? "border-ink bg-ink text-paper"
+                        : "border-ink/15 bg-white text-ink/80 hover:border-cardboard-dark"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-ink/45">
+              {runColor.trim()
+                ? t.form.tapSizeHint
+                : t.form.enterColourFirst}
+            </p>
+          </div>
+
+          {variantRows.length > 0 && (
+            <>
+              <div className="border-2 border-ink/10 bg-paper px-3 py-2 text-sm text-ink/60">
+                {t.form.variantStockSummary(
+                  variantStockTotal,
+                  variantRows.length
                 )}
               </div>
-            </div>
-          ) : (
-            <div className="flex h-28 items-center justify-center border border-dashed border-ink/20 bg-white text-sm text-ink/45">
-              {t.form.noImageYet}
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="text-left text-xs uppercase tracking-wide text-ink/45">
+                    <tr>
+                      <th className="py-2 pr-3 font-medium">{t.form.euSize}</th>
+                      <th className="py-2 pr-3 font-medium">{t.form.colour}</th>
+                      <th className="py-2 pr-3 font-medium">{t.form.stock}</th>
+                      <th className="py-2" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-ink/10">
+                    {variantRows.map((row, index) => (
+                      <tr key={row.uid}>
+                        <td className="py-2 pr-3">
+                          <input
+                            value={row.size}
+                            onChange={(e) =>
+                              updateRow(index, { size: e.target.value })
+                            }
+                            aria-label={t.form.euSizeForRow(index + 1)}
+                            className="w-20 border-2 border-ink/15 px-2 py-1.5"
+                          />
+                        </td>
+                        <td className="py-2 pr-3">
+                          <input
+                            value={row.color}
+                            onChange={(e) =>
+                              updateRow(index, { color: e.target.value })
+                            }
+                            aria-label={t.form.colourForRow(index + 1)}
+                            className="w-40 border-2 border-ink/15 px-2 py-1.5"
+                          />
+                        </td>
+                        <td className="py-2 pr-3">
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={row.stock}
+                            onChange={(e) =>
+                              updateRow(index, { stock: e.target.value })
+                            }
+                            aria-label={t.form.stockForRow(index + 1)}
+                            className="w-24 border-2 border-ink/15 px-2 py-1.5"
+                          />
+                        </td>
+                        <td className="py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => removeRow(index)}
+                            className="text-sm font-medium text-red-600 hover:text-red-800"
+                          >
+                            {t.form.remove}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {variantColors.length > 0 && (
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-ink/80">
+                  {t.form.colourPhotosAndPrices}
+                </p>
+                <p className="mt-0.5 text-xs text-ink/45">
+                  {t.form.colourPhotosHint(MAX_PRODUCT_IMAGES)}
+                </p>
+              </div>
+
+              {variantColors.map((color) => {
+                const urls = colorPhotos[color] ?? [];
+                const preview = filledColorPhotos(color)[0] ?? "";
+                return (
+                  <div
+                    key={color}
+                    className="space-y-3 border-2 border-ink/10 bg-paper p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden border border-ink/10 bg-white">
+                        {preview.startsWith("http") && (
+                          /* eslint-disable-next-line @next/next/no-img-element -- admin preview of arbitrary remote URLs */
+                          <img
+                            src={preview}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        )}
+                      </div>
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                        {color}
+                      </span>
+                      <label className="block">
+                        <span className="mb-1 block text-xs text-ink/60">
+                          {t.form.price}
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={colorPrices[color] ?? ""}
+                          onChange={(e) =>
+                            setColorPrices((prev) => ({
+                              ...prev,
+                              [color]: e.target.value,
+                            }))
+                          }
+                          aria-label={t.form.priceFor(color)}
+                          placeholder="0.00"
+                          className="w-28 border-2 border-ink/15 bg-white px-2 py-1.5 text-sm"
+                        />
+                      </label>
+                    </div>
+
+                    {urls.length > 0 && (
+                      <div className="space-y-2">
+                        {urls.map((url, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <div className="relative h-10 w-10 shrink-0 overflow-hidden border border-ink/10 bg-white">
+                              {url.trim().startsWith("http") && (
+                                /* eslint-disable-next-line @next/next/no-img-element -- admin preview of arbitrary remote URLs */
+                                <img
+                                  src={url.trim()}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              )}
+                            </div>
+                            <input
+                              value={url}
+                              onChange={(e) =>
+                                updateColorPhoto(color, index, e.target.value)
+                              }
+                              placeholder={t.form.photoUrlPlaceholder}
+                              aria-label={t.form.photoUrlFor(color, index + 1)}
+                              className="w-full border-2 border-ink/15 bg-white px-3 py-1.5 text-sm"
+                            />
+                            <label className="shrink-0 cursor-pointer border-2 border-ink/15 bg-white px-3 py-1.5 text-xs font-medium text-ink/80 hover:bg-paper">
+                              {t.form.upload}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={uploading}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    void uploadToCloudinary(file, (uploaded) =>
+                                      updateColorPhoto(color, index, uploaded)
+                                    );
+                                  }
+                                  e.currentTarget.value = "";
+                                }}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => moveColorPhoto(color, index, -1)}
+                              disabled={index === 0}
+                              aria-label={t.form.movePhotoUp(index + 1)}
+                              className="shrink-0 border-2 border-ink/15 bg-white px-2 py-1.5 text-xs text-ink/80 hover:bg-paper disabled:opacity-40"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveColorPhoto(color, index, 1)}
+                              disabled={index === urls.length - 1}
+                              aria-label={t.form.movePhotoDown(index + 1)}
+                              className="shrink-0 border-2 border-ink/15 bg-white px-2 py-1.5 text-xs text-ink/80 hover:bg-paper disabled:opacity-40"
+                            >
+                              ↓
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeColorPhoto(color, index)}
+                              className="shrink-0 text-sm font-medium text-red-600 hover:text-red-800"
+                            >
+                              {t.form.remove}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => addColorPhotoSlot(color)}
+                      disabled={urls.length >= MAX_PRODUCT_IMAGES}
+                      className="border-2 border-ink/15 bg-white px-3 py-2 text-sm font-medium text-ink/80 hover:bg-paper disabled:opacity-40"
+                    >
+                      {t.form.addColourPhoto(color)}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() =>
+              setVariantRows((rows) =>
+                rows.length >= MAX_PRODUCT_VARIANTS
+                  ? rows
+                  : [
+                      ...rows,
+                      {
+                        uid: nextUid(),
+                        size: "",
+                        color: runColor.trim(),
+                        stock: "0",
+                      },
+                    ]
+              )
+            }
+            className="border-2 border-ink/15 px-3 py-2 text-sm font-medium text-ink/80 hover:bg-paper"
+          >
+            {t.form.addEmptyRow}
+          </button>
+
+          {fieldErrors.variants && (
+            <p className="text-sm text-red-600">{fieldErrors.variants}</p>
+          )}
         </div>
-      </div>
+      </fieldset>
 
       <fieldset className="border-2 border-ink/10 p-4">
         <legend className="px-1 text-sm font-medium text-ink/80">
@@ -632,7 +899,11 @@ export default function ProductForm({
                 <div className="relative h-10 w-10 shrink-0 overflow-hidden border border-ink/10 bg-paper">
                   {url.trim().startsWith("http") && (
                     /* eslint-disable-next-line @next/next/no-img-element -- admin preview of arbitrary remote URLs */
-                    <img src={url.trim()} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={url.trim()}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   )}
                 </div>
 
@@ -706,320 +977,6 @@ export default function ProductForm({
 
         {fieldErrors.images && (
           <p className="mt-2 text-sm text-red-600">{fieldErrors.images}</p>
-        )}
-      </fieldset>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="price" className="mb-1 block text-sm font-medium text-ink/80">
-            {t.form.price}
-          </label>
-          <input
-            id="price"
-            type="number"
-            min="0"
-            step="0.01"
-            value={price}
-            onChange={(e) => {
-              setPrice(e.target.value);
-              setFieldErrors((prev) => ({ ...prev, price: undefined }));
-            }}
-            required
-            aria-invalid={!!fieldErrors.price}
-            className={`w-full border-2 px-3 py-2 ${
-              fieldErrors.price ? "border-red-400" : "border-ink/15"
-            }`}
-          />
-          {fieldErrors.price && (
-            <p className="mt-1 text-sm text-red-600">{fieldErrors.price}</p>
-          )}
-          {useVariants && (
-            <p className="mt-1 text-xs text-ink/45">
-              {t.form.priceFallbackHint}
-            </p>
-          )}
-        </div>
-        <div>
-          <label htmlFor="stock" className="mb-1 block text-sm font-medium text-ink/80">
-            {t.form.stock}
-          </label>
-          {useVariants ? (
-            <div className="border-2 border-ink/10 bg-paper px-3 py-2 text-sm text-ink/60">
-              {t.form.variantStockSummary(variantStockTotal, variantRows.length)}
-            </div>
-          ) : (
-            <input
-              id="stock"
-              type="number"
-              min="0"
-              step="1"
-              value={stock}
-              onChange={(e) => {
-                setStock(e.target.value);
-                setFieldErrors((prev) => ({ ...prev, stock: undefined }));
-              }}
-              required
-              aria-invalid={!!fieldErrors.stock}
-              className={`w-full border-2 px-3 py-2 ${
-                fieldErrors.stock ? "border-red-400" : "border-ink/15"
-              }`}
-            />
-          )}
-          {fieldErrors.stock && (
-            <p className="mt-1 text-sm text-red-600">{fieldErrors.stock}</p>
-          )}
-        </div>
-      </div>
-
-      <fieldset className="border-2 border-ink/10 p-4">
-        <legend className="px-1 text-sm font-medium text-ink/80">
-          {t.form.variantsLegend}
-        </legend>
-
-        <label className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            checked={useVariants}
-            onChange={(e) => {
-              setUseVariants(e.target.checked);
-              setFieldErrors((prev) => ({
-                ...prev,
-                stock: undefined,
-                variants: undefined,
-              }));
-            }}
-            className="mt-1"
-          />
-          <span className="text-sm text-ink/80">
-            {t.form.useVariants}
-            <span className="mt-0.5 block text-xs text-ink/45">
-              {t.form.useVariantsHint}
-            </span>
-          </span>
-        </label>
-
-        {useVariants && (
-          <div className="mt-5 space-y-5">
-            <div className="border-2 border-ink/10 bg-paper p-3">
-              <p className="mb-2 text-sm font-medium text-ink/80">
-                {t.form.addSizeRun}
-              </p>
-              <p className="mb-2 text-xs text-ink/45">{t.form.addSizeRunHint}</p>
-              <div className="flex flex-wrap items-end gap-3">
-                <label className="block">
-                  <span className="mb-1 block text-xs text-ink/60">
-                    {t.form.colour}
-                  </span>
-                  <input
-                    value={runColor}
-                    onChange={(e) => setRunColor(e.target.value)}
-                    placeholder={t.form.colourPlaceholder}
-                    className="w-44 border-2 border-ink/15 px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs text-ink/60">
-                    {t.form.stockPerSize}
-                  </span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={runStock}
-                    onChange={(e) => setRunStock(e.target.value)}
-                    className="w-28 border-2 border-ink/15 px-3 py-2 text-sm"
-                  />
-                </label>
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {EU_SIZES.map((size) => {
-                  const active = variantRows.some(
-                    (row) =>
-                      variantComboKey(row.size, row.color) ===
-                      variantComboKey(size, runColor)
-                  );
-                  return (
-                    <button
-                      key={size}
-                      type="button"
-                      disabled={!runColor.trim()}
-                      onClick={() => addRow(size, runColor.trim(), runStock || "0")}
-                      className={`border-2 px-2.5 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                        active
-                          ? "border-ink bg-ink text-paper"
-                          : "border-ink/15 bg-white text-ink/80 hover:border-cardboard-dark"
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-xs text-ink/45">
-                {runColor.trim()
-                  ? t.form.tapSizeHint
-                  : t.form.enterColourFirst}
-              </p>
-            </div>
-
-            {variantRows.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="text-left text-xs uppercase tracking-wide text-ink/45">
-                    <tr>
-                      <th className="py-2 pr-3 font-medium">{t.form.euSize}</th>
-                      <th className="py-2 pr-3 font-medium">{t.form.colour}</th>
-                      <th className="py-2 pr-3 font-medium">{t.form.stock}</th>
-                      <th className="py-2" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-ink/10">
-                    {variantRows.map((row, index) => (
-                      <tr key={row.uid}>
-                        <td className="py-2 pr-3">
-                          <input
-                            value={row.size}
-                            onChange={(e) => updateRow(index, { size: e.target.value })}
-                            aria-label={t.form.euSizeForRow(index + 1)}
-                            className="w-20 border-2 border-ink/15 px-2 py-1.5"
-                          />
-                        </td>
-                        <td className="py-2 pr-3">
-                          <input
-                            value={row.color}
-                            onChange={(e) => updateRow(index, { color: e.target.value })}
-                            aria-label={t.form.colourForRow(index + 1)}
-                            className="w-40 border-2 border-ink/15 px-2 py-1.5"
-                          />
-                        </td>
-                        <td className="py-2 pr-3">
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={row.stock}
-                            onChange={(e) => updateRow(index, { stock: e.target.value })}
-                            aria-label={t.form.stockForRow(index + 1)}
-                            className="w-24 border-2 border-ink/15 px-2 py-1.5"
-                          />
-                        </td>
-                        <td className="py-2 text-right">
-                          <button
-                            type="button"
-                            onClick={() => removeRow(index)}
-                            className="text-sm font-medium text-red-600 hover:text-red-800"
-                          >
-                            {t.form.remove}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {variantColors.length > 0 && (
-              <div className="border-2 border-ink/10 p-3">
-                <p className="text-sm font-medium text-ink/80">
-                  {t.form.colourPhotosAndPrices}
-                </p>
-                <p className="mt-0.5 mb-3 text-xs text-ink/45">
-                  {t.form.colourPhotosHint}
-                </p>
-
-                <div className="space-y-2">
-                  {variantColors.map((color) => (
-                    <div key={color} className="flex items-center gap-3">
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden border border-ink/10 bg-paper">
-                        {(colorPhotos[color] || imageUrl).startsWith("http") && (
-                          /* eslint-disable-next-line @next/next/no-img-element -- admin preview of arbitrary remote URLs */
-                          <img
-                            src={colorPhotos[color] || imageUrl}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        )}
-                      </div>
-
-                      <span className="w-28 shrink-0 truncate text-sm text-ink/80">
-                        {color}
-                      </span>
-
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={colorPrices[color] ?? price}
-                        onChange={(e) =>
-                          setColorPrices((prev) => ({
-                            ...prev,
-                            [color]: e.target.value,
-                          }))
-                        }
-                        aria-label={t.form.priceFor(color)}
-                        className="w-24 shrink-0 border-2 border-ink/15 px-2 py-1.5 text-sm"
-                      />
-
-                      <input
-                        value={colorPhotos[color] ?? ""}
-                        onChange={(e) =>
-                          setColorPhotos((prev) => ({
-                            ...prev,
-                            [color]: e.target.value,
-                          }))
-                        }
-                        placeholder={t.form.photoUrlPlaceholder}
-                        aria-label={t.form.photoUrlFor(color)}
-                        className="w-full border-2 border-ink/15 px-3 py-1.5 text-sm"
-                      />
-
-                      <label className="shrink-0 cursor-pointer border-2 border-ink/15 px-3 py-1.5 text-xs font-medium text-ink/80 hover:bg-paper">
-                        {t.form.upload}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          disabled={uploading}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              void uploadToCloudinary(file, (url) =>
-                                setColorPhotos((prev) => ({ ...prev, [color]: url }))
-                              );
-                            }
-                            e.currentTarget.value = "";
-                          }}
-                        />
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() =>
-                setVariantRows((rows) =>
-                  rows.length >= MAX_PRODUCT_VARIANTS
-                    ? rows
-                    : [
-                        ...rows,
-                        { uid: nextUid(), size: "", color: runColor.trim(), stock: "0" },
-                      ]
-                )
-              }
-              className="border-2 border-ink/15 px-3 py-2 text-sm font-medium text-ink/80 hover:bg-paper"
-            >
-              {t.form.addEmptyRow}
-            </button>
-
-            {fieldErrors.variants && (
-              <p className="text-sm text-red-600">{fieldErrors.variants}</p>
-            )}
-          </div>
         )}
       </fieldset>
 

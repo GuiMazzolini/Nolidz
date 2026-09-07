@@ -59,7 +59,9 @@ export async function PATCH(
     try {
       updates.colorImages = colorImages.map((entry) => ({
         color: entry.color,
-        imageUrl: normalizeProductImageUrl(entry.imageUrl, t.image),
+        imageUrls: entry.imageUrls.map((url) =>
+          normalizeProductImageUrl(url, t.image)
+        ),
       })) satisfies ColorImage[];
     } catch (err) {
       return badRequest(err instanceof Error ? err.message : t.image.invalid);

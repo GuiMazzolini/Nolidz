@@ -2,7 +2,7 @@ import type { Db } from "mongodb";
 import type { ProductCategory } from "@/app/lib/categories";
 import type { Order } from "@/app/lib/orders";
 import type { ReservationDoc } from "@/app/lib/reservations";
-import type { ColorImage, ProductVariant } from "@/app/lib/variants";
+import type { ColorImageInput, ProductVariant } from "@/app/lib/variants";
 
 /**
  * Typed accessors for every collection in the database.
@@ -34,8 +34,8 @@ export type ProductDoc = {
   category?: ProductCategory;
   /** Absent on single-SKU products, which sell straight off `stock`. */
   variants?: ProductVariant[];
-  /** Optional per-colourway photos; the main `imageUrl` is the fallback. */
-  colorImages?: ColorImage[];
+  /** Optional per-colourway photo sets; the main `imageUrl` is the fallback. */
+  colorImages?: ColorImageInput[];
   /**
    * Extra gallery photos in display order, capped at MAX_PRODUCT_IMAGES.
    * The main `imageUrl` is not repeated here — see productGallery in lib/images.

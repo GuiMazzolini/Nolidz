@@ -3,8 +3,8 @@ import { productGallery } from "@/app/lib/images";
 import type { Product } from "@/app/product-data";
 import {
   colorwayPrice,
+  galleryForColor,
   hasVariants,
-  imageForColor,
   listColors,
   variantsForColor,
 } from "@/app/lib/variants";
@@ -59,12 +59,8 @@ export function toColorways(product: Product): Colorway[] {
     key: colorwayKey(product.id, color),
     product,
     color,
-    // The colourway photo leads because it is the thing being chosen; the
-    // gallery shots are of the shoe as a whole and follow it.
-    images: productGallery({
-      imageUrl: imageForColor(product, color),
-      images: product.images,
-    }),
+    // Colour-specific shots lead; shared product extras follow.
+    images: galleryForColor(product, color),
     otherColors: colors.filter((other) => other !== color),
     stock: colorwayStock(product, color),
     price: colorwayPrice(product, color),

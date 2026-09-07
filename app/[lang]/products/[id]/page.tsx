@@ -10,15 +10,17 @@ import {
 } from "@/app/lib/product-content";
 import { isSellableForPublic } from "@/app/lib/public-products";
 import type { ProductCategory } from "@/app/lib/categories";
-import {
-  serializeVariants,
-  type ColorImage,
-  type ProductVariant,
-} from "@/app/lib/variants";
 import ShippingAreaBanner from "@/app/components/ShippingAreaBanner";
 import ProductDetail from "./ProductDetail";
 import { getLocale, getT } from "@/app/i18n/server";
 import type { Product } from "@/app/product-data";
+import {
+  normalizeColorImages,
+  serializeVariants,
+  type ColorImage,
+  type ColorImageInput,
+  type ProductVariant,
+} from "@/app/lib/variants";
 
 type Params = { id: string };
 
@@ -57,7 +59,9 @@ async function getProduct(id: string): Promise<DBProduct | null> {
     stock: getAvailableStock(product.stock),
     category: product.category,
     variants: serializeVariants(product.variants),
-    colorImages: product.colorImages,
+    colorImages: normalizeColorImages(
+      product.colorImages as ColorImageInput[] | undefined
+    ),
     images: product.images,
   };
 

@@ -39,6 +39,13 @@ async function seed() {
     const db = client.db(dbName);
     const collection = db.collection('products');
 
+    if (SEED_PRODUCTS.length === 0) {
+      console.log(
+        'SEED_PRODUCTS is empty — nothing to insert. Add products in admin, or put fixtures in app/lib/seed-products.ts.'
+      );
+      return;
+    }
+
     for (const product of SEED_PRODUCTS) {
       await collection.updateOne({ id: product.id }, { $set: product }, { upsert: true });
     }

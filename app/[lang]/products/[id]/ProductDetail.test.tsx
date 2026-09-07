@@ -251,8 +251,8 @@ describe("the photo gallery", () => {
     ...runner,
     images: ["/sole.png", "/detail.png"],
     colorImages: [
-      { color: "Black", imageUrl: "/runner-black.png" },
-      { color: "White", imageUrl: "/runner-white.png" },
+      { color: "Black", imageUrls: ["/runner-black.png"] },
+      { color: "White", imageUrls: ["/runner-white.png"] },
     ],
   };
 

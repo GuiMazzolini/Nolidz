@@ -10,7 +10,7 @@ import {
   withLocalizedContent,
 } from "@/app/lib/product-content";
 import { isSellableForPublic } from "@/app/lib/public-products";
-import { serializeVariants } from "@/app/lib/variants";
+import { normalizeColorImages, serializeVariants } from "@/app/lib/variants";
 import type { Product } from "@/app/product-data";
 import { getLocale, getT } from "@/app/i18n/server";
 
@@ -53,7 +53,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       stock: getAvailableStock(doc.stock),
       category: doc.category,
       variants: serializeVariants(doc.variants),
-      colorImages: doc.colorImages,
+      colorImages: normalizeColorImages(doc.colorImages),
       images: doc.images,
     };
     return withLocalizedContent(

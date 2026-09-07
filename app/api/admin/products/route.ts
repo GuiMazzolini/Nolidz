@@ -32,7 +32,9 @@ export async function POST(req: NextRequest) {
     colorImages = parsed.data.colorImages?.length
       ? parsed.data.colorImages.map((entry) => ({
           color: entry.color,
-          imageUrl: normalizeProductImageUrl(entry.imageUrl, t.image),
+          imageUrls: entry.imageUrls.map((url) =>
+            normalizeProductImageUrl(url, t.image)
+          ),
         }))
       : undefined;
     images = parsed.data.images?.length

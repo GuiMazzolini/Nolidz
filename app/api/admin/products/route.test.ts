@@ -51,7 +51,7 @@ type AdminProduct = {
   name: string;
   stock: number;
   variants: ProductVariant[];
-  colorImages: { color: string; imageUrl: string }[];
+  colorImages: { color: string; imageUrls: string[] }[];
   images: string[];
 };
 
@@ -151,10 +151,12 @@ describe("POST /api/admin/products", () => {
             { size: "42", color: "White", stock: 1 },
           ],
           colorImages: [
-            { color: "Black", imageUrl: IMAGE },
+            { color: "Black", imageUrls: [IMAGE] },
             {
               color: "White",
-              imageUrl: "https://res.cloudinary.com/demo/image/upload/white.png",
+              imageUrls: [
+                "https://res.cloudinary.com/demo/image/upload/white.png",
+              ],
             },
           ],
         })
@@ -162,10 +164,12 @@ describe("POST /api/admin/products", () => {
     );
 
     expect(body.colorImages).toEqual([
-      { color: "Black", imageUrl: IMAGE },
+      { color: "Black", imageUrls: [IMAGE] },
       {
         color: "White",
-        imageUrl: "https://res.cloudinary.com/demo/image/upload/white.png",
+        imageUrls: [
+          "https://res.cloudinary.com/demo/image/upload/white.png",
+        ],
       },
     ]);
   });
@@ -177,7 +181,7 @@ describe("POST /api/admin/products", () => {
           ...validBody,
           variants: [{ size: "42", color: "Black", stock: 1 }],
           colorImages: [
-            { color: "Black", imageUrl: "https://evil.example.com/x.png" },
+            { color: "Black", imageUrls: ["https://evil.example.com/x.png"] },
           ],
         })
       )
@@ -367,18 +371,18 @@ describe("PATCH /api/admin/products/[id]", () => {
     const { body } = await readResponse<AdminProduct>(
       await PATCH(
         jsonRequest("PATCH", {
-          colorImages: [{ color: "Black", imageUrl: IMAGE }],
+          colorImages: [{ color: "Black", imageUrls: [IMAGE] }],
         }),
         params("runner")
       )
     );
 
-    expect(body.colorImages).toEqual([{ color: "Black", imageUrl: IMAGE }]);
+    expect(body.colorImages).toEqual([{ color: "Black", imageUrls: [IMAGE] }]);
   });
 
   it("clears the colour photos with an empty array", async () => {
     await PATCH(
-      jsonRequest("PATCH", { colorImages: [{ color: "Black", imageUrl: IMAGE }] }),
+      jsonRequest("PATCH", { colorImages: [{ color: "Black", imageUrls: [IMAGE] }] }),
       params("runner")
     );
 

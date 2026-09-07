@@ -29,8 +29,8 @@ const runner: Product = {
     { sku: "r-42-red", size: "42", color: "Red", stock: 1 },
   ],
   colorImages: [
-    { color: "Black", imageUrl: "/runner-black.png" },
-    { color: "White", imageUrl: "/runner-white.png" },
+    { color: "Black", imageUrls: ["/runner-black.png"] },
+    { color: "White", imageUrls: ["/runner-white.png"] },
   ],
   images: ["/sole.png", "/detail.png"],
 };

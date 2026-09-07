@@ -4,8 +4,6 @@ import { useMemo, useState } from "react";
 import { formatMoney } from "@/app/lib/money";
 import CartErrorBanner from "@/app/components/CartErrorBanner";
 import ProductGallery from "./ProductGallery";
-import { productGallery } from "@/app/lib/images";
-
 import { useCartStore } from "@/app/lib/store/cartStore";
 import {
   FREE_SHIPPING_THRESHOLD,
@@ -17,7 +15,7 @@ import {
   colorwayPrice,
   formatSize,
   hasVariants,
-  imageForColor,
+  galleryForColor,
   isNumericSize,
   listColors,
   resolveLinePrice,
@@ -202,19 +200,12 @@ export default function ProductDetail({
       : s.inStock(product.stock);
   }
 
-  // The hero follows the chosen colourway, matching the catalog swatch that
-  // brought the shopper here.
-  const heroImage = imageForColor(product, color);
-
-  /**
-   * That hero, then the product's other shots. The colourway photo leads
-   * because it is the one the shopper picked; the extra angles are of the
-   * product as a whole and follow it.
-   */
+  // Colour-specific shots first (hero + angles), then shared product extras.
   const gallery = useMemo(
-    () => productGallery({ imageUrl: heroImage, images: product.images }),
-    [heroImage, product.images]
+    () => galleryForColor(product, color),
+    [product, color]
   );
+  const heroImage = gallery[0] ?? product.imageUrl;
 
   const stockToneClass =
     outOfStock || (isVariantProduct && selected && selected.stock < 1)

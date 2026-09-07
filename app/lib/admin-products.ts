@@ -1,7 +1,7 @@
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import type { ProductDoc } from "@/app/lib/db-collections";
 import type { HeldStock } from "@/app/lib/stock-hold";
-import { serializeVariants } from "@/app/lib/variants";
+import { normalizeColorImages, serializeVariants } from "@/app/lib/variants";
 
 /**
  * Products as the admin screens see them.
@@ -27,7 +27,7 @@ export function serializeAdminProduct(doc: ProductDoc, held?: HeldStock) {
         ...variant,
         stock: variant.stock + (held?.bySku.get(variant.sku) ?? 0),
       })) ?? [],
-    colorImages: doc.colorImages ?? [],
+    colorImages: normalizeColorImages(doc.colorImages) ?? [],
     /** Extra gallery photos only — the main image stays in `imageUrl`. */
     images: doc.images ?? [],
     /** Surfaced so the admin can tell a slow week from a busy checkout queue. */

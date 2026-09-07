@@ -3,10 +3,9 @@
 A Next.js storefront: catalog, cart, Stripe Checkout, order history, and an
 admin area for inventory.
 
-Products can sell as a single SKU or by **EU size and colour**, where each
-size/colour combination carries its own SKU and stock count. A cart line is
-identified by product *and* variant, so two sizes of the same shoe are two
-independent lines with independent stock.
+Products sell by **EU size and colour**. Each size/colour combination has its
+own SKU and stock. A cart line is identified by product *and* variant, so two
+sizes of the same shoe are two independent lines.
 
 ## Running the tests
 
@@ -73,8 +72,8 @@ Unlike the tests, the app needs a real database.
 ```bash
 cp -n .env.example .env.local   # -n: never overwrite an existing .env.local
 npm run db:start                # a local MongoDB in Docker — or use a cloud one
-npm run seed                    # sample catalog, including a sized product
-npm run dev
+npm run dev                     # then add products in /admin (Cloudinary uploads)
+# npm run seed                  # optional; sample catalog is empty by default
 ```
 
 Then open `.env.local` and fill it in. The one value the app cannot start

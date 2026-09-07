@@ -9,6 +9,8 @@
  * this feature have no `variants` array and keep behaving exactly as before.
  */
 
+import { productGallery } from "@/app/lib/images";
+
 export type ProductVariant = {
   /** Unique within the product. Stable identifier for cart and order lines. */
   sku: string;
@@ -225,23 +227,97 @@ export function variantLabel(
   return parts.join(" · ");
 }
 
-/** One photo per colourway, so hovering a swatch can swap the main image. */
-export type ColorImage = { color: string; imageUrl: string };
-
 /**
- * The photo for a colourway, falling back to the product's main image when
- * that colour has none of its own.
+ * Ordered photos for one colourway. The first URL is the hero (catalog tile,
+ * PDP first frame); the rest are that colour's extra angles.
+ *
+ * Older documents may still store a single `imageUrl` — normalize with
+ * `normalizeColorImage` / `normalizeColorImages` when reading from Mongo.
  */
-export function imageForColor(
-  product: { imageUrl: string; colorImages?: ColorImage[] | null },
+export type ColorImage = { color: string; imageUrls: string[] };
+
+/** Raw shape as stored historically or still in flight during migration. */
+export type ColorImageInput = {
+  color: string;
+  imageUrls?: string[];
+  /** @deprecated Prefer `imageUrls`. Kept so existing products keep their photo. */
+  imageUrl?: string;
+};
+
+export function normalizeColorImage(
+  entry: ColorImageInput
+): ColorImage | null {
+  const fromArray = (entry.imageUrls ?? [])
+    .map((url) => url.trim())
+    .filter(Boolean);
+  const urls =
+    fromArray.length > 0
+      ? fromArray
+      : entry.imageUrl?.trim()
+        ? [entry.imageUrl.trim()]
+        : [];
+  if (urls.length === 0 || !entry.color.trim()) return null;
+  return { color: entry.color.trim(), imageUrls: urls };
+}
+
+export function normalizeColorImages(
+  entries: ColorImageInput[] | null | undefined
+): ColorImage[] | undefined {
+  if (!entries?.length) return undefined;
+  const out: ColorImage[] = [];
+  for (const entry of entries) {
+    const normalized = normalizeColorImage(entry);
+    if (normalized) out.push(normalized);
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+/** Every photo URL for a colourway, empty when it has none of its own. */
+export function imagesForColor(
+  product: { colorImages?: ColorImageInput[] | null },
   color: string | null | undefined
-): string {
-  if (!color || !product.colorImages) return product.imageUrl;
+): string[] {
+  if (!color || !product.colorImages) return [];
   const target = color.trim().toLowerCase();
   const match = product.colorImages.find(
     (entry) => entry.color.trim().toLowerCase() === target
   );
-  return match?.imageUrl || product.imageUrl;
+  return match ? normalizeColorImage(match)?.imageUrls ?? [] : [];
+}
+
+/**
+ * The hero photo for a colourway, falling back to the product's main image
+ * when that colour has none of its own.
+ */
+export function imageForColor(
+  product: {
+    imageUrl: string;
+    colorImages?: ColorImageInput[] | null;
+  },
+  color: string | null | undefined
+): string {
+  return imagesForColor(product, color)[0] || product.imageUrl;
+}
+
+/**
+ * Gallery for a selected colour: that colour's photos first (hero + angles),
+ * then any product-wide shared extras.
+ */
+export function galleryForColor(
+  product: {
+    imageUrl: string;
+    images?: string[] | null;
+    colorImages?: ColorImageInput[] | null;
+  },
+  color: string | null | undefined
+): string[] {
+  const colorUrls = imagesForColor(product, color);
+  const hero = colorUrls[0] ?? product.imageUrl;
+  const colourExtras = colorUrls.length > 0 ? colorUrls.slice(1) : [];
+  return productGallery({
+    imageUrl: hero,
+    images: [...colourExtras, ...(product.images ?? [])],
+  });
 }
 
 /**

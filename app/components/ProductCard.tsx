@@ -4,11 +4,17 @@ import Image from "next/image";
 import { formatMoney } from "@/app/lib/money";
 import Link from "@/app/i18n/Link";
 import { useCallback, useMemo, useState } from "react";
-import { getImageSrc, productGallery } from "../lib/images";
+import { getImageSrc } from "../lib/images";
 import { colorwayHref, colorwayStock, type Colorway } from "../lib/colorways";
 import { useCartStore } from "../lib/store/cartStore";
 import { useLocale, useT } from "@/app/i18n/client";
-import { colorwayPrice, imageForColor, sizesAvailableLabel, variantsForColor } from "../lib/variants";
+import {
+  colorwayPrice,
+  galleryForColor,
+  imageForColor,
+  sizesAvailableLabel,
+  variantsForColor,
+} from "../lib/variants";
 
 /** Swatches past this are summarised as "+N", as the strip has finite width. */
 const MAX_SWATCHES = 5;
@@ -44,13 +50,7 @@ export default function ProductCard({ colorway }: { colorway: Colorway }) {
 
   // Previewing a sibling shows that colour's photos, so the gallery follows it.
   const activeImages = useMemo(
-    () =>
-      previewColor
-        ? productGallery({
-            imageUrl: imageForColor(product, previewColor),
-            images: product.images,
-          })
-        : images,
+    () => (previewColor ? galleryForColor(product, previewColor) : images),
     [previewColor, product, images]
   );
 

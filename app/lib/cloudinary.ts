@@ -64,19 +64,19 @@ export function publicIdFromCloudinaryUrl(
 /** Every Cloudinary URL attached to a product doc, deduped. */
 export function collectCloudinaryUrlsFromProduct(product: {
   imageUrl: string;
-  colorImages?: { imageUrl: string }[];
+  colorImages?: { imageUrls?: string[]; imageUrl?: string }[];
   images?: string[];
 }): string[] {
-  const urls = [
-    product.imageUrl,
-    ...(product.colorImages?.map((entry) => entry.imageUrl) ?? []),
-    ...(product.images ?? []),
-  ];
+  const colorUrls =
+    product.colorImages?.flatMap((entry) => {
+      if (entry.imageUrls?.length) return entry.imageUrls;
+      return entry.imageUrl ? [entry.imageUrl] : [];
+    }) ?? [];
+
+  const urls = [product.imageUrl, ...colorUrls, ...(product.images ?? [])];
 
   return [
-    ...new Set(
-      urls.filter((url) => url.includes("res.cloudinary.com"))
-    ),
+    ...new Set(urls.filter((url) => url.includes("res.cloudinary.com"))),
   ];
 }
 

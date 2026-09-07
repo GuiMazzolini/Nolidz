@@ -187,12 +187,15 @@ export function resolveVariants(
   });
 }
 
-/** One photo per colourway. Colour names are matched against the variants. */
+/**
+ * Ordered photos per colourway. First URL is the hero; more are that colour's
+ * extra angles (same ceiling as the shared gallery).
+ */
 export const colorImagesSchema = z
   .array(
     z.object({
       color: z.string().trim().min(1).max(40),
-      imageUrl: z.url().max(2000),
+      imageUrls: z.array(z.url().max(2000)).min(1).max(MAX_PRODUCT_IMAGES),
     })
   )
   .max(MAX_PRODUCT_VARIANTS);

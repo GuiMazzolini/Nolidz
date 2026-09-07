@@ -69,37 +69,29 @@ const admin: AdminDict = {
     idPlaceholder: "Wird aus dem Namen erzeugt, wenn leer",
     category: "Kategorie",
     description: "Beschreibung",
-    productImage: "Produktbild",
     cloudinaryPlaceholder: "https://res.cloudinary.com/…",
     uploading: "Wird hochgeladen…",
-    uploadImage: "Bild hochladen",
-    uploadHint: "Zu Cloudinary hochladen oder eine Cloudinary-URL einfügen.",
-    productPreview: "Produktvorschau",
-    imagePreview: "Bildvorschau",
-    previewBroken: "Dieses Bild ließ sich nicht laden – prüf die URL.",
-    noImageYet: "Noch kein Bild – lade eines hoch, um eine Vorschau zu sehen",
-
-    morePhotos: "Weitere Fotos",
-    morePhotosHint: (max) =>
-      `Bis zu ${max} weitere Aufnahmen – Seitenansicht, Dreiviertel, Sohle, Detail. Werden nach dem Hauptbild in dieser Reihenfolge angezeigt.`,
-    extraPhotoUrl: (index) => `URL für Zusatzfoto ${index}`,
     upload: "Hochladen",
     movePhotoUp: (index) => `Foto ${index} nach oben`,
     movePhotoDown: (index) => `Foto ${index} nach unten`,
     remove: "Entfernen",
     addPhoto: "Foto hinzufügen",
 
+    morePhotos: "Gemeinsame Fotos (optional)",
+    morePhotosHint: (max) =>
+      `Bis zu ${max} Aufnahmen für jede Farbe — Sohle, Karton, Detail. Werden nach den Farbfotos angezeigt. Weglassen, wenn jede Farbe ein volles Shooting hat.`,
+    extraPhotoUrl: (index) => `URL für Zusatzfoto ${index}`,
+
     price: "Preis (EUR)",
-    priceFallbackHint:
-      "Fallback für jede Farbe, die unten keinen eigenen Preis hat.",
     stock: "Bestand",
     variantStockSummary: (total, variants) =>
       `${total} über ${variants} ${variants === 1 ? "Variante" : "Varianten"}`,
 
-    variantsLegend: "Größen & Farben",
-    useVariants: "Dieses Produkt nach EU-Größe und Farbe verkaufen",
-    useVariantsHint:
-      "Jede Kombination aus Größe und Farbe bekommt eine eigene SKU und einen eigenen Bestand. Größen gelten pro Farbe – Schwarz kann 42 führen, Weiß nicht. Der Preis gilt ebenfalls pro Farbe. Ausgeschaltet wird eine einzelne SKU verkauft.",
+    variantsLegend: "Größen, Farben & Fotos",
+    variantsIntro:
+      "Jedes Produkt wird nach EU-Größe und Farbe verkauft. Farbe anlegen, Größen antippen, dann Preis und Fotos für diese Farbe setzen. Das erste Foto der ersten Farbe erscheint in Warenkorb und Share-Karten.",
+    legacySingleSkuHint:
+      "Dieser Eintrag stammt noch von vor Größen & Farben. Leg unten eine Farbe und Größen an — wir übernehmen Foto und Preis für die erste Farbe, die du bestückst.",
     addSizeRun: "Größenlauf hinzufügen",
     addSizeRunHint:
       "Fügt Größen nur für diese Farbe hinzu. Weiß kann 46 auslassen, auch wenn Schwarz sie führt.",
@@ -114,12 +106,13 @@ const admin: AdminDict = {
     euSizeForRow: (index) => `EU-Größe für Zeile ${index}`,
     colourForRow: (index) => `Farbe für Zeile ${index}`,
     stockForRow: (index) => `Bestand für Zeile ${index}`,
-    colourPhotosAndPrices: "Farbfotos und Preise",
-    colourPhotosHint:
-      "Der Preis gilt pro Farbe – eine limitierte Auflage kann mehr kosten als die Standardfarbe. Lass den Preis leer, um den Standardpreis von oben zu übernehmen. Lass das Foto leer, um auf das Hauptbild zurückzufallen.",
+    colourPhotosAndPrices: "Preis & Fotos pro Farbe",
+    colourPhotosHint: (max) =>
+      `Jede Farbe braucht einen Preis und mindestens ein Foto (bis ${max}). Das erste Foto ist das Hero-Bild; Reihenfolge mit ↑↓.`,
     priceFor: (colour) => `Preis für ${colour}`,
-    photoUrlFor: (colour) => `Foto-URL für ${colour}`,
-    photoUrlPlaceholder: "https://res.cloudinary.com/… (optional)",
+    photoUrlFor: (colour, index) => `${colour} Foto ${index} URL`,
+    photoUrlPlaceholder: "https://res.cloudinary.com/…",
+    addColourPhoto: (colour) => `Foto für ${colour} hinzufügen`,
     addEmptyRow: "Leere Zeile hinzufügen",
 
     createProduct: "Produkt anlegen",
@@ -128,15 +121,18 @@ const admin: AdminDict = {
     errors: {
       nameRequired: "Name ist erforderlich.",
       descriptionRequired: "Beschreibung ist erforderlich.",
-      imageUrlInvalid:
-        "Lade ein Bild hoch oder füg eine Cloudinary-URL ein (https://…).",
-      priceInvalid: "Gib einen gültigen, nicht negativen Preis ein.",
-      stockInvalid: "Der Bestand muss eine ganze Zahl ≥ 0 sein.",
-      tooManyPhotos: (max) => `Höchstens ${max} zusätzliche Fotos.`,
+      tooManyPhotos: (max) => `Höchstens ${max} gemeinsame Fotos.`,
+      tooManyColourPhotos: (colour, max) =>
+        `Höchstens ${max} Fotos für ${colour}.`,
       photoUrlInvalid:
-        "Jedes zusätzliche Foto braucht eine Cloudinary-URL (https://…).",
-      noVariants:
-        "Füg mindestens eine Größe/Farbe hinzu oder schalte Varianten aus.",
+        "Jedes gemeinsame Foto braucht eine Cloudinary-URL (https://…).",
+      colourPhotoUrlInvalid: (colour) =>
+        `Jedes Foto für ${colour} braucht eine Cloudinary-URL (https://…).`,
+      colourPhotoRequired: (colour) =>
+        `Füg mindestens ein Foto für ${colour} hinzu.`,
+      colourPriceRequired: (colour) =>
+        `Gib einen Preis für ${colour} ein.`,
+      noVariants: "Füg mindestens eine Größe und Farbe hinzu.",
       tooManyVariants: (max) => `Höchstens ${max} Varianten.`,
       variantNeedsSize: "Jede Variante braucht eine EU-Größe.",
       variantNeedsColour: "Jede Variante braucht eine Farbe.",
