@@ -326,5 +326,6 @@ describe("createPaketLabel", () => {
     expect(result.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe("Bearer tok");
+    expect(fetchMock.mock.calls[1][1].headers["dhl-api-key"]).toBeUndefined();
   });
 });

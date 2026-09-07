@@ -278,7 +278,8 @@ function validationDetail(body: unknown): string {
  * app API key as `dhl-api-key`. That path works even when ROPC rejects the
  * same key with "Invalid client identifier".
  *
- * Production: Bearer token from ROPC + the same API key header.
+ * Production: Bearer token from ROPC only. Sending `dhl-api-key` together
+ * with Bearer returns 401: "Use EITHER Bearer Token or (Apikey and Basic Auth)".
  */
 function shippingRequestHeaders(
   config: DhlShippingConfig,
@@ -287,7 +288,6 @@ function shippingRequestHeaders(
   const headers: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": "application/json",
-    "dhl-api-key": config.clientId,
   };
 
   if (config.sandbox) {
@@ -296,6 +296,7 @@ function shippingRequestHeaders(
       "utf8"
     ).toString("base64");
     headers.Authorization = `Basic ${basic}`;
+    headers["dhl-api-key"] = config.clientId;
     return headers;
   }
 
