@@ -97,6 +97,11 @@ export function isDhlShippingConfigured(): boolean {
   return readDhlShippingConfig() !== null;
 }
 
+/** Default parcel weight used when the admin does not override it on create. */
+export function getDefaultLabelWeightKg(): number {
+  return readDhlShippingConfig()?.defaultWeightKg ?? 1;
+}
+
 function authBase(sandbox: boolean): string {
   return sandbox
     ? "https://api-sandbox.dhl.com/parcel/de/account/auth/ropc/v1"

@@ -113,6 +113,7 @@ export async function POST(
   }
 
   let sendEmail = true;
+  let weightKg: number | undefined;
   let addressOverride:
     | Partial<{
         name: string;
@@ -128,6 +129,13 @@ export async function POST(
     if (body && typeof body === "object") {
       if ("sendEmail" in body) {
         sendEmail = (body as { sendEmail?: unknown }).sendEmail !== false;
+      }
+      const rawWeight = (body as { weightKg?: unknown }).weightKg;
+      if (typeof rawWeight === "number" && Number.isFinite(rawWeight)) {
+        weightKg = rawWeight;
+      } else if (typeof rawWeight === "string" && rawWeight.trim()) {
+        const parsed = Number(rawWeight);
+        if (Number.isFinite(parsed)) weightKg = parsed;
       }
       const addr = (body as { address?: unknown }).address;
       if (addr && typeof addr === "object") {
@@ -152,6 +160,7 @@ export async function POST(
     sessionId,
     sendEmail,
     addressOverride,
+    weightKg,
   });
 
   if (!result.ok) {

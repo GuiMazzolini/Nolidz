@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildConsigneeAddress,
   buildCreateOrdersBody,
+  getDefaultLabelWeightKg,
   isDhlShippingConfigured,
   parseCreateOrdersResponse,
   readDhlShippingConfig,
@@ -58,6 +59,13 @@ describe("isDhlShippingConfigured / readDhlShippingConfig", () => {
     stubShippingEnv();
     vi.stubEnv("DHL_SHIPPING_SANDBOX", "false");
     expect(readDhlShippingConfig()?.sandbox).toBe(false);
+  });
+
+  it("getDefaultLabelWeightKg falls back to 1 when unset", () => {
+    expect(getDefaultLabelWeightKg()).toBe(1);
+    stubShippingEnv();
+    vi.stubEnv("DHL_DEFAULT_WEIGHT_KG", "1.5");
+    expect(getDefaultLabelWeightKg()).toBe(1.5);
   });
 });
 

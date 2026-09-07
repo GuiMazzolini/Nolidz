@@ -187,4 +187,23 @@ describe("createLabelForOrder", () => {
       detail: "street not found",
     });
   });
+
+  it("rejects invalid weightKg", async () => {
+    seedPaidOrder();
+    expect(
+      await createLabelForOrder({ sessionId: "cs_label_1", weightKg: 0 })
+    ).toMatchObject({ ok: false, reason: "validation" });
+    expect(
+      await createLabelForOrder({ sessionId: "cs_label_1", weightKg: 40 })
+    ).toMatchObject({ ok: false, reason: "validation" });
+    expect(createPaketLabelMock).not.toHaveBeenCalled();
+  });
+
+  it("forwards weightKg to createPaketLabel", async () => {
+    seedPaidOrder();
+    await createLabelForOrder({ sessionId: "cs_label_1", weightKg: 1.8 });
+    expect(createPaketLabelMock).toHaveBeenCalledWith(
+      expect.objectContaining({ weightKg: 1.8 })
+    );
+  });
 });

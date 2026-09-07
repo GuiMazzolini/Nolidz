@@ -19,6 +19,7 @@ export default function CreateDhlLabelButton({
   initialLine1 = "",
   initialPostalCode = "",
   initialCity = "",
+  defaultWeightKg = 1,
 }: {
   sessionId: string;
   configured: boolean;
@@ -27,6 +28,7 @@ export default function CreateDhlLabelButton({
   initialLine1?: string;
   initialPostalCode?: string;
   initialCity?: string;
+  defaultWeightKg?: number;
 }) {
   const t = useAdminT();
   const router = useRouter();
@@ -34,6 +36,7 @@ export default function CreateDhlLabelButton({
   const [line1, setLine1] = useState(initialLine1);
   const [postalCode, setPostalCode] = useState(initialPostalCode);
   const [city, setCity] = useState(initialCity);
+  const [weightKg, setWeightKg] = useState(String(defaultWeightKg));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -67,6 +70,13 @@ export default function CreateDhlLabelButton({
     setLoading(true);
 
     try {
+      const parsedWeight = Number(weightKg);
+      if (!Number.isFinite(parsedWeight) || parsedWeight <= 0 || parsedWeight > 31.5) {
+        setError(t.orders.labelWeightInvalid);
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch(
         `/api/admin/orders/${encodeURIComponent(sessionId)}/label`,
         {
@@ -75,6 +85,7 @@ export default function CreateDhlLabelButton({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sendEmail,
+            weightKg: parsedWeight,
             address: {
               line1: line1.trim(),
               postalCode: postalCode.trim(),
@@ -167,13 +178,31 @@ export default function CreateDhlLabelButton({
             />
             <span>{t.orders.emailCustomer}</span>
           </label>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full border-2 border-ink bg-ink px-4 py-2 text-sm font-semibold text-paper hover:bg-cardboard-dark disabled:opacity-50"
-          >
-            {loading ? t.orders.creatingLabel : t.orders.createLabel}
-          </button>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="block text-sm text-ink/80">
+              <span className="font-medium">{t.orders.labelWeight}</span>
+              <input
+                type="number"
+                min="0.1"
+                max="31.5"
+                step="0.1"
+                value={weightKg}
+                onChange={(e) => setWeightKg(e.target.value)}
+                required
+                className="mt-1 w-28 border-2 border-ink/15 bg-white px-3 py-2 text-ink"
+              />
+              <span className="mt-1 block text-xs text-ink/50">
+                {t.orders.labelWeightHint}
+              </span>
+            </label>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 min-w-[10rem] border-2 border-ink bg-ink px-4 py-2 text-sm font-semibold text-paper hover:bg-cardboard-dark disabled:opacity-50"
+            >
+              {loading ? t.orders.creatingLabel : t.orders.createLabel}
+            </button>
+          </div>
         </>
       )}
 

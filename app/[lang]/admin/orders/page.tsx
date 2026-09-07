@@ -5,7 +5,10 @@ import { getAllOrders } from "@/app/lib/orders";
 import { formatOrderDate } from "@/app/components/order-ui";
 import { canRefreshTracking, describeTrackingStatus } from "@/app/lib/tracking";
 import { isTrackableCarrier } from "@/app/lib/carriers";
-import { isDhlShippingConfigured } from "@/app/lib/dhl-shipping";
+import {
+  getDefaultLabelWeightKg,
+  isDhlShippingConfigured,
+} from "@/app/lib/dhl-shipping";
 import ShipOrderForm from "./ShipOrderForm";
 import RefreshTrackingButton from "./RefreshTrackingButton";
 import CreateDhlLabelButton from "./CreateDhlLabelButton";
@@ -26,6 +29,7 @@ export default async function AdminOrdersPage() {
   const orders = await getAllOrders();
   const awaitingShipment = orders.filter((o) => o.status !== "shipped").length;
   const dhlShippingConfigured = isDhlShippingConfigured();
+  const defaultWeightKg = getDefaultLabelWeightKg();
 
   return (
     <div className="space-y-6">
@@ -193,6 +197,7 @@ export default async function AdminOrdersPage() {
                     initialLine1={order.shippingAddress?.line1 ?? ""}
                     initialPostalCode={order.shippingAddress?.postalCode ?? ""}
                     initialCity={order.shippingAddress?.city ?? ""}
+                    defaultWeightKg={defaultWeightKg}
                   />
                   <ShipOrderForm
                     sessionId={order.stripeSessionId}

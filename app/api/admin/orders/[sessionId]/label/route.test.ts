@@ -82,6 +82,20 @@ describe("POST /api/admin/orders/[sessionId]/label", () => {
       sessionId: "cs_1",
       sendEmail: true,
       addressOverride: undefined,
+      weightKg: undefined,
+    });
+  });
+
+  it("forwards weightKg from the body", async () => {
+    await POST(
+      jsonRequest("POST", { sendEmail: false, weightKg: 1.5 }),
+      params("cs_1")
+    );
+    expect(createLabelMock).toHaveBeenCalledWith({
+      sessionId: "cs_1",
+      sendEmail: false,
+      addressOverride: undefined,
+      weightKg: 1.5,
     });
   });
 

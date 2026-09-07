@@ -213,6 +213,9 @@ const admin: AdminDict = {
       "DHL braucht die Hausnummer. Korrigier sie hier, falls sie fehlt.",
     labelPostal: "PLZ",
     labelCity: "Ort",
+    labelWeight: "Gewicht (kg)",
+    labelWeightHint: "Die meisten Sneaker ≈ 1 kg; Stiefel oft 1,5–2 kg.",
+    labelWeightInvalid: "Gib ein Gewicht zwischen 0,1 und 31,5 kg ein.",
     labelReady: "Etikett bereit",
     downloadLabel: "Etikett herunterladen / drucken (PDF)",
     labelCreatedWithEmail:

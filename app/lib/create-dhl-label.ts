@@ -46,6 +46,7 @@ export async function createLabelForOrder({
   sessionId,
   sendEmail = true,
   addressOverride,
+  weightKg,
 }: {
   sessionId: string;
   sendEmail?: boolean;
@@ -57,9 +58,22 @@ export async function createLabelForOrder({
     city: string;
     postalCode: string;
   }>;
+  /** Parcel weight in kg. Falls back to DHL_DEFAULT_WEIGHT_KG / 1. */
+  weightKg?: number;
 }): Promise<CreateLabelOutcome> {
   if (!isDhlShippingConfigured()) {
     return { ok: false, reason: "not-configured" };
+  }
+
+  if (
+    weightKg !== undefined &&
+    (!Number.isFinite(weightKg) || weightKg <= 0 || weightKg > 31.5)
+  ) {
+    return {
+      ok: false,
+      reason: "validation",
+      detail: "Weight must be between 0 and 31.5 kg.",
+    };
   }
 
   const { db } = await connectToDB();
@@ -129,6 +143,7 @@ export async function createLabelForOrder({
     dhlResult = await createPaketLabel({
       refNo: refNoForSession(sessionId),
       consignee,
+      ...(weightKg !== undefined ? { weightKg } : {}),
     });
   } catch (err) {
     if (err instanceof DhlShippingNotConfiguredError) {
