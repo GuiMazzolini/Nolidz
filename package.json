@@ -17,6 +17,7 @@
     "test:integration": "vitest run integration",
     "seed": "tsx scripts/seed.ts",
     "db:check": "tsx scripts/check-db-duplicates.ts",
+    "db:sweep-holds": "tsx scripts/sweep-holds.ts",
     "db:start": "node scripts/dev-mongo.mjs start",
     "db:stop": "node scripts/dev-mongo.mjs stop"
   },

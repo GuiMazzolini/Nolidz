@@ -27,7 +27,7 @@ import {
   countOpenHolds,
   holdStock,
   releaseHold,
-  sweepExpiredHolds,
+  sweepExpiredHoldsBestEffort,
 } from "@/app/lib/stock-hold";
 import {
   attachQuantitiesToProducts,
@@ -99,12 +99,7 @@ export async function POST(req: NextRequest) {
   // Before anything reads stock. Holds from checkouts nobody paid for still
   // own their sizes, so sweeping after the read would show this customer a
   // sold-out message for stock that is about to come back on sale.
-  try {
-    await sweepExpiredHolds(db);
-  } catch (err) {
-    // A failed sweep must never stop a customer paying; the next one retries.
-    console.error("Expired-hold sweep failed:", err);
-  }
+  await sweepExpiredHoldsBestEffort(db);
 
   const productIds = items.map((i) => i.productId);
   const productDocs = await products(db)

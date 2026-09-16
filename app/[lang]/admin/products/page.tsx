@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { connectToDB } from "@/app/api/db";
 import { serializeAdminProduct } from "@/app/lib/admin-products";
 import { products as productsCollection } from "@/app/lib/db-collections";
-import { heldStockFor } from "@/app/lib/stock-hold";
+import { heldStockFor, sweepExpiredHoldsBestEffort } from "@/app/lib/stock-hold";
 import AdminProductsTable from "./AdminProductsTable";
 import { getAdminI18n } from "@/app/i18n/server";
 
@@ -17,6 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AdminProductsPage() {
   const { t } = await getAdminI18n();
   const { db } = await connectToDB();
+  await sweepExpiredHoldsBestEffort(db);
   const docs = await productsCollection(db).find({}).sort({ name: 1 }).toArray();
   // Shelf stock, matching the edit form. Showing available here and shelf
   // there would have the same product reporting two different numbers.

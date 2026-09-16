@@ -9,6 +9,7 @@ import {
   withLocalizedContent,
 } from "@/app/lib/product-content";
 import { isSellableForPublic } from "@/app/lib/public-products";
+import { sweepExpiredHoldsBestEffort } from "@/app/lib/stock-hold";
 import type { ProductCategory } from "@/app/lib/categories";
 import ShippingAreaBanner from "@/app/components/ShippingAreaBanner";
 import ProductDetail from "./ProductDetail";
@@ -43,6 +44,7 @@ type DBProduct = {
 
 async function getProduct(id: string): Promise<DBProduct | null> {
   const { db } = await connectToDB();
+  await sweepExpiredHoldsBestEffort(db);
   const product = await products(db).findOne({ id });
   // Sold-out pairs stay in admin only — shoppers get a 404, not an empty PDP.
   if (!product || !isSellableForPublic(product)) return null;

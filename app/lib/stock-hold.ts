@@ -285,3 +285,20 @@ export async function sweepExpiredHolds(
   }
   return released;
 }
+
+/**
+ * Same as sweepExpiredHolds, but never throws — safe on catalog reads where a
+ * sweep failure must not blank the shop. Checkout uses this too so the route
+ * stays focused on the buyer-facing error path.
+ */
+export async function sweepExpiredHoldsBestEffort(
+  db: Db,
+  now: Date = new Date()
+): Promise<number> {
+  try {
+    return await sweepExpiredHolds(db, now);
+  } catch (err) {
+    console.error("Expired-hold sweep failed:", err);
+    return 0;
+  }
+}

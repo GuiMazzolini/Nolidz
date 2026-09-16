@@ -10,6 +10,7 @@ import {
   withLocalizedContent,
 } from "@/app/lib/product-content";
 import { isSellableForPublic } from "@/app/lib/public-products";
+import { sweepExpiredHoldsBestEffort } from "@/app/lib/stock-hold";
 import { normalizeColorImages, serializeVariants } from "@/app/lib/variants";
 import type { Product } from "@/app/product-data";
 import { getLocale, getT } from "@/app/i18n/server";
@@ -38,6 +39,11 @@ export default async function ProductsPage({ searchParams }: Props) {
   const initialCategory = parseCategoryFilter(rawCategory);
 
   const { db } = await connectToDB();
+  // Abandoned checkouts hold stock for ~35 minutes. Without a sweep here, a
+  // missed Stripe webhook leaves the last unit invisible on the shop until
+  // someone else starts checkout — which can be days on a quiet store.
+  await sweepExpiredHoldsBestEffort(db);
+
   const locale = await getLocale();
   const docs = await productsCollection(db).find({}).toArray();
   const sellable = docs.filter(isSellableForPublic);
