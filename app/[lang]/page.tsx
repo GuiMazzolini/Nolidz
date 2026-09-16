@@ -5,6 +5,7 @@ import { connectToDB } from "@/app/api/db";
 import { getImageSrc } from "@/app/lib/images";
 import { products as productsCollection } from "@/app/lib/db-collections";
 import { isSellableForPublic } from "@/app/lib/public-products";
+import { sweepExpiredHoldsBestEffort } from "@/app/lib/stock-hold";
 import { getI18n } from "@/app/i18n/server";
 
 type HomeProduct = {
@@ -17,11 +18,12 @@ type HomeProduct = {
 async function getHomeProducts(): Promise<HomeProduct[]> {
   try {
     const { db } = await connectToDB();
-    // Fetch a wider window then keep sellable ones — sold-out pairs stay in
-    // admin but must not fill the homepage featured strip.
+    await sweepExpiredHoldsBestEffort(db);
+
+    // Newest first (admin create time). Missing createdAt (older docs) sorts last.
     const docs = await productsCollection(db)
       .find({})
-      .sort({ name: 1 })
+      .sort({ createdAt: -1, _id: -1 })
       .limit(24)
       .toArray();
 
