@@ -100,4 +100,18 @@ describe("ProductGallery", () => {
     expect(thumbs[1]).toHaveAttribute("loading", "lazy");
     expect(thumbs[2]).toHaveAttribute("loading", "lazy");
   });
+
+  it("opens a zoomable lightbox from the hero", async () => {
+    const user = userEvent.setup();
+    renderWithLocale(<ProductGallery images={PHOTOS} alt="Runner" />);
+
+    await user.click(screen.getByRole("button", { name: "View larger photo" }));
+    expect(
+      screen.getByRole("dialog", { name: /larger view/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Click to zoom in")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 });

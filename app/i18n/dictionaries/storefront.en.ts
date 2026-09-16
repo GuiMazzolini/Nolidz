@@ -170,6 +170,11 @@ const storefront = {
       `Standard ${standard} · free over ${threshold}`,
     easyReturns: "Easy Returns",
     returnPolicy: "15-day return policy",
+    askAboutHeading: "Questions about this pair?",
+    askAboutBody:
+      "Message us by email or WhatsApp — happy to help with size, condition, or anything else.",
+    askEmail: "Email",
+    askWhatsApp: "WhatsApp",
     inColour: (name: string, color: string) => `${name} in ${color}`,
     stock: {
       outOfStockEverySize: "Out of stock in every size",
@@ -191,6 +196,11 @@ const storefront = {
       `${alt} — photo ${index} of ${total}`,
     previousPhoto: "Previous photo",
     nextPhoto: "Next photo",
+    openLarger: "View larger photo",
+    closeLarger: "Close",
+    lightboxLabel: (alt: string) => `${alt} — larger view`,
+    zoomInHint: "Click to zoom in",
+    zoomOutHint: "Click to zoom out",
     productPhotos: "Product photos",
     showPhoto: (index: number, total: number) =>
       `Show photo ${index} of ${total}`,

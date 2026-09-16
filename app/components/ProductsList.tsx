@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Product } from "../product-data";
 import {
-  categoryHref,
+  catalogHref,
   matchesCategory,
+  parseCatalogSort,
+  parseCategoryFilter,
+  type CatalogSortOption,
   type CategoryFilter,
 } from "../lib/categories";
 import { useLocalePath, useT } from "@/app/i18n/client";
@@ -19,36 +22,54 @@ import {
 import CartErrorBanner from "./CartErrorBanner";
 import ProductCard from "./ProductCard";
 
-type SortOption = "name-asc" | "price-asc" | "price-desc" | "stock-desc";
-
-export default function ProductsList({
-  products,
-  initialCategory = "all",
-}: {
-  products: Product[];
-  initialCategory?: CategoryFilter;
-}) {
+function ProductsListInner({ products }: { products: Product[] }) {
   const t = useT();
   const localePath = useLocalePath();
   const router = useRouter();
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<SortOption>("name-asc");
-  const [category, setCategory] = useState<CategoryFilter>(initialCategory);
+  const searchParams = useSearchParams();
 
-  /**
-   * One tile per colourway, so a shoe in three colours is three cards.
-   *
-   * Everything below works on colourways rather than products: a shopper
-   * filtering for "black" wants the black pair, not the shoe that happens to
-   * come in black among others, and a stock sort that ranked one tile by the
-   * whole product's total would order the grid by numbers it never shows.
-   */
+  const category = parseCategoryFilter(searchParams.get("category"));
+  const sortFromUrl = parseCatalogSort(searchParams.get("sort"));
+  const qFromUrl = searchParams.get("q") ?? "";
+
+  const [query, setQuery] = useState(qFromUrl);
+  const [sort, setSort] = useState(sortFromUrl);
+
+  // Browser back / shared links restore filters from the URL.
+  useEffect(() => {
+    setQuery(qFromUrl);
+  }, [qFromUrl]);
+
+  useEffect(() => {
+    setSort(sortFromUrl);
+  }, [sortFromUrl]);
+
+  function replaceCatalog({
+    nextCategory = category,
+    nextQuery = query,
+    nextSort = sort,
+  }: {
+    nextCategory?: CategoryFilter;
+    nextQuery?: string;
+    nextSort?: CatalogSortOption;
+  } = {}) {
+    router.replace(
+      localePath(
+        catalogHref({
+          category: nextCategory,
+          q: nextQuery,
+          sort: nextSort,
+        })
+      ),
+      { scroll: false }
+    );
+  }
+
   const colorways = useMemo(
     () =>
       products
         .filter((product) => matchesCategory(product.category, category))
         .flatMap(toColorways)
-        // Sold-out colourways stay out of the grid; admin still sees them.
         .filter((colorway) => colorway.stock > 0)
         .map((colorway) => ({
           ...colorway,
@@ -82,8 +103,6 @@ export default function ProductsList({
 
     switch (sort) {
       case "stock-desc":
-        // Per colourway, which is the number each tile shows. Spreading
-        // would hide a high-stock colour behind a sibling that has none.
         return [...next].sort((a, b) => b.stock - a.stock);
       case "price-asc":
         return orderColorwaysByPrice(next, "asc");
@@ -96,13 +115,6 @@ export default function ProductsList({
         );
     }
   }, [colorways, query, sort]);
-
-  function selectCategory(next: CategoryFilter) {
-    setCategory(next);
-    // Prefixed: every route sits under [lang], and a bare path here would
-    // bounce through the proxy and lose the `?category=` it just set.
-    router.replace(localePath(categoryHref(next)), { scroll: false });
-  }
 
   const heading = category === "all" ? t.catalog.headingAll : t.nav[category];
 
@@ -117,8 +129,6 @@ export default function ProductsList({
             <h1 className="font-display italic font-extrabold text-4xl sm:text-5xl text-ink tracking-tight">
               {heading}
             </h1>
-            {/* Counts tiles, which is what the grid shows and what the
-                filters act on — products would be a different, lower number. */}
             <p className="mt-2 text-ink/60">
               {t.catalog.countLabel(filtered.length, colorways.length)}
             </p>
@@ -132,7 +142,11 @@ export default function ProductsList({
               <input
                 type="search"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setQuery(next);
+                  replaceCatalog({ nextQuery: next });
+                }}
                 placeholder={t.catalog.searchPlaceholder}
                 className="w-full border-2 border-ink/15 bg-white px-3 py-2 text-sm outline-none focus:border-cardboard"
               />
@@ -144,7 +158,11 @@ export default function ProductsList({
               </span>
               <select
                 value={sort}
-                onChange={(e) => setSort(e.target.value as SortOption)}
+                onChange={(e) => {
+                  const nextSort = e.target.value as CatalogSortOption;
+                  setSort(nextSort);
+                  replaceCatalog({ nextSort });
+                }}
                 className="w-full border-2 border-ink/15 bg-white px-3 py-2 text-sm outline-none focus:border-cardboard"
               >
                 <option value="name-asc">{t.catalog.sortNameAsc}</option>
@@ -168,8 +186,11 @@ export default function ProductsList({
               type="button"
               onClick={() => {
                 setQuery("");
-                setSort("name-asc");
-                selectCategory("all");
+                replaceCatalog({
+                  nextCategory: "all",
+                  nextQuery: "",
+                  nextSort: "name-asc",
+                });
               }}
               className="inline-block bg-ink px-6 py-3 font-semibold text-paper hover:bg-ink/85"
             >
@@ -185,5 +206,26 @@ export default function ProductsList({
         )}
       </div>
     </div>
+  );
+}
+
+export default function ProductsList({ products }: { products: Product[] }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-paper py-12">
+          <div className="container mx-auto px-4 max-w-7xl animate-pulse">
+            <div className="mb-8 h-24 bg-ink/5" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="aspect-[3/4] bg-ink/5" />
+              ))}
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <ProductsListInner products={products} />
+    </Suspense>
   );
 }

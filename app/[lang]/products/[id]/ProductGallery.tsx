@@ -1,19 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/app/i18n/client";
 
 /**
  * The product photography on a detail page: one large image, with a thumbnail
  * strip and arrows once there is more than one.
  *
- * The images arrive already resolved and ordered — see productGallery, which
- * puts the colourway's hero first and de-duplicates. This component owns only
- * which one is showing.
- *
- * A single-photo product renders exactly what it did before the gallery
- * existed: no strip, no arrows, no controls to tab past.
+ * Click the hero to open a lightbox; click again inside it to toggle zoom.
+ * The images arrive already resolved and ordered — see productGallery.
  */
 export default function ProductGallery({
   images,
@@ -25,17 +21,46 @@ export default function ProductGallery({
 }) {
   const t = useT();
   const [active, setActive] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
   const count = images.length;
 
-  /**
-   * Wraps in both directions: at the last photo "next" returns to the first.
-   * A gallery is a loop, and a dead arrow button on the last frame reads as
-   * broken rather than as a boundary.
-   */
   const step = useCallback(
     (delta: number) => setActive((i) => (i + delta + count) % count),
     [count]
   );
+
+  const closeLightbox = useCallback(() => {
+    setLightboxOpen(false);
+    setZoomed(false);
+  }, []);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeLightbox();
+      } else if (count > 1 && e.key === "ArrowLeft") {
+        e.preventDefault();
+        setZoomed(false);
+        step(-1);
+      } else if (count > 1 && e.key === "ArrowRight") {
+        e.preventDefault();
+        setZoomed(false);
+        step(1);
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prev;
+    };
+  }, [lightboxOpen, closeLightbox, step, count]);
 
   const current = images[Math.min(active, count - 1)];
 
@@ -43,8 +68,6 @@ export default function ProductGallery({
     <div className="w-full max-w-md">
       <div
         className="relative w-full aspect-square"
-        // Arrow keys move through the photos once the gallery has focus, which
-        // is the behaviour a keyboard user expects from a carousel.
         onKeyDown={(e) => {
           if (count < 2) return;
           if (e.key === "ArrowLeft") {
@@ -59,15 +82,25 @@ export default function ProductGallery({
         aria-roledescription="carousel"
         aria-label={t.gallery.photosOf(alt)}
       >
-        <Image
-          key={current}
-          src={current}
-          alt={count > 1 ? t.gallery.photoOf(alt, active + 1, count) : alt}
-          fill
-          className="object-cover rounded-xl"
-          unoptimized
-          priority
-        />
+        <button
+          type="button"
+          onClick={() => {
+            setZoomed(false);
+            setLightboxOpen(true);
+          }}
+          className="absolute inset-0 z-[1] cursor-zoom-in rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+          aria-label={t.gallery.openLarger}
+        >
+          <Image
+            key={current}
+            src={current}
+            alt={count > 1 ? t.gallery.photoOf(alt, active + 1, count) : alt}
+            fill
+            className="object-cover rounded-xl pointer-events-none"
+            unoptimized
+            priority
+          />
+        </button>
 
         {count > 1 && (
           <>
@@ -89,7 +122,7 @@ export default function ProductGallery({
             </button>
 
             <p
-              className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white"
+              className="absolute bottom-2 right-2 z-10 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white"
               aria-hidden
             >
               {active + 1} / {count}
@@ -119,15 +152,85 @@ export default function ProductGallery({
                   fill
                   className="object-cover"
                   unoptimized
-                  // Only the hero is worth blocking render on. Everything past
-                  // it loads lazily, which is what lets a product carry as many
-                  // photos as it needs without the page paying for all of them.
                   loading={index === 0 ? "eager" : "lazy"}
                 />
               </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {lightboxOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.gallery.lightboxLabel(alt)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/85 p-4"
+          onClick={closeLightbox}
+        >
+          <button
+            type="button"
+            onClick={closeLightbox}
+            aria-label={t.gallery.closeLarger}
+            className="absolute right-4 top-4 z-20 rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-ink hover:bg-white"
+          >
+            {t.gallery.closeLarger}
+          </button>
+
+          {count > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomed(false);
+                  step(-1);
+                }}
+                aria-label={t.gallery.previousPhoto}
+                className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/90 p-3 text-ink hover:bg-white sm:left-6"
+              >
+                <Chevron direction="left" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomed(false);
+                  step(1);
+                }}
+                aria-label={t.gallery.nextPhoto}
+                className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/90 p-3 text-ink hover:bg-white sm:right-6"
+              >
+                <Chevron direction="right" />
+              </button>
+            </>
+          )}
+
+          <div
+            className={`relative max-h-[90vh] max-w-[min(90vw,56rem)] overflow-auto ${
+              zoomed ? "cursor-zoom-out" : "cursor-zoom-in"
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setZoomed((z) => !z);
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- lightbox needs native scaling without Next layout constraints */}
+            <img
+              src={current}
+              alt={count > 1 ? t.gallery.photoOf(alt, active + 1, count) : alt}
+              className={`mx-auto select-none transition-transform duration-200 ${
+                zoomed
+                  ? "max-h-none w-[min(160vw,72rem)] max-w-none"
+                  : "max-h-[85vh] w-auto max-w-full"
+              }`}
+              draggable={false}
+            />
+            <p className="mt-3 text-center text-sm text-paper/80">
+              {zoomed ? t.gallery.zoomOutHint : t.gallery.zoomInHint}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { connectToDB } from "@/app/api/db";
 import ProductsList from "@/app/components/ProductsList";
 import ShippingAreaBanner from "@/app/components/ShippingAreaBanner";
-import { parseCategoryFilter } from "@/app/lib/categories";
 import { getAvailableStock } from "@/app/lib/cart-limits";
 import { products as productsCollection } from "@/app/lib/db-collections";
 import {
@@ -31,12 +30,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; sort?: string }>;
 };
 
 export default async function ProductsPage({ searchParams }: Props) {
-  const { category: rawCategory } = await searchParams;
-  const initialCategory = parseCategoryFilter(rawCategory);
+  await searchParams;
 
   const { db } = await connectToDB();
   // Abandoned checkouts hold stock for ~35 minutes. Without a sweep here, a
@@ -74,11 +72,7 @@ export default async function ProductsPage({ searchParams }: Props) {
   return (
     <>
       <ShippingAreaBanner />
-      <ProductsList
-        key={initialCategory}
-        products={serialized}
-        initialCategory={initialCategory}
-      />
+      <ProductsList products={serialized} />
     </>
   );
 }

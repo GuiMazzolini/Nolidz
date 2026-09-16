@@ -4,8 +4,23 @@ import { screen } from "@testing-library/react";
 import { renderWithLocale } from "@/app/test/render";
 import userEvent from "@testing-library/user-event";
 
+const { replaceMock, searchParamsStore } = vi.hoisted(() => {
+  const params = new URLSearchParams();
+  return {
+    replaceMock: vi.fn((href: string) => {
+      const q = href.includes("?") ? href.slice(href.indexOf("?") + 1) : "";
+      // Drop locale prefix noise: keep only the query string we just wrote.
+      const next = new URLSearchParams(q);
+      params.forEach((_, key) => params.delete(key));
+      next.forEach((value, key) => params.set(key, value));
+    }),
+    searchParamsStore: params,
+  };
+});
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useRouter: () => ({ replace: replaceMock, push: vi.fn() }),
+  useSearchParams: () => searchParamsStore,
 }));
 
 import ProductsList from "@/app/components/ProductsList";
@@ -68,6 +83,8 @@ function headings() {
 }
 
 beforeEach(() => {
+  searchParamsStore.forEach((_, key) => searchParamsStore.delete(key));
+  replaceMock.mockClear();
   useCartStore.setState({
     cartProducts: [],
     guestCart: [],

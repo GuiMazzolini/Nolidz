@@ -13,7 +13,12 @@ export const BUSINESS = {
   city: "Berlin",
   country: "Deutschland",
   email: "kristiyanval@gmail.com",
+  /** Display form; use whatsappUrl for the clickable link. */
+  whatsapp: "+49 151 56176136",
 } as const;
+
+/** wa.me link (digits only, country code included). */
+export const BUSINESS_WHATSAPP_URL = "https://wa.me/4915156176136";
 
 /**
  * The postal address as lines, without the country: everything that quotes it

@@ -16,6 +16,10 @@ vi.mock("@/app/lib/use-checkout", () => ({
   }),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ back: vi.fn(), replace: vi.fn(), push: vi.fn() }),
+}));
+
 import ProductDetail from "./ProductDetail";
 import { useCartStore } from "@/app/lib/store/cartStore";
 import type { Product } from "@/app/product-data";

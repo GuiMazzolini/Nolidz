@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { formatMoney } from "@/app/lib/money";
 import CartErrorBanner from "@/app/components/CartErrorBanner";
 import ProductGallery from "./ProductGallery";
@@ -26,7 +27,10 @@ import Link from "@/app/i18n/Link";
 import { useLocale, useT } from "@/app/i18n/client";
 import dynamic from "next/dynamic";
 import {
-  categoryHref,
+  BUSINESS,
+  BUSINESS_WHATSAPP_URL,
+} from "@/app/lib/business";
+import {
   isProductCategory,
   type ProductCategory,
 } from "@/app/lib/categories";
@@ -38,10 +42,6 @@ type ProductDetailProps = {
   /** Colourway chosen on the catalog card, via `?color=`. */
   initialColor?: string | null;
 };
-
-function catalogBackHref(category?: ProductCategory): string {
-  return category ? categoryHref(category) : "/products";
-}
 
 function catalogBackLabel(
   category: ProductCategory | undefined,
@@ -70,6 +70,7 @@ export default function ProductDetail({
 }: ProductDetailProps) {
   const t = useT();
   const locale = useLocale();
+  const router = useRouter();
   const [buyingNow, setBuyingNow] = useState(false);
 
   const cartProducts = useCartStore((s) => s.cartProducts);
@@ -217,13 +218,14 @@ export default function ProductDetail({
     <>
     <div className="min-h-screen bg-paper py-12">
       <div className="container mx-auto px-4 max-w-6xl">
-        <Link
-          href={catalogBackHref(product.category)}
+        <button
+          type="button"
+          onClick={() => router.back()}
           className="mb-6 inline-flex items-center gap-1 text-sm font-semibold text-ink/70 hover:text-ink transition-colors"
         >
           <span aria-hidden>←</span>
           {catalogBackLabel(product.category, t)}
-        </Link>
+        </button>
         <CartErrorBanner />
         <div className="bg-white border-2 border-ink/10 overflow-hidden">
           <div className="flex flex-col lg:flex-row">
@@ -403,7 +405,7 @@ export default function ProductDetail({
                 </p>
               )}
 
-              <div className="mt-8 pt-8 border-t-2 border-ink/10">
+              <div className="mt-8 pt-8 border-t-2 border-ink/10 space-y-6">
                 <div className="grid grid-cols-2 gap-4 text-sm text-ink/60">
                   <div>
                     <span className="block font-semibold text-ink">
@@ -420,11 +422,33 @@ export default function ProductDetail({
                     <span className="block font-semibold text-ink">
                       {t.productDetail.easyReturns}
                     </span>
-                    {/* The promise made here is spelled out on /returns. */}
                     <Link href="/returns" className="underline hover:text-ink">
                       {t.productDetail.returnPolicy}
                     </Link>
                   </div>
+                </div>
+
+                <div className="border-t-2 border-ink/10 pt-6 text-sm text-ink/70">
+                  <p className="font-semibold text-ink">
+                    {t.productDetail.askAboutHeading}
+                  </p>
+                  <p className="mt-1">{t.productDetail.askAboutBody}</p>
+                  <p className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                    <a
+                      href={`mailto:${BUSINESS.email}?subject=${encodeURIComponent(product.name)}`}
+                      className="font-semibold text-ink underline hover:text-ink/70"
+                    >
+                      {t.productDetail.askEmail}: {BUSINESS.email}
+                    </a>
+                    <a
+                      href={BUSINESS_WHATSAPP_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold text-ink underline hover:text-ink/70"
+                    >
+                      {t.productDetail.askWhatsApp}: {BUSINESS.whatsapp}
+                    </a>
+                  </p>
                 </div>
               </div>
             </div>

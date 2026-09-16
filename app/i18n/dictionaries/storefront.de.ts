@@ -163,6 +163,11 @@ const storefront: StorefrontDict = {
       `Standard ${standard} · ab ${threshold} gratis`,
     easyReturns: "Einfache Rückgabe",
     returnPolicy: "15 Tage Rückgaberecht",
+    askAboutHeading: "Fragen zu diesem Paar?",
+    askAboutBody:
+      "Schreib uns per E-Mail oder WhatsApp — gerne zu Größe, Zustand oder allem anderen.",
+    askEmail: "E-Mail",
+    askWhatsApp: "WhatsApp",
     inColour: (name, color) => `${name} in ${color}`,
     stock: {
       outOfStockEverySize: "In allen Größen ausverkauft",
@@ -182,6 +187,11 @@ const storefront: StorefrontDict = {
     photoOf: (alt, index, total) => `${alt} – Foto ${index} von ${total}`,
     previousPhoto: "Vorheriges Foto",
     nextPhoto: "Nächstes Foto",
+    openLarger: "Foto vergrößern",
+    closeLarger: "Schließen",
+    lightboxLabel: (alt) => `${alt} — große Ansicht`,
+    zoomInHint: "Klicken zum Vergrößern",
+    zoomOutHint: "Klicken zum Verkleinern",
     productPhotos: "Produktfotos",
     showPhoto: (index, total) => `Foto ${index} von ${total} anzeigen`,
   },

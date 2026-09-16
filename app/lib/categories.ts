@@ -33,7 +33,47 @@ export function parseCategoryFilter(value: string | null | undefined): CategoryF
 }
 
 export function categoryHref(category: CategoryFilter): string {
-  return category === "all" ? "/products" : `/products?category=${category}`;
+  return catalogHref({ category });
+}
+
+/** Catalog URL with optional category, search text, and sort. */
+export function catalogHref({
+  category = "all",
+  q,
+  sort,
+}: {
+  category?: CategoryFilter;
+  q?: string;
+  sort?: string;
+} = {}): string {
+  const params = new URLSearchParams();
+  if (category !== "all") params.set("category", category);
+  const query = q?.trim();
+  if (query) params.set("q", query);
+  if (sort && sort !== "name-asc") params.set("sort", sort);
+  const qs = params.toString();
+  return qs ? `/products?${qs}` : "/products";
+}
+
+export const CATALOG_SORT_OPTIONS = [
+  "name-asc",
+  "price-asc",
+  "price-desc",
+  "stock-desc",
+] as const;
+
+export type CatalogSortOption = (typeof CATALOG_SORT_OPTIONS)[number];
+
+export function parseCatalogSort(
+  value: string | null | undefined
+): CatalogSortOption {
+  if (
+    value &&
+    (CATALOG_SORT_OPTIONS as readonly string[]).includes(value)
+  ) {
+    return value as CatalogSortOption;
+  }
+  return "name-asc";
 }
 
 export function matchesCategory(
